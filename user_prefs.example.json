@@ -1,0 +1,71 @@
+{
+  "_comment": "For more details on configuration, see the README.md",
+  "companies": [
+    {
+      "id": "cloudflare",
+      "board_type": "greenhouse",
+      "url": "https://boards.greenhouse.io/cloudflare"
+    },
+    {
+      "id": "discord",
+      "board_type": "greenhouse",
+      "url": "https://boards.greenhouse.io/discord"
+    },
+    {
+      "id": "stripe",
+      "board_type": "lever",
+      "url": "https://jobs.lever.co/stripe"
+    },
+    {
+      "id": "ashby-example",
+      "board_type": "generic_js",
+      "url": "https://jobs.ashbyhq.com/ashby"
+    }
+  ],
+  "title_allowlist": [
+    "Security Engineer",
+    "Product Security",
+    "Application Security",
+    "AppSec",
+    "Information Security",
+    "Cybersecurity",
+    "Cloud Security"
+  ],
+  "title_blocklist": [
+    "Director",
+    "Manager",
+    "VP",
+    "Intern",
+    "Contract",
+    "Consultant"
+  ],
+  "keywords_boost": [
+    "Zero Trust",
+    "Kubernetes",
+    "AWS",
+    "IAM",
+    "SIEM",
+    "SOC",
+    "Penetration Testing",
+    "Vulnerability",
+    "OWASP",
+    "DevSecOps"
+  ],
+  "keywords_exclude": [
+    "recruiter",
+    "sales",
+    "marketing"
+  ],
+  "location_constraints": [
+    "Remote",
+    "US",
+    "United States"
+  ],
+  "salary_floor_usd": 150000,
+  "immediate_alert_threshold": 0.9,
+  "digest_min_score": 0.7,
+  "max_companies_per_run": 15,
+  "fetch_descriptions": true,
+  "use_llm": false,
+  "llm_weight": 0.5
+}

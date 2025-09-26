@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Job Scraper Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #f8f9fa; }
+        .card { margin-bottom: 1.5rem; }
+        textarea { font-family: monospace; }
+    </style>
+</head>
+<body>
+    <div class="container mt-4">
+        <h1 class="mb-4">🎯 Job Scraper Dashboard</h1>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <div class="row">
+            <div class="col-md-8">
+                <div class="card">
+                    <div class="card-header">
+                        <h4>Configuration (user_prefs.json)</h4>
+                    </div>
+                    <div class="card-body">
+                        <form action="/save" method="post">
+                            <textarea name="config" class="form-control" rows="25">{{ prefs | tojson(indent=2) }}</textarea>
+                            <button type="submit" class="btn btn-primary mt-3">Save Configuration</button>
+                             <a href="/logs" class="btn btn-secondary mt-3">View Logs</a>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header"><h4>Database Stats</h4></div>
+                    <ul class="list-group list-group-flush">
+                        <li class="list-group-item">Total Jobs: <strong>{{ stats.total_jobs }}</strong></li>
+                        <li class="list-group-item">New in 24h: <strong>{{ stats.recent_jobs_24h }}</strong></li>
+                        <li class="list-group-item">High-Score Jobs: <strong>{{ stats.high_score_jobs }}</strong></li>
+                    </ul>
+                </div>
+                <div class="card">
+                    <div class="card-header"><h4>Recently Found Jobs</h4></div>
+                    <ul class="list-group list-group-flush">
+                         {% for job in jobs %}
+                            <li class="list-group-item">
+                                <a href="{{ job.url }}" target="_blank">{{ job.title }}</a><br>
+                                <small class="text-muted">{{ job.company }} | Score: {{ "%.2f"|format(job.score) }}</small>
+                            </li>
+                         {% else %}
+                            <li class="list-group-item">No recent jobs found.</li>
+                         {% endfor %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
