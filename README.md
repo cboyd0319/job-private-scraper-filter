@@ -21,7 +21,7 @@ The setup script will automatically install all required software (like Python) 
 
 1.  **Copy the command below:** Click the copy button to the right.
     ```powershell
-    Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; iex ((New-Object System.Net.WebClient).DownloadString('[https://raw.githubusercontent.com/path/to/your/setup_windows.ps1](https://raw.githubusercontent.com/path/to/your/setup_windows.ps1)'))
+    Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; iex ((New-Object System.Net.WebClient).DownloadString('[https://raw.githubusercontent.com/cboyd0319/job-private-scraper-filter/refs/heads/main/setup_windows.ps1](https://raw.githubusercontent.com/cboyd0319/job-private-scraper-filter/refs/heads/main/setup_windows.ps1)'))
     ```
     *(Note: You would replace the URL above with the actual raw URL to your `setup_windows.ps1` file on GitHub or another host.)*
 
