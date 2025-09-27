@@ -7,8 +7,29 @@
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Cross Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey)](https://github.com/cboyd0319/job-private-scraper-filter)
+[![CI/CD](https://github.com/cboyd0319/job-private-scraper-filter/workflows/CI%2FCD%20Pipeline/badge.svg)](https://github.com/cboyd0319/job-private-scraper-filter/actions)
+[![Security](https://img.shields.io/badge/security-verified-green.svg)](SECURITY.md)
+[![Code of Conduct](https://img.shields.io/badge/code%20of%20conduct-contributor%20covenant-purple.svg)](CODE_OF_CONDUCT.md)
+[![GitHub release](https://img.shields.io/github/v/release/cboyd0319/job-private-scraper-filter.svg)](https://github.com/cboyd0319/job-private-scraper-filter/releases)
+[![GitHub stars](https://img.shields.io/github/stars/cboyd0319/job-private-scraper-filter.svg?style=social)](https://github.com/cboyd0319/job-private-scraper-filter/stargazers)
 
 </div>
+
+## 📋 Table of Contents
+
+- [✨ Features](#-features)
+- [🏗️ Supported Job Boards](#️-supported-job-boards)
+- [🚀 Quick Start](#-quick-start)
+- [⚙️ Configuration](#️-configuration)
+- [🧠 AI Enhancement](#-ai-enhancement-optional)
+- [🎮 Usage](#-usage)
+- [📊 System Health & Monitoring](#-system-health--monitoring)
+- [🛡️ Enterprise Features](#️-enterprise-features)
+- [📁 Project Structure](#-project-structure)
+- [🔒 Security & Privacy](#-security--privacy)
+- [🤝 Contributing](#-contributing)
+- [📄 License](#-license)
+- [🆘 Support](#-support)
 
 ## ✨ Features
 

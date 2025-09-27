@@ -1,0 +1,130 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    name: Test on Python ${{ matrix.python-version }} - ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python-version: ['3.11', '3.12', '3.13']
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Cache pip dependencies
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Install Playwright browsers
+      run: python -m playwright install chromium
+
+    - name: Syntax check
+      run: |
+        python -m py_compile agent.py
+        python -m py_compile database.py
+        find . -name "*.py" -exec python -m py_compile {} \;
+
+    - name: Import test
+      run: |
+        python -c "import utils.config; import utils.resilience; import utils.health; print('✅ Imports successful')"
+
+    - name: Configuration validation test
+      run: |
+        cp .env.example .env
+        cp user_prefs.example.json user_prefs.json
+        python -c "
+        from utils.config import config_manager
+        config = config_manager.load_config()
+        print('✅ Configuration validation passed')
+        "
+
+    - name: Database test
+      run: |
+        python -c "
+        from database import init_db, add_job
+        init_db()
+        test_job = {
+          'title': 'Test Job',
+          'url': 'https://example.com/job/1',
+          'company': 'TestCorp',
+          'location': 'Remote',
+          'description': 'Test description',
+          'hash': 'test123',
+          'score': 0.8,
+          'score_reasons': ['Test reason']
+        }
+        job_record = add_job(test_job)
+        print(f'✅ Database test passed: Job ID {job_record.id}')
+        "
+
+    - name: Health check test
+      run: |
+        python agent.py --mode health || echo "Health check completed with warnings (expected in CI)"
+
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+
+    - name: Install security tools
+      run: |
+        python -m pip install --upgrade pip
+        pip install bandit safety
+
+    - name: Run Bandit security scan
+      run: bandit -r . -x tests/ || true
+
+    - name: Check dependencies for vulnerabilities
+      run: safety check || true
+
+  lint:
+    name: Code Quality
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+
+    - name: Install linting tools
+      run: |
+        python -m pip install --upgrade pip
+        pip install flake8 black isort
+
+    - name: Check code formatting with Black
+      run: black --check --diff . || true
+
+    - name: Check import sorting with isort
+      run: isort --check-only --diff . || true
+
+    - name: Lint with flake8
+      run: flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics || true

@@ -1,0 +1,16 @@
+# GitHub Sponsors configuration file
+# See https://docs.github.com/articles/displaying-a-sponsor-button-in-your-repository
+
+# GitHub Sponsors (replace with your username when available)
+# github: [cboyd0319]
+
+# Other funding platforms
+# patreon: username
+# open_collective: username
+# ko_fi: username
+# liberapay: username
+# issuehunt: username
+# otechie: username
+
+# Custom funding URLs
+custom: ["https://github.com/cboyd0319/job-private-scraper-filter"]

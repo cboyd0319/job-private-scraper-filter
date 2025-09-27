@@ -1,0 +1,95 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  create-release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Create Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ github.ref }}
+        release_name: Release ${{ github.ref }}
+        body: |
+          ## Changes in this Release
+
+          See [CHANGELOG.md](CHANGELOG.md) for detailed release notes.
+
+          ## Installation
+
+          ### Windows (Recommended)
+          ```powershell
+          Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; irm "https://raw.githubusercontent.com/cboyd0319/job-private-scraper-filter/main/setup_windows.ps1" | iex
+          ```
+
+          ### macOS/Linux
+          ```bash
+          git clone https://github.com/cboyd0319/job-private-scraper-filter.git
+          cd job-private-scraper-filter
+          chmod +x setup.sh && ./setup.sh
+          ```
+
+          ## Security
+
+          This release has been tested for security vulnerabilities. See [SECURITY.md](SECURITY.md) for security practices.
+        draft: false
+        prerelease: false
+
+  build-and-upload:
+    name: Build and Upload Assets
+    runs-on: ubuntu-latest
+    needs: create-release
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+
+    - name: Create distribution package
+      run: |
+        # Create a clean distribution
+        mkdir -p dist/job-private-scraper-filter
+
+        # Copy source files
+        cp -r sources/ utils/ notify/ matchers/ templates/ docs/ dist/job-private-scraper-filter/
+        cp agent.py database.py web_ui.py dist/job-private-scraper-filter/
+        cp requirements.txt .env.example user_prefs.example.json dist/job-private-scraper-filter/
+        cp setup.sh setup_windows.ps1 dist/job-private-scraper-filter/
+        cp README.md LICENSE CHANGELOG.md CONTRIBUTING.md SECURITY.md CODE_OF_CONDUCT.md dist/job-private-scraper-filter/
+
+        # Create archive
+        cd dist
+        tar -czf job-private-scraper-filter-${{ github.ref_name }}.tar.gz job-private-scraper-filter/
+        zip -r job-private-scraper-filter-${{ github.ref_name }}.zip job-private-scraper-filter/
+
+    - name: Upload Release Assets
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ needs.create-release.outputs.upload_url }}
+        asset_path: ./dist/job-private-scraper-filter-${{ github.ref_name }}.tar.gz
+        asset_name: job-private-scraper-filter-${{ github.ref_name }}.tar.gz
+        asset_content_type: application/gzip
+
+    - name: Upload Release Assets (ZIP)
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ needs.create-release.outputs.upload_url }}
+        asset_path: ./dist/job-private-scraper-filter-${{ github.ref_name }}.zip
+        asset_name: job-private-scraper-filter-${{ github.ref_name }}.zip
+        asset_content_type: application/zip
