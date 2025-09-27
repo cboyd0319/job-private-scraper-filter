@@ -1,7 +1,9 @@
-# 🔍 Private Job Scraper & Filter
 
 # WAIT
 ## This project is VERY new, and I am making updates quite often. It is NOT ready for use. I will remove this message when it is.
+
+
+# 🔍 Private Job Scraper & Filter
 
 <div align="center">
 
