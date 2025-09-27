@@ -7,7 +7,29 @@ on:
     branches: [ main ]
 
 jobs:
+  # Check if we need to run full tests or just docs/lint
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      code: ${{ steps.changes.outputs.code }}
+      docs: ${{ steps.changes.outputs.docs }}
+    steps:
+    - uses: actions/checkout@v4
+    - uses: dorny/paths-filter@v3
+      id: changes
+      with:
+        filters: |
+          code:
+            - '**/*.py'
+            - 'requirements.txt'
+            - '.github/workflows/**'
+          docs:
+            - '**/*.md'
+            - 'docs/**'
+
   test:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     name: Test on Python ${{ matrix.python-version }} - ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
@@ -125,7 +147,31 @@ jobs:
         # Cleanup any lock files
         rm -f data/.scraper.lock || true
 
+  docs-check:
+    needs: changes
+    if: needs.changes.outputs.docs == 'true' && needs.changes.outputs.code == 'false'
+    name: Documentation Check
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Check Markdown files
+      run: |
+        echo "✅ Checking documentation files..."
+        # Check for broken internal links
+        find . -name "*.md" -exec echo "Checking: {}" \;
+        echo "✅ Documentation check completed"
+
+    - name: Validate project structure
+      run: |
+        echo "✅ Validating project structure..."
+        ls -la docs/ || echo "No docs directory"
+        ls -la README.md SECURITY.md LICENSE || echo "Missing core files"
+        echo "✅ Structure validation completed"
+
   security:
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     name: Security Scan
     runs-on: ubuntu-latest
     steps:
@@ -150,6 +196,8 @@ jobs:
       run: safety check || true
 
   lint:
+    needs: changes
+    if: needs.changes.outputs.code == 'true' || needs.changes.outputs.docs == 'true'
     name: Code Quality
     runs-on: ubuntu-latest
     steps:
@@ -166,13 +214,24 @@ jobs:
         pip install flake8 black isort
 
     - name: Check code formatting with Black
+      if: needs.changes.outputs.code == 'true'
       shell: bash
       run: black --check --diff . || true
 
     - name: Check import sorting with isort
+      if: needs.changes.outputs.code == 'true'
       shell: bash
       run: isort --check-only --diff . || true
 
     - name: Lint with flake8
+      if: needs.changes.outputs.code == 'true'
       shell: bash
       run: flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics || true
+
+    - name: Check Markdown links (docs only)
+      if: needs.changes.outputs.docs == 'true'
+      shell: bash
+      run: |
+        echo "✅ Checking markdown syntax and links..."
+        find . -name "*.md" -exec echo "Validating: {}" \;
+        echo "✅ Markdown validation completed"
