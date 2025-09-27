@@ -40,10 +40,26 @@ jobs:
       run: python -m playwright install chromium
 
     - name: Syntax check
+      shell: bash
       run: |
         python -m py_compile agent.py
         python -m py_compile database.py
-        find . -name "*.py" -exec python -m py_compile {} \;
+        # Cross-platform Python file compilation
+        python -c "
+        import os
+        import py_compile
+        for root, dirs, files in os.walk('.'):
+            for file in files:
+                if file.endswith('.py'):
+                    filepath = os.path.join(root, file)
+                    try:
+                        py_compile.compile(filepath, doraise=True)
+                        print(f'✓ {filepath}')
+                    except py_compile.PyCompileError as e:
+                        print(f'✗ {filepath}: {e}')
+                        exit(1)
+        print('All Python files compiled successfully')
+        "
 
     - name: Import test
       run: |
@@ -99,9 +115,11 @@ jobs:
         pip install bandit safety
 
     - name: Run Bandit security scan
-      run: bandit -r . -x tests/ || true
+      shell: bash
+      run: bandit -r . --exclude ./tests/ || true
 
     - name: Check dependencies for vulnerabilities
+      shell: bash
       run: safety check || true
 
   lint:
@@ -121,10 +139,13 @@ jobs:
         pip install flake8 black isort
 
     - name: Check code formatting with Black
+      shell: bash
       run: black --check --diff . || true
 
     - name: Check import sorting with isort
+      shell: bash
       run: isort --check-only --diff . || true
 
     - name: Lint with flake8
+      shell: bash
       run: flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics || true
