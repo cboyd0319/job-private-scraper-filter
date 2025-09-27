@@ -1,0 +1,42 @@
+name: Dependency Submission
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'requirements.txt'
+      - 'setup.py'
+      - 'pyproject.toml'
+      - '.github/workflows/dependency-submission.yml'
+  schedule:
+    # Run weekly to keep dependency graph updated
+    - cron: '0 6 * * 1'  # Every Monday at 6 AM UTC
+
+permissions:
+  contents: read
+  actions: read
+  security-events: write
+
+jobs:
+  dependency-submission:
+    runs-on: ubuntu-latest
+    name: Submit Python Dependencies
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Submit dependencies to GitHub
+      uses: py-actions/py-dependency-submission@v4
+      with:
+        python-version: '3.12'
+        requirements: 'requirements.txt'
