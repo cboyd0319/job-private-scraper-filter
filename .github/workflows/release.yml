@@ -3,14 +3,83 @@ name: Release
 on:
   push:
     tags:
-      - 'v*'
+      - 'v*.*.*'  # Semantic versioning tags only
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., 1.0.1)'
+        required: true
+        type: string
 
 jobs:
   create-release:
     name: Create Release
     runs-on: ubuntu-latest
+    outputs:
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
+      version: ${{ steps.extract_version.outputs.version }}
     steps:
     - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0  # Get full history for changelog
+
+    - name: Extract version
+      id: extract_version
+      run: |
+        if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+          VERSION="${{ github.event.inputs.version }}"
+        else
+          VERSION=${GITHUB_REF#refs/tags/v}
+        fi
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        echo "Version: $VERSION"
+
+    - name: Update VERSION file
+      run: |
+        echo "${{ steps.extract_version.outputs.version }}" > VERSION
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add VERSION
+        git commit -m "chore: bump version to ${{ steps.extract_version.outputs.version }}" || exit 0
+
+    - name: Generate changelog
+      id: changelog
+      run: |
+        # Generate changelog from git commits since last tag
+        LAST_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+        if [ -z "$LAST_TAG" ]; then
+          CHANGELOG=$(git log --pretty=format:"- %s" --reverse)
+        else
+          CHANGELOG=$(git log ${LAST_TAG}..HEAD --pretty=format:"- %s" --reverse)
+        fi
+
+        # Save to file for upload
+        cat > release_notes.md << EOF
+        ## What's Changed
+
+        $CHANGELOG
+
+        ## Installation
+
+        ### Windows (Recommended)
+        \`\`\`powershell
+        Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; irm "https://raw.githubusercontent.com/cboyd0319/job-private-scraper-filter/main/setup_windows.ps1" | iex
+        \`\`\`
+
+        ### macOS/Linux
+        \`\`\`bash
+        git clone https://github.com/cboyd0319/job-private-scraper-filter.git
+        cd job-private-scraper-filter
+        git checkout v${{ steps.extract_version.outputs.version }}
+        chmod +x setup.sh && ./setup.sh
+        \`\`\`
+
+        ## Security
+
+        This release has been tested for security vulnerabilities. See [SECURITY.md](SECURITY.md) for security practices.
+
+        **Full Changelog**: https://github.com/cboyd0319/job-private-scraper-filter/compare/${LAST_TAG}...v${{ steps.extract_version.outputs.version }}
+        EOF
 
     - name: Create Release
       id: create_release
@@ -18,30 +87,9 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        tag_name: ${{ github.ref }}
-        release_name: Release ${{ github.ref }}
-        body: |
-          ## Changes in this Release
-
-          See [CHANGELOG.md](CHANGELOG.md) for detailed release notes.
-
-          ## Installation
-
-          ### Windows (Recommended)
-          ```powershell
-          Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; irm "https://raw.githubusercontent.com/cboyd0319/job-private-scraper-filter/main/setup_windows.ps1" | iex
-          ```
-
-          ### macOS/Linux
-          ```bash
-          git clone https://github.com/cboyd0319/job-private-scraper-filter.git
-          cd job-private-scraper-filter
-          chmod +x setup.sh && ./setup.sh
-          ```
-
-          ## Security
-
-          This release has been tested for security vulnerabilities. See [SECURITY.md](SECURITY.md) for security practices.
+        tag_name: v${{ steps.extract_version.outputs.version }}
+        release_name: "Job Scraper v${{ steps.extract_version.outputs.version }}"
+        body_path: release_notes.md
         draft: false
         prerelease: false
 
@@ -71,8 +119,8 @@ jobs:
 
         # Create archive
         cd dist
-        tar -czf job-private-scraper-filter-${{ github.ref_name }}.tar.gz job-private-scraper-filter/
-        zip -r job-private-scraper-filter-${{ github.ref_name }}.zip job-private-scraper-filter/
+        tar -czf job-private-scraper-filter-v${{ needs.create-release.outputs.version }}.tar.gz job-private-scraper-filter/
+        zip -r job-private-scraper-filter-v${{ needs.create-release.outputs.version }}.zip job-private-scraper-filter/
 
     - name: Upload Release Assets
       uses: actions/upload-release-asset@v1
@@ -80,8 +128,8 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ needs.create-release.outputs.upload_url }}
-        asset_path: ./dist/job-private-scraper-filter-${{ github.ref_name }}.tar.gz
-        asset_name: job-private-scraper-filter-${{ github.ref_name }}.tar.gz
+        asset_path: ./dist/job-private-scraper-filter-v${{ needs.create-release.outputs.version }}.tar.gz
+        asset_name: job-private-scraper-filter-v${{ needs.create-release.outputs.version }}.tar.gz
         asset_content_type: application/gzip
 
     - name: Upload Release Assets (ZIP)
@@ -90,6 +138,6 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ needs.create-release.outputs.upload_url }}
-        asset_path: ./dist/job-private-scraper-filter-${{ github.ref_name }}.zip
-        asset_name: job-private-scraper-filter-${{ github.ref_name }}.zip
+        asset_path: ./dist/job-private-scraper-filter-v${{ needs.create-release.outputs.version }}.zip
+        asset_name: job-private-scraper-filter-v${{ needs.create-release.outputs.version }}.zip
         asset_content_type: application/zip

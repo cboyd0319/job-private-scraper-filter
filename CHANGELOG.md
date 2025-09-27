@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- Professional release and versioning system
+- Automated changelog generation from commits
+- Semantic versioning with GitHub Actions automation
+- Release asset building and distribution
+- Version display in CLI with `--version` flag
+
+### Changed
+- Optimized CI/CD pipeline to skip heavy tests for documentation-only changes
+- Enhanced release workflow with automated release notes
+
+---
+
 ## [1.0.0] - 2025-01-26
 
 ### Added

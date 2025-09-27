@@ -329,8 +329,19 @@ def health_check():
 
 def main():
     """Main entry point for the job scraper agent."""
+    # Import version info
+    try:
+        from . import __version__
+    except ImportError:
+        try:
+            from pathlib import Path
+            version_file = Path(__file__).parent / "VERSION"
+            __version__ = version_file.read_text().strip() if version_file.exists() else "1.0.0"
+        except Exception:
+            __version__ = "1.0.0"
+
     parser = argparse.ArgumentParser(
-        description="Private Job Scraper Agent",
+        description=f"Private Job Scraper Agent v{__version__}",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""Examples:
   %(prog)s --mode poll        # Scrape job boards and send alerts
@@ -338,6 +349,11 @@ def main():
   %(prog)s --mode test        # Test notification channels
   %(prog)s --mode cleanup     # Clean up old database entries
         """
+    )
+    parser.add_argument(
+        "--version",
+        action="version",
+        version=f"%(prog)s {__version__}"
     )
     parser.add_argument(
         "--mode",
