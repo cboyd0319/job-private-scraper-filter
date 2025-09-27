@@ -2,36 +2,19 @@
   "_comment": "For more details on configuration, see the README.md",
   "companies": [
     {
-    "id": "cloudflare",
-    "board_type": "greenhouse",
-    "url": "https://boards.greenhouse.io/cloudflare",
-    "llm_weight": 0.8,
-    "keywords_boost": ["CDN", "DDoS"]
-  },
+      "id": "cloudflare",
+      "board_type": "greenhouse",
+      "url": "https://boards.greenhouse.io/cloudflare"
+    },
     {
       "id": "discord",
       "board_type": "greenhouse",
-      "url": "https://boards.greenhouse.io/discord",
-      "llm_weight": 0.7,
-      "keywords_boost": ["Chat", "Voice", "Community"]
+      "url": "https://boards.greenhouse.io/discord"
     },
     {
       "id": "stripe",
       "board_type": "lever",
-      "url": "https://jobs.lever.co/stripe",
-      "llm_weight": 0.6,
-      "keywords_boost": ["Payments", "Fintech", "API"]
-    },
-    {
-      "id": "some-new-company",
-      "board_type": "generic_js",
-      "url": "https://careers.newcompany.com/jobs",
-      "custom_selectors": {
-      "job_item": ".job-listing-item",
-      "title": ".job-title",
-      "url": "a.job-link",
-      "location": ".location-text"
-      }
+      "url": "https://jobs.lever.co/stripe"
     },
     {
       "id": "ashby-example",

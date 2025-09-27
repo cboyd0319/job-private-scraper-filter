@@ -1,14 +1,27 @@
-playwright==1.45.1
-requests==2.32.3
-pydantic==2.8.2
-sqlmodel==0.0.19
-python-dotenv==1.0.1
-tenacity==8.5.0
-beautifulsoup4==4.12.3
-lxml==5.3.0
-aiofiles==24.1.0
-psutil==6.0.0
-Flask==3.0.3
+# Python Job Scraper Requirements
+#
+# Compatibility: Tested with Python 3.11-3.13
+# For optimal compatibility, Python 3.11 or 3.12 is recommended
+# On Python 3.13, some packages may require compilation from source
+
+# Core scraping and web automation
+playwright>=1.55.0
+requests>=2.32.0
+beautifulsoup4>=4.12.0
+lxml>=6.0.0
+
+# Data handling and validation
+pydantic>=2.11.0
+sqlmodel>=0.0.25
+python-dotenv>=1.1.0
+
+# Utility libraries
+tenacity>=9.0.0
+aiofiles>=24.1.0
+psutil>=7.0.0
+
+# Web interface (optional)
+Flask>=3.1.0
 
 # Optional: For ChatGPT API integration
 # Uncomment to enable AI-enhanced scoring

@@ -40,5 +40,27 @@ data/
 .vscode/
 .idea/
 
-# macOS system files
+# User configuration files (should be created from examples)
+user_prefs.json
+
+# Runtime files and logs
+*.log
+*.sqlite
+*.db
+
+# Backup files
+*_backup_*
+*.bak
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+
+# OS-specific files
 .DS_Store
+Thumbs.db
+desktop.ini
+
+# Playwright browsers (downloaded by setup scripts)
+~/.cache/ms-playwright/
