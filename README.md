@@ -1,5 +1,8 @@
 # 🔍 Private Job Scraper & Filter
 
+# WAIT
+## This project is VERY new, and I am making updates quite often. It is NOT ready for use. I will remove this message when it is.
+
 <div align="center">
 
 **A robust, enterprise-grade job monitoring service that runs entirely on your own machine**
