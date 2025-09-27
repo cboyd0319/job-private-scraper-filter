@@ -1,8 +1,8 @@
 # Code of Conduct
 
-## Our Commitment
+## My Commitment
 
-We are committed to providing a welcoming and inclusive environment for all contributors and users of this project, regardless of background, experience level, or identity.
+I am committed to providing a welcoming and inclusive environment for all contributors and users of this project, regardless of background, experience level, or identity.
 
 ## Expected Behavior
 
@@ -37,4 +37,4 @@ This Code of Conduct is adapted from open source community standards and best pr
 
 ---
 
-*We want this to be a positive space for everyone interested in job automation and privacy-focused tools.*
+*I want this to be a positive space for everyone interested in job automation and privacy-focused tools.*

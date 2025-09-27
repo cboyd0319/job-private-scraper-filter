@@ -1,10 +1,10 @@
 # 🚀 Future Enhancements Roadmap
 
-This document outlines potential enhancements that could maximize the effectiveness of the Private Job Scraper & Filter while maintaining our core principle of **super easy deployment and use**.
+This document outlines potential enhancements that could maximize the effectiveness of the Private Job Scraper & Filter while maintaining the core principle of **super easy deployment and use**.
 
-> **Current Focus**: We're prioritizing making the core solution as robust and reliable as possible. These enhancements represent future possibilities based on community feedback and demand.
+> **Current Focus**: I'm prioritizing making the core solution as robust and reliable as possible. These enhancements represent future possibilities based on community feedback and demand.
 
-**Want to see any of these features?** Please [create an issue](https://github.com/cboyd0319/job-private-scraper-filter/issues) or start a [discussion](https://github.com/cboyd0319/job-private-scraper-filter/discussions) to let us know!
+**Want to see any of these features?** Please [create an issue](https://github.com/cboyd0319/job-private-scraper-filter/issues) or start a [discussion](https://github.com/cboyd0319/job-private-scraper-filter/discussions) to let me know!
 
 ---
 

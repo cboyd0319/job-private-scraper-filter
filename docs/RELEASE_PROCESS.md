@@ -4,7 +4,7 @@ This document outlines the professional release and versioning system for the Pr
 
 ## 📋 Versioning Strategy
 
-We follow **[Semantic Versioning (SemVer)](https://semver.org/)** with the format `MAJOR.MINOR.PATCH`:
+This project follows **[Semantic Versioning (SemVer)](https://semver.org/)** with the format `MAJOR.MINOR.PATCH`:
 
 - **MAJOR** (X.0.0) - Breaking changes that require user action
 - **MINOR** (0.X.0) - New features that are backward compatible
@@ -60,7 +60,7 @@ We follow **[Semantic Versioning (SemVer)](https://semver.org/)** with the forma
 
 ## 📝 Release Notes Format
 
-Our automated system generates release notes with:
+The automated system generates release notes with:
 
 ### ✅ Automatic Sections:
 - **What's Changed** - Generated from commit messages

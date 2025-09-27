@@ -2,7 +2,7 @@
 
 ## 🔒 Security Overview
 
-The Private Job Scraper & Filter is designed with **privacy and security as core principles**. This document outlines our security practices and how to report vulnerabilities.
+The Private Job Scraper & Filter is designed with **privacy and security as core principles**. This document outlines the security practices and how to report vulnerabilities.
 
 ## 🛡️ Security Features
 
@@ -27,7 +27,7 @@ The Private Job Scraper & Filter is designed with **privacy and security as core
 
 ## 📋 Supported Versions
 
-We provide security updates for the following versions:
+Security updates are provided for the following versions:
 
 | Version | Supported          |
 | ------- | ------------------ |
@@ -123,7 +123,7 @@ Please provide:
 
 ## 🏆 Security Recognition
 
-We appreciate security researchers who help improve our project:
+I appreciate security researchers who help improve this project:
 
 ### Hall of Fame
 *Contributors who responsibly disclose vulnerabilities will be listed here (with permission)*
@@ -144,14 +144,14 @@ For urgent security matters:
 
 ## 🔐 Threat Model
 
-### Threats We Protect Against
+### Threats This Project Protects Against
 - **Credential Theft**: Environment variable isolation
 - **Data Exfiltration**: Local-only processing
 - **Code Injection**: Input validation and sanitization
 - **Denial of Service**: Rate limiting and resource controls
 - **Supply Chain Attacks**: Dependency pinning and verification
 
-### Threats Outside Our Scope
+### Threats Outside This Project's Scope
 - **Physical Access**: Secure your computer and file systems
 - **Network Interception**: Use HTTPS and secure networks
 - **Social Engineering**: Verify communications authenticity
@@ -165,6 +165,6 @@ For urgent security matters:
 
 ---
 
-**Remember: Security is a shared responsibility. We provide secure defaults, but users must follow security best practices for their environment.**
+**Remember: Security is a shared responsibility. This project provides secure defaults, but users must follow security best practices for their environment.**
 
 *Last updated: January 26, 2025*
