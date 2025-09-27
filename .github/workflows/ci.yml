@@ -26,7 +26,9 @@ jobs:
     - name: Cache pip dependencies
       uses: actions/cache@v4
       with:
-        path: ~/.cache/pip
+        path: |
+          ~/.cache/pip
+          ~\AppData\Local\pip\Cache
         key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
         restore-keys: |
           ${{ runner.os }}-pip-
@@ -48,36 +50,49 @@ jobs:
         python -c "
         import os
         import py_compile
+        count = 0
         for root, dirs, files in os.walk('.'):
             for file in files:
                 if file.endswith('.py'):
                     filepath = os.path.join(root, file)
                     try:
                         py_compile.compile(filepath, doraise=True)
-                        print(f'✓ {filepath}')
+                        print('OK: ' + filepath)
+                        count += 1
                     except py_compile.PyCompileError as e:
-                        print(f'✗ {filepath}: {e}')
+                        print('ERROR: ' + filepath + ': ' + str(e))
                         exit(1)
-        print('All Python files compiled successfully')
+        print('SUCCESS: All ' + str(count) + ' Python files compiled successfully')
         "
 
     - name: Import test
+      shell: bash
       run: |
-        python -c "import utils.config; import utils.resilience; import utils.health; print('✅ Imports successful')"
+        python -c "import utils.config; import utils.resilience; import utils.health; print('SUCCESS: Imports successful')"
 
     - name: Configuration validation test
+      shell: bash
       run: |
         cp .env.example .env
         cp user_prefs.example.json user_prefs.json
+        # Set proper permissions to avoid warnings
+        chmod 600 .env || true
         python -c "
+        import os
+        os.environ['CI'] = 'true'  # Suppress CI-specific warnings
         from utils.config import config_manager
         config = config_manager.load_config()
-        print('✅ Configuration validation passed')
+        print('SUCCESS: Configuration validation passed')
         "
 
     - name: Database test
+      shell: bash
       run: |
+        # Create data directory for CI
+        mkdir -p data/logs data/backups
         python -c "
+        import os
+        os.environ['CI'] = 'true'
         from database import init_db, add_job
         init_db()
         test_job = {
@@ -91,12 +106,24 @@ jobs:
           'score_reasons': ['Test reason']
         }
         job_record = add_job(test_job)
-        print(f'✅ Database test passed: Job ID {job_record.id}')
+        print('SUCCESS: Database test passed - Job ID ' + str(job_record.id))
         "
 
     - name: Health check test
+      shell: bash
       run: |
-        python agent.py --mode health || echo "Health check completed with warnings (expected in CI)"
+        # Set CI environment to suppress interactive prompts
+        export CI=true
+        # Ensure data directories exist
+        mkdir -p data/logs data/backups
+        # Run health check in non-interactive mode (with cross-platform timeout)
+        if command -v timeout >/dev/null 2>&1; then
+          timeout 30s python agent.py --mode health || echo "Health check completed (warnings expected in CI environment)"
+        else
+          python agent.py --mode health || echo "Health check completed (warnings expected in CI environment)"
+        fi
+        # Cleanup any lock files
+        rm -f data/.scraper.lock || true
 
   security:
     name: Security Scan
@@ -116,7 +143,7 @@ jobs:
 
     - name: Run Bandit security scan
       shell: bash
-      run: bandit -r . --exclude ./tests/ || true
+      run: bandit -r . --exclude ./.git,./.github,./data || true
 
     - name: Check dependencies for vulnerabilities
       shell: bash
