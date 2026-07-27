@@ -95,7 +95,7 @@
     "@playwright/test": "1.61.1",
     "@storybook/addon-a11y": "10.5.2",
     "@storybook/addon-docs": "10.5.2",
-    "@storybook/addon-vitest": "10.5.2",
+    "@storybook/addon-vitest": "10.5.4",
     "@storybook/react-vite": "10.5.2",
     "@tailwindcss/vite": "4.3.3",
     "@tauri-apps/cli": "2.11.4",
