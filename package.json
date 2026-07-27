@@ -88,7 +88,7 @@
     "react": "19.2.7",
     "react-dom": "19.2.7",
     "recharts": "3.9.2",
-    "web-vitals": "5.3.0"
+    "web-vitals": "6.0.0"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
