@@ -2,7 +2,7 @@
 
 # Current Status
 
-Last updated: 2026-07-22
+Last updated: 2026-08-11
 
 ## Done
 
@@ -45,8 +45,10 @@ Last updated: 2026-07-22
   scoring exist behind caller-owned runtime inputs; Settings remains read-only. Source and runtime metadata identify
   unreleased 3.0.0, and exact compatible packs reach the production parser. A bounded application reader reopens a
   Ready static Agent Skill only after generation, trust, signature, artifact, and self-test checks, returning plain
-  signed text, resources, and an advisory handoff without execution. Startup reconciliation and skill UI are unwired.
-- Next action: Approve publisher ceilings. Then bind the production artifact root and startup.
+  signed text, resources, and an advisory handoff without execution. Pack review now exposes and validates the immutable
+  publisher public-key fingerprint as well as its key ID. Startup reconciliation and skill UI are unwired.
+- Next action: Approve the exact production publisher key IDs, public-key fingerprints, and capability ceilings. Then
+  bind the production artifact root and startup.
   Finish source-pack drop, lifecycle controls, product-target evaluation and reviewed local execution, and live
   platform proof.
 

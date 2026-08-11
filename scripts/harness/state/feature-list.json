@@ -1,5 +1,5 @@
 {
-  "schema": "jobsentinel.feature_list.v1", "project": "JobSentinel", "last_updated": "2026-07-22", "active_status": "active",
+  "schema": "jobsentinel.feature_list.v1", "project": "JobSentinel", "last_updated": "2026-08-11", "active_status": "active",
   "rules": { "single_active_feature": true, "passing_requires_evidence": true, "passing_is_irreversible": true },
   "features": [
     {
