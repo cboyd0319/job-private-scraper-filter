@@ -41,16 +41,14 @@ Last updated: 2026-08-11
 
 - Active feature: `v3-milestone-7-agent-pack-runtime`
 - Status: `active`
-- Current slice: Pack persistence, lifecycle, cleanup, reviewed execution, management facts, and private evaluation
-  scoring exist behind caller-owned runtime inputs; Settings remains read-only. Source and runtime metadata identify
-  unreleased 3.0.0, and exact compatible packs reach the production parser. A bounded application reader reopens a
-  Ready static Agent Skill only after generation, trust, signature, artifact, and self-test checks, returning plain
-  signed text, resources, and an advisory handoff without execution. Pack review now exposes and validates the immutable
-  publisher public-key fingerprint as well as its key ID. Startup reconciliation and skill UI are unwired.
-- Next action: Approve the exact production publisher key IDs, public-key fingerprints, and capability ceilings. Then
-  bind the production artifact root and startup.
-  Finish source-pack drop, lifecycle controls, product-target evaluation and reviewed local execution, and live
-  platform proof.
+- Current slice: Signed packs have bounded persistence, lifecycle, cleanup, reviewed execution, management, private
+  evaluation scoring, and a verified static-skill reader behind caller-owned trust. Settings is read-only, and pack
+  review exposes the key ID and immutable public-key fingerprint. Desktop startup owns the fixed platform app-data
+  `pack-artifacts` path without creating it or loading trust. Database startup cancels expired reviewed-task approvals
+  and fails interrupted started tasks before returning. Active-artifact reconciliation and skill UI remain unwired.
+- Next action: Approve exact production key IDs, fingerprints, and ceilings. Then compile immutable trust and reconcile
+  active artifacts at startup. Finish source-pack drop, lifecycle controls, product-target evaluation, reviewed local
+  execution, and live platform proof.
 
 ## Deferred
 
