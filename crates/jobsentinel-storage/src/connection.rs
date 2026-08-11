@@ -1,6 +1,4 @@
-//! Database connection and configuration
-//!
-//! Handles SQLite connection, PRAGMA configuration, and migrations.
+//! Owns encrypted SQLite connections, configuration, migrations, and startup recovery.
 
 mod backups;
 mod portable_backup;
@@ -258,6 +256,10 @@ impl Database {
                 tracing::error!("Pack lifecycle startup reconciliation failed");
                 sqlx::Error::Protocol("Pack lifecycle startup reconciliation failed".into())
             })?;
+        self.reconcile_pack_tasks().await.map_err(|_| {
+            tracing::error!("Reviewed pack task startup reconciliation failed");
+            sqlx::Error::Protocol("Reviewed pack task startup reconciliation failed".into())
+        })?;
         Self::configure_database(&self.pool).await?;
         sqlx::query("PRAGMA user_version = 2")
             .execute(&self.pool)

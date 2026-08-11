@@ -1,3 +1,5 @@
+//! Boots the Tauri shell, managed application state, recovery mode, and scheduler.
+
 mod state;
 
 use crate::desktop;
@@ -114,7 +116,14 @@ pub(crate) fn run() {
             let config_arc = Arc::clone(&services.config);
             let scheduler_arc = Arc::clone(&services.scheduler);
             let scheduler_status = Arc::clone(&services.scheduler_status);
-            app.manage(AppState::from(services));
+            let app_state = AppState::from(services);
+            tracing::debug!(
+                artifact_root = %desktop::path_label_for_logging(
+                    app_state.pack_runtime.artifact_root()
+                ),
+                "Pack runtime environment bound"
+            );
+            app.manage(app_state);
             app.manage(ipc::native_file_drop::NativeFileDropState::default());
             app.manage(StartupRecoveryState::new(
                 platform_recovery_required,

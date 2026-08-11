@@ -1,3 +1,5 @@
+//! Constructs desktop services and reconciles startup-owned local state before use.
+
 use std::{
     path::{Path, PathBuf},
     sync::Arc,
@@ -13,6 +15,7 @@ use crate::{
         clear_config_credentials, extract_plaintext_credentials, is_migrated, set_migrated,
         CredentialService,
     },
+    pack_runtime::PackRuntimeEnvironment,
     scheduler::Scheduler,
     Config, PendingUrlImports,
 };
@@ -64,6 +67,7 @@ pub struct DesktopServices {
     pub scheduler_status: Arc<RwLock<SchedulerStatus>>,
     pub bookmarklet_server: Arc<RwLock<BookmarkletServer>>,
     pub pending_url_imports: PendingUrlImports,
+    pub pack_runtime: PackRuntimeEnvironment,
     pub is_first_run: bool,
 }
 
@@ -195,6 +199,9 @@ impl DesktopServices {
             scheduler_status,
             bookmarklet_server,
             pending_url_imports: PendingUrlImports::default(),
+            pack_runtime: PackRuntimeEnvironment::for_data_dir(
+                &jobsentinel_platform::get_data_dir(),
+            ),
             is_first_run,
         }
     }

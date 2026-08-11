@@ -18,7 +18,7 @@ use sha2::{Digest, Sha256};
 use crate::pack_runtime::{
     activate_pack_artifact, disable_pack_artifact, enable_pack_artifact,
     reconcile_active_pack_artifacts, rollback_pack_artifact, stage_pack_artifact,
-    uninstall_pack_artifacts, PackReviewState,
+    uninstall_pack_artifacts, PackReviewState, PackRuntimeEnvironment,
 };
 use crate::test_support::test_job;
 
@@ -28,6 +28,18 @@ const EVIDENCE_PUBLISHER_ID: &str = "jobsentinel-test-agent-v1";
 const EVIDENCE_PACK_ID: &str = "jobsentinel.test.evidence-review";
 const SKILL_PUBLISHER_ID: &str = "jobsentinel-test-skill-v1";
 const SKILL_PACK_ID: &str = "jobsentinel.skill.resume-evidence-review";
+
+#[test]
+fn runtime_environment_binds_the_app_data_artifact_root_without_creating_it() {
+    let app_data = tempfile::tempdir().unwrap();
+    let environment = PackRuntimeEnvironment::for_data_dir(app_data.path());
+
+    assert_eq!(
+        environment.artifact_root(),
+        app_data.path().join("pack-artifacts")
+    );
+    assert!(!environment.artifact_root().exists());
+}
 
 fn signed_source_pack(sequence: u64) -> (TrustedPublisherKey, Vec<u8>) {
     let (public_key, _) = sign_ed25519_for_test(&[7; 32], &[]).unwrap();

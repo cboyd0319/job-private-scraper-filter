@@ -43,6 +43,26 @@ async fn startup_reconciliation_cancels_expired_pending_and_fails_interrupted_st
 }
 
 #[tokio::test]
+async fn database_startup_reconciles_interrupted_reviewed_tasks_before_returning() {
+    let database = migrated_database().await;
+    let context = ready_context(database.pool()).await;
+    database.create_pack_task(&context).await.unwrap();
+    database.start_pack_task(&context).await.unwrap();
+
+    database.migrate().await.unwrap();
+
+    assert_eq!(
+        database
+            .get_pack_task(&context.run_id)
+            .await
+            .unwrap()
+            .unwrap()
+            .status,
+        crate::pack_tasks::PackTaskStatus::Failed
+    );
+}
+
+#[tokio::test]
 async fn approval_must_remain_unexpired_at_completion() {
     let database = migrated_database().await;
     let mut context = ready_context(database.pool()).await;

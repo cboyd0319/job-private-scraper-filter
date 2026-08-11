@@ -1,6 +1,6 @@
 //! Owns signed pack staging, lifecycle, recovery, review, and bounded local use.
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 use anyhow::{anyhow, Result};
 use chrono::NaiveDate;
@@ -37,6 +37,25 @@ pub use management::{
     PackReleaseReviewState, PackReviewQuarantineReason,
 };
 pub use recovery::{reconcile_active_pack_artifacts, PackArtifactReconciliation};
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PackRuntimeEnvironment {
+    artifact_root: PathBuf,
+}
+
+impl PackRuntimeEnvironment {
+    #[must_use]
+    pub fn for_data_dir(data_dir: &Path) -> Self {
+        Self {
+            artifact_root: data_dir.join("pack-artifacts"),
+        }
+    }
+
+    #[must_use]
+    pub fn artifact_root(&self) -> &Path {
+        &self.artifact_root
+    }
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]

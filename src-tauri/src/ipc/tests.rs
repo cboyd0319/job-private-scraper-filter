@@ -9,7 +9,7 @@ mod tests {
     use crate::bootstrap::AppState;
     use crate::desktop::Database;
     use chrono::Utc;
-    use jobsentinel_application::Job;
+    use jobsentinel_application::{pack_runtime::PackRuntimeEnvironment, Job};
     use std::sync::Arc;
     use tokio::sync::RwLock;
 
@@ -72,6 +72,7 @@ mod tests {
             ..Default::default()
         };
         let bookmarklet_server = BookmarkletServer::new(bookmarklet_config);
+        let pack_runtime_data_dir = tempfile::tempdir().expect("Failed to create test data dir");
 
         AppState {
             config: Arc::new(RwLock::new(config)),
@@ -85,6 +86,7 @@ mod tests {
             scheduler_status: Arc::new(RwLock::new(SchedulerStatus::default())),
             bookmarklet_server: Arc::new(RwLock::new(bookmarklet_server)),
             pending_url_imports: Default::default(),
+            pack_runtime: PackRuntimeEnvironment::for_data_dir(pack_runtime_data_dir.path()),
             pending_military_transition_reviews: Default::default(),
             outside_ai_cancellations: Default::default(),
         }
