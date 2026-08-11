@@ -23,6 +23,10 @@ async fn management_distinguishes_needs_review_from_ready_update() {
         .unwrap();
     assert_eq!(needs_review.len(), 1);
     assert_eq!(needs_review[0].state, PackReviewState::NeedsReview);
+    assert_eq!(
+        needs_review[0].publisher_public_key_sha256,
+        hex::encode(Sha256::digest(publisher.public_key))
+    );
     assert!(!needs_review[0].update_available);
     assert_eq!(needs_review[0].current_release.release_sequence, 1);
     assert_eq!(
@@ -133,6 +137,11 @@ async fn management_retains_quarantined_and_removed_review_without_artifact() {
         "JobSentinel Test"
     );
     let serialized = serde_json::to_value(&management[0]).unwrap();
+    assert_eq!(
+        serialized["publisherPublicKeySha256"],
+        hex::encode(Sha256::digest(publisher.public_key))
+    );
+    assert!(serialized.get("publicKey").is_none());
     assert!(serialized.get("signedReleaseSha256").is_none());
     assert!(serialized.get("artifactPath").is_none());
     assert!(serialized.get("envelope").is_none());

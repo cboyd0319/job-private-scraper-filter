@@ -31,6 +31,7 @@ pub struct PackStream {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PackManagementStream {
     pub publisher_key_id: String,
+    pub publisher_public_key_sha256: String,
     pub pack_id: String,
     pub high_water_sequence: u64,
     pub active_release_sequence: Option<u64>,

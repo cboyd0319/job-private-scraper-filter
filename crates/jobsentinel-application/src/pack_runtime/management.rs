@@ -69,6 +69,7 @@ pub struct PackManagementReleaseReview {
 #[serde(rename_all = "camelCase")]
 pub struct PackManagementReview {
     pub publisher_key_id: String,
+    pub publisher_public_key_sha256: String,
     pub pack_id: String,
     pub state: PackReviewState,
     pub update_available: bool,
@@ -142,6 +143,7 @@ fn management_review(stream: PackManagementStream) -> Result<PackManagementRevie
         .ok_or_else(|| anyhow::anyhow!("pack management state is invalid"))?;
     Ok(PackManagementReview {
         publisher_key_id: stream.publisher_key_id,
+        publisher_public_key_sha256: stream.publisher_public_key_sha256,
         pack_id: stream.pack_id,
         state,
         update_available,

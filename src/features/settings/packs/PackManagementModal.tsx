@@ -188,6 +188,7 @@ function PackCard({ pack }: { pack: PackManagementReview }) {
       <section aria-label="Current release review">
         <ReleaseReviewFacts
           publisherKeyId={pack.publisherKeyId}
+          publisherPublicKeySha256={pack.publisherPublicKeySha256}
           release={release}
         />
       </section>
@@ -221,6 +222,7 @@ function PackCard({ pack }: { pack: PackManagementReview }) {
                 </summary>
                 <ReleaseReviewFacts
                   publisherKeyId={pack.publisherKeyId}
+                  publisherPublicKeySha256={pack.publisherPublicKeySha256}
                   release={history}
                 />
               </details>
@@ -234,9 +236,11 @@ function PackCard({ pack }: { pack: PackManagementReview }) {
 
 function ReleaseReviewFacts({
   publisherKeyId,
+  publisherPublicKeySha256,
   release,
 }: {
   publisherKeyId: string;
+  publisherPublicKeySha256: string;
   release: PackReleaseReview;
 }) {
   return (
@@ -246,6 +250,10 @@ function ReleaseReviewFacts({
         <Fact label="Pack type" value={label(release.packType)} />
         <Fact label="Execution" value={label(release.executionClass)} />
         <Fact label="Publisher key" value={publisherKeyId} />
+        <Fact
+          label="Publisher key fingerprint (SHA-256)"
+          value={publisherPublicKeySha256}
+        />
         <Fact label="License" value={release.license} />
         <Fact
           label="App compatibility"

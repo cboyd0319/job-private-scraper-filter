@@ -50,6 +50,7 @@ export interface PackReleaseReview {
 
 export interface PackManagementReview {
   publisherKeyId: string;
+  publisherPublicKeySha256: string;
   packId: string;
   state: PackState;
   updateAvailable: boolean;
@@ -136,6 +137,10 @@ function isNonEmptyString(value: unknown): value is string {
   return typeof value === "string" && value.length > 0;
 }
 
+function isSha256(value: unknown): value is string {
+  return typeof value === "string" && /^[a-f0-9]{64}$/.test(value);
+}
+
 function isSafeCount(value: unknown, positive = false): value is number {
   return (
     typeof value === "number" &&
@@ -209,6 +214,7 @@ function parsePack(value: unknown): PackManagementReview | null {
   if (
     !isRecord(value) ||
     !isNonEmptyString(value.publisherKeyId) ||
+    !isSha256(value.publisherPublicKeySha256) ||
     !isNonEmptyString(value.packId) ||
     typeof value.state !== "string" ||
     !PACK_STATES.has(value.state as PackState) ||

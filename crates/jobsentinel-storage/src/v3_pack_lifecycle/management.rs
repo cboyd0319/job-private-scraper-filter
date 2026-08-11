@@ -15,6 +15,7 @@ use crate::v3_foundation::parse_enum;
 #[derive(FromRow)]
 struct ManagementStreamRow {
     publisher_key_id: String,
+    publisher_public_key_sha256: String,
     pack_id: String,
     high_water_sequence: i64,
     active_release_sequence: Option<i64>,
@@ -71,7 +72,9 @@ impl Database {
     pub async fn list_pack_management(&self) -> Result<Vec<PackManagementStream>> {
         let mut transaction = self.pool().begin().await?;
         let streams = sqlx::query_as::<_, ManagementStreamRow>(
-            "SELECT stream.publisher_key_id, stream.pack_id,
+            "SELECT stream.publisher_key_id,
+                    publisher.public_key_sha256 AS publisher_public_key_sha256,
+                    stream.pack_id,
                     stream.high_water_sequence, stream.active_release_sequence,
                     stream.rollback_release_sequence, stream.availability,
                     stream.generation, EXISTS(
@@ -81,6 +84,8 @@ impl Database {
                           AND cleanup.artifact_cleanup_pending = 1
                     ) AS cleanup_pending
              FROM v3_pack_streams AS stream
+             JOIN v3_pack_publishers AS publisher
+               ON publisher.publisher_key_id = stream.publisher_key_id
              ORDER BY stream.publisher_key_id, stream.pack_id",
         )
         .fetch_all(&mut *transaction)
@@ -122,6 +127,7 @@ impl Database {
             let releases = histories.remove(&key).ok_or_else(corrupt)?;
             management.push(PackManagementStream {
                 publisher_key_id: row.publisher_key_id,
+                publisher_public_key_sha256: row.publisher_public_key_sha256,
                 pack_id: row.pack_id,
                 high_water_sequence: u64::try_from(row.high_water_sequence)
                     .map_err(|_| corrupt())?,

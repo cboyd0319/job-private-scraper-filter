@@ -228,6 +228,10 @@ async fn management_lists_every_stream_and_release_state() {
         .iter()
         .find(|stream| stream.pack_id == PACK_ID)
         .unwrap();
+    assert_eq!(
+        active.publisher_public_key_sha256,
+        hex::encode(Sha256::digest(publisher.public_key))
+    );
     assert_eq!(active.availability, PackAvailability::Ready);
     assert_eq!(active.active_release_sequence, Some(1));
     assert_eq!(active.high_water_sequence, 3);

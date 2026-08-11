@@ -48,6 +48,8 @@ function pack(overrides: Record<string, unknown> = {}) {
   const currentRelease = overrides.currentRelease ?? release();
   return {
     publisherKeyId: "jobsentinel-release-v1",
+    publisherPublicKeySha256:
+      "a3b1c9d7e5f40123456789abcdef0123456789abcdef0123456789abcdef0123",
     packId: "jobsentinel.sources.us",
     state: "ready",
     updateAvailable: false,
@@ -173,6 +175,14 @@ describe("PackManagementModal", () => {
       within(currentReview).getByText("Reviewed Typed Workflow"),
     ).toBeInTheDocument();
     expect(
+      within(currentReview).getByText(
+        "a3b1c9d7e5f40123456789abcdef0123456789abcdef0123456789abcdef0123",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      within(currentReview).getByText("Publisher key fingerprint (SHA-256)"),
+    ).toBeInTheDocument();
+    expect(
       within(currentReview).getByText(/Tasks:/),
     ).toHaveTextContent("Tasks: Source Check");
     expect(
@@ -252,6 +262,23 @@ describe("PackManagementModal", () => {
       "Pack information could not be loaded.",
     );
     expect(screen.queryByText("Script")).not.toBeInTheDocument();
+  });
+
+  it.each([
+    undefined,
+    "A3B1C9D7E5F40123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123",
+    "a3b1c9d7e5f40123456789abcdef0123456789abcdef0123456789abcdef012",
+    "a3b1c9d7e5f40123456789abcdef0123456789abcdef0123456789abcdef012z",
+  ])("fails closed when the publisher fingerprint is invalid: %s", async (publisherPublicKeySha256) => {
+    mockInvoke.mockResolvedValueOnce([
+      pack({ publisherPublicKeySha256 }),
+    ]);
+
+    render(<PackManagementModal onClose={vi.fn()} />);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Pack information could not be loaded.",
+    );
   });
 
   it("fails closed when static content claims executable capability", async () => {
