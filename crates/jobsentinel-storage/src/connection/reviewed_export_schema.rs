@@ -1,3 +1,5 @@
+//! Defines the explicit include and exclude contract for reviewed plaintext exports.
+
 use std::collections::BTreeSet;
 
 pub(super) struct ExportTable {
@@ -362,6 +364,8 @@ pub(super) const EXCLUDED_TABLES: &[&str] = &[
     "location_job_density",
     "market_snapshots",
     "news_sentiment",
+    "pack_release_reviews",
+    "pack_task_runs",
     "role_demand_trends",
     "salary_benchmarks",
     "salary_trends",
@@ -373,6 +377,9 @@ pub(super) const EXCLUDED_TABLES: &[&str] = &[
     "v3_compatibility_metadata",
     "v3_local_vectors",
     "v3_outside_ai_operations",
+    "v3_pack_publishers",
+    "v3_pack_releases",
+    "v3_pack_streams",
     "v3_source_consent_events",
     "v3_source_policy_ledger",
 ];
@@ -381,6 +388,7 @@ pub(super) const EXCLUDED_DATA: &[&str] = &[
     "JobSentinel-managed credentials, encryption keys, and authentication storage",
     "dedicated application-managed file paths and connection-link fields",
     "operational diagnostics and cached public or derived datasets",
+    "signed pack trust, lifecycle, review, and reviewed-task operation metadata",
 ];
 
 pub(super) fn validate_export_tables() -> Result<(), sqlx::Error> {
