@@ -36,14 +36,17 @@ Last updated: 2026-08-12
   runs one synthetic case without user data, and returns aggregate counts. Settings shows signed review facts and
   offers generation-bound Disable, confirmed Remove, and cleanup retry while retaining history. It rejects stale refresh
   results and accepts only exact self-tested contracts. Startup owns the app-data `pack-artifacts` path without creating
-  it or loading trust. Database startup reconciles reviewed tasks. Artifact reconciliation and skill UI remain unwired.
+  it or loading trust. Database startup reconciles reviewed tasks. Windows pack artifacts now use protected closed DACLs
+  and handle-relative descendant operations at source level. Artifact reconciliation and skill UI remain unwired.
 - Next action: Approve production key IDs, fingerprints, and ceilings, then compile trust and reconcile artifacts.
   Decide whether a verified static-skill handoff plus deterministic Evidence Reviewer outcome is the v3.0 G19 quality
   bar. Finish source-pack install and activation, the approved evaluation target, reviewed execution, and Windows proof.
-  Unix private storage and pack artifacts have macOS and Linux runtime evidence.
+  Unix private storage and pack artifacts have macOS and Linux runtime evidence. Windows source enforcement is reviewed,
+  but native Windows 11 ACL, reparse, persistence, and rollback execution remains open.
 
 ## Deferred
 
 - Hosted general CI remains absent under `pre-alpha-private-no-ci`.
 
-Evidence: `docs/harness/evidence/v3-milestone-7-unix-private-storage-2026-08-12.json`. Keep command history there.
+Evidence: `docs/harness/evidence/v3-milestone-7-unix-private-storage-2026-08-12.json` and
+`docs/harness/evidence/v3-milestone-7-windows-private-storage-source-2026-08-12.json`. Keep command history there.
