@@ -1,3 +1,5 @@
+# Declares dependencies and lint policy for the pure JobSentinel domain crate.
+
 [package]
 name = "jobsentinel-domain"
 description = "Pure JobSentinel business values and canonical normalization"
@@ -19,6 +21,7 @@ jobsentinel-security.workspace = true
 regex.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+serde-saphyr.workspace = true
 sha2.workspace = true
 tracing.workspace = true
 url.workspace = true

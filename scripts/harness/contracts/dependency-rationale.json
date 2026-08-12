@@ -44,7 +44,8 @@
     "typescript": "Typed JavaScript compiler.",
     "typescript-eslint": "TypeScript support for ESLint.",
     "vite": "Frontend build tool and dev server.",
-    "vitest": "Unit and component test runner."
+    "vitest": "Unit and component test runner.",
+    "yaml": "Parses Agent Skills YAML frontmatter according to the upstream format instead of relying on an ambiguous line parser."
   },
   "cargo": {
     "tauri-build": "Tauri build-script codegen.",
@@ -58,6 +59,7 @@
     "zeroize": "Wipes secret material from memory after use.",
     "serde": "Serialization and deserialization framework.",
     "serde_json": "JSON support for serde.",
+    "serde-saphyr": "Parses signed Agent Skills YAML frontmatter with a pure-Rust, duplicate-rejecting deserializer before applying the narrower static-content policy.",
     "tokio": "Async runtime.",
     "async-trait": "Async methods in traits for scraper adapters.",
     "reqwest": "HTTP client for scrapers and source fetches.",

@@ -140,6 +140,17 @@ fn static_skill_rejects_ambiguous_duplicate_frontmatter() {
 }
 
 #[test]
+fn static_skill_rejects_malformed_yaml_frontmatter() {
+    let mut candidate = payload();
+    candidate["skill_md"] = json!(candidate["skill_md"].as_str().unwrap().replace(
+        "description: Review selected resume evidence without inventing claims.",
+        "description: \"unterminated",
+    ));
+
+    assert!(test_payload(candidate).is_err());
+}
+
+#[test]
 fn static_skill_rejects_ambiguous_duplicate_interface_metadata() {
     let mut candidate = payload();
     candidate["openai_yaml"] = json!(format!(
@@ -161,6 +172,24 @@ fn static_skill_rejects_scripts_traversal_and_case_collisions() {
         .unwrap()
         .push(json!({ "path": "references/RUBRIC.md", "content": "# Conflict" }));
     for candidate in [script, traversal, collision] {
+        assert!(test_payload(candidate).is_err());
+    }
+}
+
+#[test]
+fn static_skill_rejects_unavailable_scripts_and_core_cross_skill_dependencies() {
+    let mut script = payload();
+    script["skill_md"] = json!(script["skill_md"].as_str().unwrap().replace(
+        "Review references/rubric.md, then open the compiled local evidence reviewer.",
+        "Run scripts/review.py, then open the compiled local evidence reviewer.",
+    ));
+    let mut cross_skill = payload();
+    cross_skill["skill_md"] = json!(cross_skill["skill_md"].as_str().unwrap().replace(
+        "Review references/rubric.md, then open the compiled local evidence reviewer.",
+        "Run $another-skill before reviewing references/rubric.md.",
+    ));
+
+    for candidate in [script, cross_skill] {
         assert!(test_payload(candidate).is_err());
     }
 }
