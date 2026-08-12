@@ -7,6 +7,7 @@ import { Modal } from "../../../ui/Modal";
 import {
   parsePackManagementReviews,
   type PackManagementReview,
+  type PackPurpose,
   type PackReleaseReview,
   type PackState,
   type QuarantineReason,
@@ -38,6 +39,21 @@ const QUARANTINE_COPY: Record<QuarantineReason, string> = {
   integrity_failed: "Installed file did not pass verification",
 };
 
+const PURPOSE_COPY: Record<PackPurpose, string> = {
+  static_guidance: "Provides static job-search guidance.",
+  resume_evidence_review: "Reviews selected resume evidence.",
+  draft_application_packet: "Builds a draft application packet.",
+  reviewed_agent: "Runs a reviewed local agent task.",
+  reviewed_workflow: "Runs a reviewed local workflow.",
+  role_guidance: "Adds role-specific job-search guidance.",
+  regional_guidance: "Adds regional job-search guidance.",
+  source_support: "Adds reviewed job-source support.",
+  review_rubric: "Adds a local review rubric.",
+  synthetic_product_evaluation: "Tests local product behavior with synthetic data.",
+  job_search_template: "Adds a static job-search template.",
+  operating_system_helper: "Adds a reviewed operating-system helper.",
+};
+
 function label(value: string): string {
   return value
     .split("_")
@@ -56,6 +72,14 @@ function formatBytes(bytes: number): string {
   return `${new Intl.NumberFormat(undefined, {
     maximumFractionDigits: 1,
   }).format(bytes / 1024)} KB`;
+}
+
+function formatSelfTestedAt(value: string | null): string {
+  if (!value) return "Not verified";
+  return new Intl.DateTimeFormat(undefined, {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(new Date(value));
 }
 
 interface PackManagementModalProps {
@@ -260,6 +284,15 @@ function ReleaseReviewFacts({
           value={`${release.minimumAppVersion} to ${release.maximumAppVersion}`}
         />
         <Fact label="Signed size" value={formatBytes(release.payloadBytes)} />
+        <Fact label="What it helps with" value={PURPOSE_COPY[release.purpose]} />
+        <Fact
+          label="Model download"
+          value={release.modelDownloadRequired ? "Required" : "Not required"}
+        />
+        <Fact
+          label="Last successful self-test"
+          value={formatSelfTestedAt(release.lastSelfTestedAt)}
+        />
         <Fact
           label="Privacy"
           value={list(release.privacyLabels, "No privacy label")}
@@ -295,11 +328,6 @@ function ReleaseReviewFacts({
               }`
             : "Does not use outside AI"}
         </p>
-        {release.packType === "source" ? (
-          <p className="mt-1 text-xs text-surface-500 dark:text-surface-400">
-            Adds source support
-          </p>
-        ) : null}
       </div>
     </>
   );

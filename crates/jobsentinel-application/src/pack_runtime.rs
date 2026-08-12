@@ -35,7 +35,7 @@ pub use execution::{
     PackTaskReview, PackTaskReviewStep, StaticSkillHandoff, StaticSkillResource, StaticSkillReview,
 };
 pub use management::{
-    list_pack_management_reviews, PackManagementReleaseReview, PackManagementReview,
+    list_pack_management_reviews, PackManagementReleaseReview, PackManagementReview, PackPurpose,
     PackReleaseReviewState, PackReviewQuarantineReason,
 };
 pub use recovery::{reconcile_active_pack_artifacts, PackArtifactReconciliation};

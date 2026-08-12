@@ -1,3 +1,5 @@
+// Implements durable pack lifecycle transitions with generation checks.
+
 use super::*;
 
 impl Database {
@@ -153,6 +155,7 @@ impl Database {
             return Err(invalid());
         }
         let now = Utc::now().to_rfc3339();
+        let verified_at = (lifecycle_state == "self_tested").then_some(now.as_str());
         let mut transaction = self.pool().begin().await?;
 
         let release_updated = sqlx::query(
@@ -165,7 +168,7 @@ impl Database {
         )
         .bind(lifecycle_state)
         .bind(quarantine_reason)
-        .bind(&now)
+        .bind(verified_at)
         .bind(&now)
         .bind(publisher_key_id)
         .bind(pack_id)

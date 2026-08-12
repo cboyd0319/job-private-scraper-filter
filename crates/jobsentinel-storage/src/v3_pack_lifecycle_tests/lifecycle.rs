@@ -1,3 +1,5 @@
+// Verifies durable pack lifecycle transitions and concurrency guards.
+
 use super::*;
 
 #[tokio::test]
@@ -71,7 +73,7 @@ async fn failed_self_test_is_quarantined_without_activating_the_pack() {
     .unwrap();
     assert_eq!(state, "quarantined");
     assert_eq!(reason.as_deref(), Some("self_test_failed"));
-    assert!(tested_at.is_some());
+    assert!(tested_at.is_none());
 }
 
 #[tokio::test]

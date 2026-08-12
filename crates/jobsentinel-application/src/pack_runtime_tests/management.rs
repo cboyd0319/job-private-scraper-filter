@@ -35,6 +35,15 @@ async fn management_distinguishes_needs_review_from_ready_update() {
     );
     assert_eq!(needs_review[0].current_release.minimum_app_version, "3.0.0");
     assert_eq!(needs_review[0].current_release.maximum_app_version, "3.0.0");
+    assert_eq!(
+        needs_review[0].current_release.purpose,
+        crate::pack_runtime::PackPurpose::SourceSupport
+    );
+    assert!(!needs_review[0].current_release.model_download_required);
+    assert!(needs_review[0]
+        .current_release
+        .last_self_tested_at
+        .is_some());
     assert!(!needs_review[0].current_release.uses_external_ai);
 
     activate_pack_artifact(
@@ -95,7 +104,11 @@ async fn management_retains_quarantined_and_removed_review_without_artifact() {
     )
     .await
     .unwrap();
-    std::fs::remove_file(walk_files(artifact_root.path()).pop().unwrap()).unwrap();
+    std::fs::write(
+        walk_files(artifact_root.path()).pop().unwrap(),
+        b"tampered pack artifact",
+    )
+    .unwrap();
 
     assert!(activate_pack_artifact(
         &database,
@@ -115,8 +128,12 @@ async fn management_retains_quarantined_and_removed_review_without_artifact() {
     assert_eq!(quarantined[0].state, PackReviewState::Quarantined);
     assert_eq!(
         quarantined[0].current_release.quarantine_reason,
-        Some(crate::pack_runtime::PackReviewQuarantineReason::ArtifactMissing)
+        Some(crate::pack_runtime::PackReviewQuarantineReason::IntegrityFailed)
     );
+    let successful_self_test = quarantined[0]
+        .current_release
+        .last_self_tested_at
+        .expect("the prior successful self-test remains visible");
 
     let removed = uninstall_pack_artifacts(
         &database,
@@ -136,11 +153,16 @@ async fn management_retains_quarantined_and_removed_review_without_artifact() {
         management[0].current_release.publisher_name,
         "JobSentinel Test"
     );
+    assert_eq!(
+        management[0].current_release.last_self_tested_at,
+        Some(successful_self_test)
+    );
     let serialized = serde_json::to_value(&management[0]).unwrap();
     assert_eq!(
         serialized["publisherPublicKeySha256"],
         hex::encode(Sha256::digest(publisher.public_key))
     );
+    assert!(serialized["currentRelease"]["lastSelfTestedAt"].is_string());
     assert!(serialized.get("publicKey").is_none());
     assert!(serialized.get("signedReleaseSha256").is_none());
     assert!(serialized.get("artifactPath").is_none());

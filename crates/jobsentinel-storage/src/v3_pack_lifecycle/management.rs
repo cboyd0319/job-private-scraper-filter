@@ -42,6 +42,7 @@ struct ManagementReleaseRow {
     maximum_app_version: Option<String>,
     payload_bytes: Option<i64>,
     fixture_summary: Option<String>,
+    self_tested_at: Option<String>,
     privacy_labels_json: Option<String>,
     data_categories_json: Option<String>,
     task_kinds_json: Option<String>,
@@ -99,6 +100,7 @@ impl Database {
                     review.publisher_name, review.license,
                     review.minimum_app_version, review.maximum_app_version,
                     review.payload_bytes, review.fixture_summary,
+                    release.self_tested_at,
                     review.privacy_labels_json, review.data_categories_json,
                     review.task_kinds_json, review.actions_json,
                     review.approval_gates_json, review.gateway_policy_id,
@@ -225,6 +227,17 @@ fn canonical_enum_json<T: Serialize>(values: &[T]) -> Result<String> {
 }
 
 fn management_release(row: ManagementReleaseRow) -> Result<PackManagementRelease> {
+    let quarantine_reason = row
+        .quarantine_reason
+        .as_deref()
+        .map(pack_quarantine_reason)
+        .transpose()?;
+    let last_self_tested_at = match (row.self_tested_at, quarantine_reason) {
+        (Some(_), Some(PackQuarantineReason::SelfTestFailed)) | (None, _) => None,
+        (Some(value), _) => {
+            Some(crate::sqlite_time::parse_sqlite_datetime(&value).map_err(|_| corrupt())?)
+        }
+    };
     Ok(PackManagementRelease {
         release_sequence: u64::try_from(row.release_sequence).map_err(|_| corrupt())?,
         pack_version: row.pack_version,
@@ -232,11 +245,7 @@ fn management_release(row: ManagementReleaseRow) -> Result<PackManagementRelease
         execution_class: parse_enum::<PackExecutionClass>(&row.execution_class)
             .map_err(|_| corrupt())?,
         lifecycle_state: pack_release_state(&row.lifecycle_state)?,
-        quarantine_reason: row
-            .quarantine_reason
-            .as_deref()
-            .map(pack_quarantine_reason)
-            .transpose()?,
+        quarantine_reason,
         artifact_cleanup_pending: row.artifact_cleanup_pending,
         publisher_name: row.publisher_name.ok_or_else(corrupt)?,
         license: row.license.ok_or_else(corrupt)?,
@@ -245,6 +254,7 @@ fn management_release(row: ManagementReleaseRow) -> Result<PackManagementRelease
         payload_bytes: u64::try_from(row.payload_bytes.ok_or_else(corrupt)?)
             .map_err(|_| corrupt())?,
         fixture_summary: row.fixture_summary.ok_or_else(corrupt)?,
+        last_self_tested_at,
         privacy_labels: parse_json(row.privacy_labels_json)?,
         allowed_data_categories: parse_json(row.data_categories_json)?,
         allowed_task_kinds: parse_json(row.task_kinds_json)?,

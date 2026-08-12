@@ -159,6 +159,13 @@ async fn exact_reviewed_draft_packet_is_single_use_bounded_and_audited() {
     .await
     .unwrap();
     let (artifact_root, publisher, generation) = activated_packet_pack(&database, 524_288).await;
+    let management = crate::pack_runtime::list_pack_management_reviews(&database)
+        .await
+        .unwrap();
+    assert_eq!(
+        management[0].current_release.purpose,
+        crate::pack_runtime::PackPurpose::DraftApplicationPacket
+    );
 
     let prepared = prepare_draft_packet_task(
         &database,

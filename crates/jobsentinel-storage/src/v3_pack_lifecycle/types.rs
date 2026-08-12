@@ -1,6 +1,7 @@
 //! Defines typed pack lifecycle, release-history, and management records.
 
 use anyhow::Result;
+use chrono::{DateTime, Utc};
 use jobsentinel_domain::v3_manifests::{
     AgentTaskKind, ApprovalGate, DataCategory, PackAction, PackExecutionClass, PackType,
     PrivacyLabel,
@@ -57,6 +58,7 @@ pub struct PackManagementRelease {
     pub maximum_app_version: String,
     pub payload_bytes: u64,
     pub fixture_summary: String,
+    pub last_self_tested_at: Option<DateTime<Utc>>,
     pub privacy_labels: Vec<PrivacyLabel>,
     pub allowed_data_categories: Vec<DataCategory>,
     pub allowed_task_kinds: Vec<AgentTaskKind>,

@@ -32,8 +32,11 @@ function release(overrides: Record<string, unknown> = {}) {
     maximumAppVersion: "3.2.0",
     payloadBytes: 2048,
     fixtureSummary: "Three reviewed source fixtures",
+    purpose: "source_support",
+    modelDownloadRequired: false,
+    lastSelfTestedAt: "2026-08-11T18:30:00Z",
     privacyLabels: ["local_only"],
-    allowedDataCategories: ["public_job_posting"],
+    allowedDataCategories: [],
     allowedTaskKinds: [],
     allowedActions: [],
     approvalGates: [],
@@ -92,48 +95,31 @@ describe("PackManagementModal", () => {
   });
 
   it("shows review facts, updates, quarantine failures, cleanup, and history", async () => {
-    const reviewedSource = {
-      allowedActions: ["read_public_job_posting", "request_source_check"],
-      allowedTaskKinds: ["source_check"],
-      approvalGates: ["per_execution_review"],
-      executionClass: "reviewed_typed_workflow",
-    };
-    const outsideAiUpdate = {
-      ...reviewedSource,
-      allowedActions: ["read_public_job_posting", "request_external_ai"],
-      externalDestinations: ["jobsentinel.external-ai-gateway.v1"],
-      gatewayPolicyId: "jobsentinel.external-ai-gateway.v1",
-      privacyLabels: ["external_ai_optional", "public_data_only"],
-      usesExternalAi: true,
-    };
     mockInvoke.mockResolvedValueOnce([
       pack({
         cleanupPending: true,
         updateAvailable: true,
         currentRelease: release({
-          ...reviewedSource,
           isHighWater: false,
           releaseSequence: 1,
           packVersion: "3.0.1",
         }),
         releases: [
           release({
-            ...reviewedSource,
             releaseSequence: 1,
             packVersion: "3.0.1",
             isHighWater: false,
           }),
           release({
-            ...reviewedSource,
             artifactCleanupPending: true,
             isActive: false,
             isHighWater: false,
             releaseSequence: 2,
             quarantineReason: "self_test_failed",
             state: "quarantined",
+            lastSelfTestedAt: null,
           }),
           release({
-            ...outsideAiUpdate,
             isActive: false,
             releaseSequence: 3,
             state: "self_tested",
@@ -172,7 +158,7 @@ describe("PackManagementModal", () => {
       within(currentReview).getByText("Does not use outside AI"),
     ).toBeInTheDocument();
     expect(
-      within(currentReview).getByText("Reviewed Typed Workflow"),
+      within(currentReview).getByText("Static Content"),
     ).toBeInTheDocument();
     expect(
       within(currentReview).getByText(
@@ -184,12 +170,18 @@ describe("PackManagementModal", () => {
     ).toBeInTheDocument();
     expect(
       within(currentReview).getByText(/Tasks:/),
-    ).toHaveTextContent("Tasks: Source Check");
+    ).toHaveTextContent("Tasks: No runnable tasks");
     expect(
       within(currentReview).getByText(/Approval:/),
-    ).toHaveTextContent("Approval: Per Execution Review");
+    ).toHaveTextContent("Approval: No execution approval gate");
+    expect(within(currentReview).getByText("What it helps with")).toBeInTheDocument();
     expect(
-      within(currentReview).getByText("Adds source support"),
+      within(currentReview).getByText("Adds reviewed job-source support."),
+    ).toBeInTheDocument();
+    expect(within(currentReview).getByText("Model download")).toBeInTheDocument();
+    expect(within(currentReview).getByText("Not required")).toBeInTheDocument();
+    expect(
+      within(currentReview).getByText("Last successful self-test"),
     ).toBeInTheDocument();
 
     const quarantinedPack = screen.getByRole("article", {
@@ -203,6 +195,9 @@ describe("PackManagementModal", () => {
     expect(
       within(quarantinedPack).getByText("Artifact cleanup needs another attempt"),
     ).toBeInTheDocument();
+    expect(
+      within(quarantinedPack).getAllByText("Last successful self-test").length,
+    ).toBeGreaterThan(0);
 
     await userEvent.click(within(readyPack).getByText("Release history"));
     expect(within(readyPack).getByText("Release 2")).toBeInTheDocument();
@@ -218,10 +213,10 @@ describe("PackManagementModal", () => {
       within(update).getByText("Review signed permissions"),
     );
     expect(within(update).getByText(/Actions:/)).toHaveTextContent(
-      "Request External AI",
+      "No actions",
     );
     expect(within(update).getByText(/Gateway policy:/)).toHaveTextContent(
-      "jobsentinel.external-ai-gateway.v1",
+      "Not used",
     );
   });
 
@@ -247,6 +242,40 @@ describe("PackManagementModal", () => {
 
     expect(
       await screen.findByLabelText(`Pack status: ${accessibleState}`),
+    ).toBeInTheDocument();
+    if (state === "removed") {
+      expect(screen.getAllByText("Last successful self-test").length).toBeGreaterThan(0);
+    }
+  });
+
+  it("uses the signed task kind to identify a packet-builder agent", async () => {
+    const packetAgent = release({
+      packType: "agent",
+      executionClass: "reviewed_typed_workflow",
+      purpose: "draft_application_packet",
+      privacyLabels: ["local_only", "sensitive"],
+      allowedDataCategories: ["public_job_posting", "resume_evidence"],
+      allowedTaskKinds: ["draft_packet"],
+      allowedActions: [
+        "read_selected_case_file",
+        "read_selected_resume_evidence",
+        "read_public_job_posting",
+        "create_draft_application_packet",
+        "write_local_event",
+      ],
+      approvalGates: ["per_execution_review"],
+    });
+    mockInvoke.mockResolvedValueOnce([
+      pack({ currentRelease: packetAgent, releases: [packetAgent] }),
+    ]);
+
+    render(<PackManagementModal onClose={vi.fn()} />);
+
+    const currentReview = await screen.findByRole("region", {
+      name: "Current release review",
+    });
+    expect(
+      within(currentReview).getByText("Builds a draft application packet."),
     ).toBeInTheDocument();
   });
 
@@ -283,6 +312,61 @@ describe("PackManagementModal", () => {
 
   it("fails closed when static content claims executable capability", async () => {
     const invalidRelease = release({ allowedActions: ["write_local_event"] });
+    mockInvoke.mockResolvedValueOnce([
+      pack({ currentRelease: invalidRelease, releases: [invalidRelease] }),
+    ]);
+
+    render(<PackManagementModal onClose={vi.fn()} />);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Pack information could not be loaded.",
+    );
+  });
+
+  it.each([
+    [
+      "a source claims reviewed workflow authority",
+      {
+        executionClass: "reviewed_typed_workflow",
+        allowedDataCategories: ["public_job_posting"],
+        allowedTaskKinds: ["source_check"],
+        allowedActions: ["request_source_check"],
+        approvalGates: ["per_execution_review"],
+      },
+    ],
+    [
+      "a packet workflow omits its compiled action plan",
+      {
+        packType: "agent",
+        executionClass: "reviewed_typed_workflow",
+        purpose: "draft_application_packet",
+        privacyLabels: ["local_only", "sensitive"],
+        allowedDataCategories: ["public_job_posting", "resume_evidence"],
+        allowedTaskKinds: ["draft_packet"],
+        allowedActions: ["create_draft_application_packet"],
+        approvalGates: ["per_execution_review"],
+      },
+    ],
+  ])("fails closed when %s", async (_description, invalidFacts) => {
+    const invalidRelease = release(invalidFacts);
+    mockInvoke.mockResolvedValueOnce([
+      pack({ currentRelease: invalidRelease, releases: [invalidRelease] }),
+    ]);
+
+    render(<PackManagementModal onClose={vi.fn()} />);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Pack information could not be loaded.",
+    );
+  });
+
+  it.each([
+    { purpose: "resume_evidence_review" },
+    { modelDownloadRequired: true },
+    { lastSelfTestedAt: "not-a-date" },
+    { lastSelfTestedAt: null },
+  ])("fails closed when a Pack UI fact is invalid: %j", async (invalidFact) => {
+    const invalidRelease = release(invalidFact);
     mockInvoke.mockResolvedValueOnce([
       pack({ currentRelease: invalidRelease, releases: [invalidRelease] }),
     ]);

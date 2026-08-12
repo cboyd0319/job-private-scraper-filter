@@ -21,6 +21,20 @@ export type QuarantineReason =
   | "artifact_missing"
   | "integrity_failed";
 
+export type PackPurpose =
+  | "static_guidance"
+  | "resume_evidence_review"
+  | "draft_application_packet"
+  | "reviewed_agent"
+  | "reviewed_workflow"
+  | "role_guidance"
+  | "regional_guidance"
+  | "source_support"
+  | "review_rubric"
+  | "synthetic_product_evaluation"
+  | "job_search_template"
+  | "operating_system_helper";
+
 export interface PackReleaseReview {
   releaseSequence: number;
   packVersion: string;
@@ -38,6 +52,9 @@ export interface PackReleaseReview {
   maximumAppVersion: string;
   payloadBytes: number;
   fixtureSummary: string;
+  purpose: PackPurpose;
+  modelDownloadRequired: boolean;
+  lastSelfTestedAt: string | null;
   privacyLabels: string[];
   allowedDataCategories: string[];
   allowedTaskKinds: string[];
@@ -65,6 +82,7 @@ const RELEASE_FIELDS: readonly (keyof PackReleaseReview)[] = [
   "quarantineReason", "artifactCleanupPending", "isActive", "isRollback",
   "isHighWater", "publisherName", "license", "minimumAppVersion",
   "maximumAppVersion", "payloadBytes", "fixtureSummary", "privacyLabels",
+  "purpose", "modelDownloadRequired", "lastSelfTestedAt",
   "allowedDataCategories", "allowedTaskKinds", "allowedActions",
   "approvalGates", "gatewayPolicyId", "externalDestinations", "usesExternalAi",
 ];
@@ -149,9 +167,119 @@ function isSafeCount(value: unknown, positive = false): value is number {
   );
 }
 
+function isUtcTimestamp(value: unknown): value is string {
+  if (typeof value !== "string") return false;
+  const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d{1,9})?Z$/.exec(value);
+  if (!match) return false;
+  const year = Number(match[1]);
+  const month = Number(match[2]);
+  const day = Number(match[3]);
+  const hour = Number(match[4]);
+  const minute = Number(match[5]);
+  const second = Number(match[6]);
+  const parsed = new Date(Date.UTC(year, month - 1, day, hour, minute, second));
+  return (
+    parsed.getUTCFullYear() === year &&
+    parsed.getUTCMonth() === month - 1 &&
+    parsed.getUTCDate() === day &&
+    parsed.getUTCHours() === hour &&
+    parsed.getUTCMinutes() === minute &&
+    parsed.getUTCSeconds() === second
+  );
+}
+
+function expectedPurpose(
+  packType: string,
+  taskKinds: string[],
+): PackPurpose | null {
+  if (packType === "agent" && taskKinds.length === 1) {
+    if (taskKinds[0] === "evidence_review") return "resume_evidence_review";
+    if (taskKinds[0] === "draft_packet") return "draft_application_packet";
+  }
+  if (
+    packType === "workflow" &&
+    taskKinds.length === 1 &&
+    taskKinds[0] === "draft_packet"
+  ) return "draft_application_packet";
+  const purposes: Record<string, PackPurpose> = {
+    skill: "static_guidance",
+    agent: "reviewed_agent",
+    workflow: "reviewed_workflow",
+    role: "role_guidance",
+    region: "regional_guidance",
+    source: "source_support",
+    rubric: "review_rubric",
+    evaluation: "synthetic_product_evaluation",
+    template: "job_search_template",
+    os_helper: "operating_system_helper",
+  };
+  return purposes[packType] ?? null;
+}
+
+function hasExactValues(value: unknown, expected: readonly string[]): boolean {
+  return (
+    isStringArray(value) &&
+    value.length === expected.length &&
+    value.every((item, index) => item === expected[index])
+  );
+}
+
+function isSupportedPackContract(value: Record<string, unknown>): boolean {
+  if (
+    value.gatewayPolicyId !== null ||
+    value.usesExternalAi !== false ||
+    !hasExactValues(value.externalDestinations, [])
+  ) return false;
+
+  if (["skill", "source", "evaluation"].includes(value.packType as string)) {
+    return (
+      value.executionClass === "static_content" &&
+      hasExactValues(value.privacyLabels, ["local_only"]) &&
+      hasExactValues(value.allowedDataCategories, []) &&
+      hasExactValues(value.allowedTaskKinds, []) &&
+      hasExactValues(value.allowedActions, []) &&
+      hasExactValues(value.approvalGates, [])
+    );
+  }
+
+  if (
+    !["agent", "workflow"].includes(value.packType as string) ||
+    value.executionClass !== "reviewed_typed_workflow" ||
+    !hasExactValues(value.privacyLabels, ["local_only", "sensitive"]) ||
+    !hasExactValues(value.approvalGates, ["per_execution_review"])
+  ) return false;
+
+  if (hasExactValues(value.allowedTaskKinds, ["evidence_review"])) {
+    return (
+      hasExactValues(value.allowedDataCategories, ["resume_evidence"]) &&
+      hasExactValues(value.allowedActions, [
+        "read_selected_resume_evidence",
+        "write_local_event",
+      ])
+    );
+  }
+
+  return (
+    hasExactValues(value.allowedTaskKinds, ["draft_packet"]) &&
+    hasExactValues(value.allowedDataCategories, [
+      "public_job_posting",
+      "resume_evidence",
+    ]) &&
+    hasExactValues(value.allowedActions, [
+      "read_selected_case_file",
+      "read_selected_resume_evidence",
+      "read_public_job_posting",
+      "create_draft_application_packet",
+      "write_local_event",
+    ])
+  );
+}
+
 function isRelease(value: unknown): value is PackReleaseReview {
   if (!isRecord(value)) return false;
   const reason = value.quarantineReason;
+  const selfTestedAtIsValid =
+    value.lastSelfTestedAt === null || isUtcTimestamp(value.lastSelfTestedAt);
   return (
     isSafeCount(value.releaseSequence, true) &&
     isNonEmptyString(value.packVersion) &&
@@ -174,9 +302,19 @@ function isRelease(value: unknown): value is PackReleaseReview {
     isNonEmptyString(value.maximumAppVersion) &&
     isSafeCount(value.payloadBytes) &&
     isNonEmptyString(value.fixtureSummary) &&
+    value.modelDownloadRequired === false &&
+    selfTestedAtIsValid &&
+    (["self_tested", "ready"].includes(value.state as string)
+      ? isUtcTimestamp(value.lastSelfTestedAt)
+      : true) &&
+    (value.state === "staged" || reason === "self_test_failed"
+      ? value.lastSelfTestedAt === null
+      : true) &&
     isKnownArray(value.privacyLabels, PRIVACY_LABELS) &&
     isKnownArray(value.allowedDataCategories, DATA_CATEGORIES) &&
     isKnownArray(value.allowedTaskKinds, TASK_KINDS) &&
+    typeof value.purpose === "string" &&
+    value.purpose === expectedPurpose(value.packType, value.allowedTaskKinds) &&
     isKnownArray(value.allowedActions, ACTIONS) &&
     isKnownArray(value.approvalGates, APPROVAL_GATES) &&
     (value.gatewayPolicyId === null ||
@@ -193,14 +331,7 @@ function isRelease(value: unknown): value is PackReleaseReview {
         value.externalDestinations[0] === EXTERNAL_AI_GATEWAY_POLICY
       : value.gatewayPolicyId === null &&
         value.externalDestinations.length === 0) &&
-    (value.executionClass === "static_content"
-      ? value.allowedTaskKinds.length === 0 &&
-        value.allowedActions.length === 0 &&
-        value.approvalGates.length === 0
-      : value.allowedDataCategories.length > 0 &&
-        value.allowedTaskKinds.length > 0 &&
-        value.allowedActions.length > 0 &&
-        value.approvalGates.includes("per_execution_review"))
+    isSupportedPackContract(value)
   );
 }
 

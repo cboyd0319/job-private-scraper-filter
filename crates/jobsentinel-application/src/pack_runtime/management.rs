@@ -1,6 +1,7 @@
 //! Maps durable pack lifecycle history into bounded renderer-safe management views.
 
 use anyhow::Result;
+use chrono::{DateTime, Utc};
 use jobsentinel_domain::v3_manifests::{
     AgentTaskKind, ApprovalGate, DataCategory, PackAction, PackExecutionClass, PackType,
     PrivacyLabel,
@@ -36,6 +37,23 @@ pub enum PackReviewQuarantineReason {
     IntegrityFailed,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PackPurpose {
+    StaticGuidance,
+    ResumeEvidenceReview,
+    DraftApplicationPacket,
+    ReviewedAgent,
+    ReviewedWorkflow,
+    RoleGuidance,
+    RegionalGuidance,
+    SourceSupport,
+    ReviewRubric,
+    SyntheticProductEvaluation,
+    JobSearchTemplate,
+    OperatingSystemHelper,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PackManagementReleaseReview {
@@ -55,6 +73,9 @@ pub struct PackManagementReleaseReview {
     pub maximum_app_version: String,
     pub payload_bytes: u64,
     pub fixture_summary: String,
+    pub purpose: PackPurpose,
+    pub model_download_required: bool,
+    pub last_self_tested_at: Option<DateTime<Utc>>,
     pub privacy_labels: Vec<PrivacyLabel>,
     pub allowed_data_categories: Vec<DataCategory>,
     pub allowed_task_kinds: Vec<AgentTaskKind>,
@@ -160,6 +181,7 @@ fn release_review(
     rollback_sequence: Option<u64>,
     high_water_sequence: u64,
 ) -> PackManagementReleaseReview {
+    let purpose = pack_purpose(release.pack_type, &release.allowed_task_kinds);
     PackManagementReleaseReview {
         release_sequence: release.release_sequence,
         pack_version: release.pack_version,
@@ -177,6 +199,9 @@ fn release_review(
         maximum_app_version: release.maximum_app_version,
         payload_bytes: release.payload_bytes,
         fixture_summary: release.fixture_summary,
+        purpose,
+        model_download_required: false,
+        last_self_tested_at: release.last_self_tested_at,
         privacy_labels: release.privacy_labels,
         allowed_data_categories: release.allowed_data_categories,
         allowed_task_kinds: release.allowed_task_kinds,
@@ -187,6 +212,25 @@ fn release_review(
         approval_gates: release.approval_gates,
         gateway_policy_id: release.gateway_policy_id,
         external_destinations: release.external_destinations,
+    }
+}
+
+fn pack_purpose(pack_type: PackType, task_kinds: &[AgentTaskKind]) -> PackPurpose {
+    match (pack_type, task_kinds) {
+        (PackType::Skill, _) => PackPurpose::StaticGuidance,
+        (PackType::Agent, [AgentTaskKind::EvidenceReview]) => PackPurpose::ResumeEvidenceReview,
+        (PackType::Agent | PackType::Workflow, [AgentTaskKind::DraftPacket]) => {
+            PackPurpose::DraftApplicationPacket
+        }
+        (PackType::Agent, _) => PackPurpose::ReviewedAgent,
+        (PackType::Workflow, _) => PackPurpose::ReviewedWorkflow,
+        (PackType::Role, _) => PackPurpose::RoleGuidance,
+        (PackType::Region, _) => PackPurpose::RegionalGuidance,
+        (PackType::Source, _) => PackPurpose::SourceSupport,
+        (PackType::Rubric, _) => PackPurpose::ReviewRubric,
+        (PackType::Evaluation, _) => PackPurpose::SyntheticProductEvaluation,
+        (PackType::Template, _) => PackPurpose::JobSearchTemplate,
+        (PackType::OsHelper, _) => PackPurpose::OperatingSystemHelper,
     }
 }
 
