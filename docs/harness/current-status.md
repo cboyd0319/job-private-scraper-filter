@@ -2,24 +2,14 @@
 
 # Current Status
 
-Last updated: 2026-08-11
+Last updated: 2026-08-12
 
 ## Done
 
-- Rust ownership is implemented across the declared crates. `jobsentinel-core`
-  is deleted, storage hides its raw SQLx pool, and Tauri delegates product
-  behavior through `jobsentinel-application`.
+- Rust ownership spans the declared crates; storage hides raw SQLx, and Tauri delegates through the application owner.
 - Desktop, frontend, script, workflow, and maintained-file ownership match the executable contracts.
-- Crate DRY remediation is complete. Maintained crate production duplication
-  fell from 693 lines across 35 regions to zero, and crate test duplication fell
-  from 2,184 lines across 79 regions to zero. The baselines are ratcheted to
-  zero and the full local gate passed with structured completion evidence.
-- Frontend DRY remediation is complete. Maintained production duplication fell
-  from 778 lines across 38 regions to zero. Shared resume, score, dashboard,
-  market, feedback, error, and desktop-adapter behavior now has canonical owners,
-  and the full local gate passed.
-- Residual cleanup is complete. Fixtures, file-size policy, records, dependencies, and Rust support have owners;
-  maintained scopes have zero duplication, the full gate passed, and review recorded a bounded concerns verdict.
+- Crate and frontend DRY remediation is complete. Maintained production duplication is zero and owners are canonical.
+- Residual cleanup is complete. Fixtures, file-size policy, records, dependencies, and Rust support have owners.
 - The v2.9.5 GUI QA and release publication are complete. All 288 browser
   journeys and hosted release gates passed. The public release contains 20
   checksummed assets with SBOM and provenance validation. The no-account Mac
@@ -47,12 +37,13 @@ Last updated: 2026-08-11
   offers generation-bound Disable, confirmed Remove, and cleanup retry while retaining history. It rejects stale refresh
   results and accepts only exact self-tested contracts. Startup owns the app-data `pack-artifacts` path without creating
   it or loading trust. Database startup reconciles reviewed tasks. Artifact reconciliation and skill UI remain unwired.
-- Next action: Approve exact production key IDs, fingerprints, and ceilings. Then compile immutable trust and reconcile
-  active artifacts at startup. Finish source-pack drop, install and activation UI, broader product-target evaluation,
-  reviewed local execution, and live platform proof.
+- Next action: Approve production key IDs, fingerprints, and ceilings, then compile trust and reconcile artifacts.
+  Decide whether a verified static-skill handoff plus deterministic Evidence Reviewer outcome is the v3.0 G19 quality
+  bar. Finish source-pack install and activation, the approved evaluation target, reviewed execution, and Windows proof.
+  Unix private storage and pack artifacts have macOS and Linux runtime evidence.
 
 ## Deferred
 
 - Hosted general CI remains absent under `pre-alpha-private-no-ci`.
 
-Keep this current; put command history and long evidence under `docs/harness/evidence/`.
+Evidence: `docs/harness/evidence/v3-milestone-7-unix-private-storage-2026-08-12.json`. Keep command history there.

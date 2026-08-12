@@ -1,0 +1,54 @@
+{
+  "schema": "jobsentinel.feature_evidence.v1",
+  "feature_id": "v3-milestone-7-agent-pack-runtime",
+  "slice": "unix-private-storage-and-pack-artifact-proof",
+  "behavior": "Unix app-owned storage permission walks reject linked roots, ancestor-link redirection, hard-linked regular files, and blocking special-file swaps while preserving owner-only modes; signed pack artifacts are persisted as one private file beneath private directories.",
+  "result": "partial",
+  "verified_at": "2026-08-12T02:38:16Z",
+  "revision": "7788320486d0621ee69cb15cd8ff8239297ddeb6",
+  "revision_scope": "The descriptor-relative Unix tree walker, shared platform-health repair path, isolated-root test corrections, and signed-pack mode assertions committed at the recorded revision.",
+  "platform": {
+    "macos": "macOS 27.0 arm64",
+    "linux": "Linux 6.18.15 aarch64 in Apple container 1.1.0 with rust:1.97-bookworm",
+    "windows": "Not live-run. A cross-target check stopped in ring because this macOS host has no MSVC SDK headers."
+  },
+  "commands": [
+    {
+      "command": "node scripts/dev/run-cargo.mjs test -p jobsentinel-platform -- --nocapture",
+      "exit_status": 0,
+      "relevant_result": "All 35 executed platform tests passed on macOS; one existing environment-isolation test remained ignored. Linked roots and ancestors, hard-linked children, child symlinks, private modes, and nonblocking candidate opens passed."
+    },
+    {
+      "command": "node scripts/dev/run-cargo.mjs test -p jobsentinel-application pack_runtime_tests --lib -- --nocapture",
+      "exit_status": 0,
+      "relevant_result": "All 35 pack-runtime tests passed on macOS, including private artifact modes, symlink redirection rejection, quarantine, lifecycle, recovery, reviewed execution, and evaluation."
+    },
+    {
+      "command": "Apple container rust:1.97-bookworm focused platform and pack-artifact tests",
+      "exit_status": 0,
+      "relevant_result": "On Linux, five private-tree tests, the nonblocking candidate-open regression, eight platform-health tests, and the signed-pack owner-only artifact regression passed.",
+      "caveat": "This proves source-level runtime behavior in an arm64 Linux VM, not an installed Linux package."
+    },
+    {
+      "command": "npm run verify:rust",
+      "exit_status": 0,
+      "relevant_result": "Workspace formatting, clippy with warnings denied, unit tests, integration tests, and doctests passed after an isolated macOS temporary-root and browser-profile fixture correction."
+    },
+    {
+      "command": "npm run harness:check && npm run lint:architecture && npm run lint:security && npm run lint:file-size && npm run lint:deps && git diff --check",
+      "exit_status": 0,
+      "relevant_result": "Harness, architecture, security sensors and secret scan, hard file-size limits, exact dependency ownership, and patch validation passed."
+    },
+    {
+      "command": "Independent adversarial security re-review",
+      "exit_status": 0,
+      "relevant_result": "The initial BLOCK identified ancestor-symlink creation and FIFO-open races. Both received regressions and descriptor-safe fixes; fresh re-review returned SOUND."
+    }
+  ],
+  "caveats": [
+    "Windows 11 ACL privacy, reparse behavior, persistence, and rollback still require native live proof.",
+    "The production trust registry and startup artifact reconciliation remain blocked on approved public key identities and capability ceilings.",
+    "The Linux result is a controlled development-runtime check, not package or desktop GUI evidence.",
+    "Milestone 7 remains active."
+  ]
+}
