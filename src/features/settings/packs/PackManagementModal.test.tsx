@@ -173,7 +173,9 @@ describe("PackManagementModal", () => {
       ),
     ).toHaveLength(2);
     expect(
-      within(quarantinedPack).getByText("Artifact cleanup needs another attempt"),
+      within(quarantinedPack).getByText(
+        "Retry cleanup to remove the remaining app-owned files.",
+      ),
     ).toBeInTheDocument();
     expect(
       within(quarantinedPack).getAllByText("Last successful self-test").length,
@@ -201,10 +203,10 @@ describe("PackManagementModal", () => {
   });
 
   it.each([
-    ["needs_review", "Needs review"],
-    ["disabled", "Disabled"],
-    ["removed", "Removed"],
-  ])("shows the %s lifecycle state", async (state, accessibleState) => {
+    ["needs_review", "Needs review", "This pack passed local checks but is not active. Remove it if you do not want to keep it for future review."],
+    ["disabled", "Disabled", "This pack is inactive while disabled. Remove it if you no longer want its local files."],
+    ["removed", "Removed", "This pack was removed from use. Signed history remains to prevent unsafe downgrade or replay."],
+  ])("explains the %s lifecycle state", async (state, accessibleState, guidance) => {
     const currentRelease = release({
       isActive: state === "disabled",
       state:
@@ -223,9 +225,67 @@ describe("PackManagementModal", () => {
     expect(
       await screen.findByLabelText(`Pack status: ${accessibleState}`),
     ).toBeInTheDocument();
+    expect(screen.getByText(guidance)).toBeInTheDocument();
     if (state === "removed") {
       expect(screen.getAllByText("Last successful self-test").length).toBeGreaterThan(0);
     }
+  });
+
+  it("does not claim removed files are gone while cleanup is pending", async () => {
+    const removed = release({
+      artifactCleanupPending: true,
+      isActive: false,
+      state: "removed",
+    });
+    mockInvoke.mockResolvedValueOnce([
+      pack({
+        cleanupPending: true,
+        currentRelease: removed,
+        releases: [removed],
+        state: "removed",
+      }),
+    ]);
+
+    render(<PackManagementModal onClose={vi.fn()} />);
+
+    expect(
+      await screen.findByText(
+        "This pack was removed from use. Signed history remains to prevent unsafe downgrade or replay.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Retry cleanup to remove the remaining app-owned files."),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/Local pack files were removed/)).not.toBeInTheDocument();
+  });
+
+  it.each([
+    ["self_test_failed", "This release is unavailable because its local checks failed. Remove its local files."],
+    ["trust_revoked", "This publisher is no longer trusted. Remove the pack's local files."],
+    ["interrupted", "Installation did not finish. Remove the incomplete local files."],
+    ["artifact_missing", "The installed pack file is missing. Remove this unavailable pack."],
+    ["integrity_failed", "This pack is unavailable because verification failed. Remove its local files."],
+  ])("explains safe recovery for %s quarantine", async (quarantineReason, guidance) => {
+    const quarantined = release({
+      state: "quarantined",
+      quarantineReason,
+      isActive: false,
+      ...(quarantineReason === "self_test_failed" ? { lastSelfTestedAt: null } : {}),
+    });
+    mockInvoke.mockResolvedValueOnce([
+      pack({
+        state: "quarantined",
+        currentRelease: quarantined,
+        releases: [quarantined],
+      }),
+    ]);
+
+    render(<PackManagementModal onClose={vi.fn()} />);
+
+    expect(await screen.findByText(guidance)).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /^(Open|Run|Activate|Enable|Approve)/i }),
+    ).not.toBeInTheDocument();
   });
 
   it("uses the signed task kind to identify a packet-builder agent", async () => {

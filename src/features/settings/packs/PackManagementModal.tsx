@@ -40,6 +40,28 @@ const QUARANTINE_COPY: Record<QuarantineReason, string> = {
   integrity_failed: "Installed file did not pass verification",
 };
 
+const QUARANTINE_GUIDANCE: Record<QuarantineReason, string> = {
+  self_test_failed:
+    "This release is unavailable because its local checks failed. Remove its local files.",
+  trust_revoked:
+    "This publisher is no longer trusted. Remove the pack's local files.",
+  interrupted:
+    "Installation did not finish. Remove the incomplete local files.",
+  artifact_missing:
+    "The installed pack file is missing. Remove this unavailable pack.",
+  integrity_failed:
+    "This pack is unavailable because verification failed. Remove its local files.",
+};
+
+const STATE_GUIDANCE: Partial<Record<PackState, string>> = {
+  needs_review:
+    "This pack passed local checks but is not active. Remove it if you do not want to keep it for future review.",
+  disabled:
+    "This pack is inactive while disabled. Remove it if you no longer want its local files.",
+  removed:
+    "This pack was removed from use. Signed history remains to prevent unsafe downgrade or replay.",
+};
+
 const PURPOSE_COPY: Record<PackPurpose, string> = {
   static_guidance: "Provides static job-search guidance.",
   resume_evidence_review: "Reviews selected resume evidence.",
@@ -181,6 +203,9 @@ function PackCard({
   onChanged: () => Promise<void>;
 }) {
   const release = pack.currentRelease;
+  const guidance = release.quarantineReason
+    ? QUARANTINE_GUIDANCE[release.quarantineReason]
+    : STATE_GUIDANCE[pack.state];
   return (
     <article
       aria-label={`${release.publisherName} ${pack.packId}`}
@@ -215,9 +240,14 @@ function PackCard({
           {QUARANTINE_COPY[release.quarantineReason]}
         </p>
       ) : null}
+      {guidance ? (
+        <p className="mt-2 rounded-md bg-surface-50 p-3 text-sm text-surface-700 dark:bg-surface-800 dark:text-surface-200">
+          {guidance}
+        </p>
+      ) : null}
       {pack.cleanupPending ? (
         <p className="mt-2 text-sm text-warning">
-          Artifact cleanup needs another attempt
+          Retry cleanup to remove the remaining app-owned files.
         </p>
       ) : null}
 
