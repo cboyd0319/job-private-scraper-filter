@@ -7,7 +7,10 @@ use jobsentinel_security::{
 use serde::Deserialize;
 
 use crate::{
-    v3_evaluations::{parse_v3_evaluation_set, EvaluationScorer},
+    v3_evaluations::{
+        parse_ats_resume_requirement_evaluation_set, parse_v3_evaluation_set,
+        AtsResumeRequirementEvaluationScorer, EvaluationScorer,
+    },
     v3_foundation::{SourceAccess, SourcePolicy},
     v3_manifests::{
         AgentTask, AgentTaskKind, ApprovalGate, DataCategory, PackAction, PackExecutionClass,
@@ -67,6 +70,9 @@ pub enum SelfTestedPackPayload {
     Evaluation {
         scorer: EvaluationScorer,
     },
+    AtsResumeRequirementEvaluation {
+        scorer: AtsResumeRequirementEvaluationScorer,
+    },
 }
 
 /// A self-test result inseparable from the signed release that produced it.
@@ -124,7 +130,15 @@ enum PackPayloadV1 {
 #[serde(deny_unknown_fields)]
 struct EvaluationPayloadV1 {
     schema: String,
+    #[serde(default)]
+    target: Option<EvaluationTargetV1>,
     evaluation_set_json: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "snake_case")]
+enum EvaluationTargetV1 {
+    AtsPlainTextResumeRequirementV1,
 }
 
 #[derive(Debug, Deserialize)]
@@ -213,11 +227,23 @@ fn self_test_evaluation(
     {
         return Err("evaluation pack self-test failed".to_string());
     }
-    let evaluation = parse_v3_evaluation_set(&payload.evaluation_set_json)
-        .map_err(|_| "evaluation pack self-test failed".to_string())?;
-    Ok(SelfTestedPackPayload::Evaluation {
-        scorer: EvaluationScorer::new(evaluation),
-    })
+    match payload.target {
+        None => {
+            let evaluation = parse_v3_evaluation_set(&payload.evaluation_set_json)
+                .map_err(|_| "evaluation pack self-test failed".to_string())?;
+            Ok(SelfTestedPackPayload::Evaluation {
+                scorer: EvaluationScorer::new(evaluation),
+            })
+        }
+        Some(EvaluationTargetV1::AtsPlainTextResumeRequirementV1) => {
+            let evaluation =
+                parse_ats_resume_requirement_evaluation_set(&payload.evaluation_set_json)
+                    .map_err(|_| "evaluation pack self-test failed".to_string())?;
+            Ok(SelfTestedPackPayload::AtsResumeRequirementEvaluation {
+                scorer: AtsResumeRequirementEvaluationScorer::new(evaluation),
+            })
+        }
+    }
 }
 
 fn self_test_reviewed_workflow(

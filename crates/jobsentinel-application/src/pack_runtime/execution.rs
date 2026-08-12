@@ -84,8 +84,8 @@ pub struct StaticSkillReview {
     pub handoff: Option<StaticSkillHandoff>,
 }
 
-struct ActivePackPayload {
-    payload: SelfTestedPackPayload,
+pub(super) struct ActivePackPayload {
+    pub(super) payload: SelfTestedPackPayload,
     release_sequence: u64,
     signed_release_sha256: String,
     stream_generation: u64,
@@ -337,7 +337,7 @@ pub(super) async fn load_active_reviewed_task(
 }
 
 #[allow(clippy::too_many_arguments)]
-async fn load_active_pack_payload(
+pub(super) async fn load_active_pack_payload(
     database: &Database,
     artifact_root: &Path,
     publisher_key_id: &str,

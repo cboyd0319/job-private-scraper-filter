@@ -415,6 +415,63 @@ fn evaluation_pack_self_test_retains_an_opaque_local_observation_scorer() {
 }
 
 #[test]
+fn targeted_evaluation_pack_requires_one_bounded_resume_evidence_case() {
+    let mut targeted: serde_json::Value = serde_json::from_str(EVALUATION_SET).unwrap();
+    targeted["cases"]
+        .as_array_mut()
+        .unwrap()
+        .retain(|case| case["category"] == "resume_evidence");
+    targeted["revision"] = json!("v3.m7.ats-resume-requirement.1");
+    let payload = |evaluation: &serde_json::Value| {
+        serde_json::to_string(&json!({
+            "schema": "jobsentinel.v3.pack-payload.v1",
+            "pack_type": "evaluation",
+            "target": "ats_plain_text_resume_requirement_v1",
+            "evaluation_set_json": serde_json::to_string(evaluation).unwrap()
+        }))
+        .unwrap()
+    };
+    let tested = parse_and_self_test_pack_payload(
+        &release(payload(&targeted), PackType::Evaluation),
+        NaiveDate::from_ymd_opt(2026, 7, 20).unwrap(),
+    )
+    .unwrap()
+    .into_payload();
+    let SelfTestedPackPayload::AtsResumeRequirementEvaluation { scorer } = tested else {
+        panic!("targeted evaluation must retain its fixed ATS scorer");
+    };
+    assert_eq!(scorer.revision(), "v3.m7.ats-resume-requirement.1");
+    assert!(scorer
+        .score_target(|_, _, _| Ok(vec![
+            crate::v3_evaluations::EvaluationAssertion::ResumeEvidenceGap
+        ]))
+        .unwrap());
+
+    assert!(parse_and_self_test_pack_payload(
+        &release(
+            payload(&serde_json::from_str(EVALUATION_SET).unwrap()),
+            PackType::Evaluation,
+        ),
+        NaiveDate::from_ymd_opt(2026, 7, 20).unwrap(),
+    )
+    .is_err());
+
+    targeted["cases"][0]["input"]["requirement"] = json!("X".repeat(513));
+    assert!(parse_and_self_test_pack_payload(
+        &release(payload(&targeted), PackType::Evaluation),
+        NaiveDate::from_ymd_opt(2026, 7, 20).unwrap(),
+    )
+    .is_err());
+
+    targeted["cases"][0]["input"]["requirement"] = json!("Rust\nPython");
+    assert!(parse_and_self_test_pack_payload(
+        &release(payload(&targeted), PackType::Evaluation),
+        NaiveDate::from_ymd_opt(2026, 7, 20).unwrap(),
+    )
+    .is_err());
+}
+
+#[test]
 fn evaluation_pack_rejects_personal_or_partial_fixture_sets() {
     let mut personal: serde_json::Value = serde_json::from_str(EVALUATION_SET).unwrap();
     personal["contains_personal_data"] = json!(true);

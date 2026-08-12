@@ -21,11 +21,13 @@ use jobsentinel_storage::{
 use serde::Serialize;
 
 mod artifact;
+mod evaluation;
 mod execution;
 mod management;
 mod recovery;
 
 use artifact::{load_tested_artifact, persist_artifact, remove_owned_artifact, ArtifactLoadError};
+pub use evaluation::{evaluate_active_ats_resume_requirement_pack, AtsResumeRequirementEvaluation};
 pub use execution::{
     cancel_reviewed_pack_task, execute_draft_packet_task, execute_evidence_review_task,
     open_active_static_skill, prepare_draft_packet_task, prepare_evidence_review_task,

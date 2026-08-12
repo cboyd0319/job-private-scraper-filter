@@ -365,6 +365,7 @@ fn walk_files(root: &std::path::Path) -> Vec<std::path::PathBuf> {
     files
 }
 
+mod evaluation;
 mod execution;
 mod integrity;
 mod lifecycle;

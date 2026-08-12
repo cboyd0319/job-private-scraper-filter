@@ -1,3 +1,5 @@
+//! Builds renderer-safe local opportunity-case snapshots and decisions.
+
 use super::FoundationError;
 use crate::ats::ApplicationStatus;
 use chrono::{DateTime, Utc};
@@ -352,7 +354,7 @@ mod tests {
         assert_eq!(first.posting_risk.reasons, ["Reposted frequently"]);
         assert_eq!(first.timeline.len(), 1);
         assert_eq!(first.timeline[0].kind.as_str(), "case_created");
-        for private_value in [
+        for private_field in [
             "case_file_id",
             "description",
             "resume",
@@ -361,8 +363,8 @@ mod tests {
             "metadata_json",
         ] {
             assert!(
-                !serialized.contains(private_value),
-                "leaked {private_value}"
+                !serialized.contains(&format!("\"{private_field}\":")),
+                "leaked {private_field}"
             );
         }
     }

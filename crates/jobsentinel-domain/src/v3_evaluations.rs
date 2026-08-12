@@ -23,7 +23,13 @@ use crate::v3_evaluation_inputs::EvaluationInput;
 
 const SCHEMA: &str = "jobsentinel.v3.evaluation-set";
 const SCHEMA_VERSION: u32 = 1;
+const MAX_CASE_ID_BYTES: usize = 128;
 const MAX_REVISION_BYTES: usize = 128;
+const MAX_REQUIREMENT_BYTES: usize = 512;
+const MAX_EVIDENCE_ITEMS: usize = 16;
+const MAX_EVIDENCE_ITEM_BYTES: usize = 512;
+const MAX_SHARED_KEYWORDS: usize = 32;
+const MAX_SHARED_KEYWORD_BYTES: usize = 128;
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq)]
 #[serde(rename_all = "snake_case")]
@@ -110,10 +116,24 @@ pub struct EvaluationScorer {
     evaluation: V3EvaluationSet,
 }
 
+pub struct AtsResumeRequirementEvaluationScorer {
+    evaluation: V3EvaluationSet,
+}
+
 impl fmt::Debug for EvaluationScorer {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter
             .debug_struct("EvaluationScorer")
+            .field("revision", &self.evaluation.revision)
+            .field("case_count", &self.evaluation.cases.len())
+            .finish()
+    }
+}
+
+impl fmt::Debug for AtsResumeRequirementEvaluationScorer {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("AtsResumeRequirementEvaluationScorer")
             .field("revision", &self.evaluation.revision)
             .field("case_count", &self.evaluation.cases.len())
             .finish()
@@ -127,8 +147,54 @@ pub fn parse_v3_evaluation_set(input: &str) -> Result<V3EvaluationSet, String> {
     Ok(set)
 }
 
+pub(crate) fn parse_ats_resume_requirement_evaluation_set(
+    input: &str,
+) -> Result<V3EvaluationSet, String> {
+    let set: V3EvaluationSet =
+        serde_json::from_str(input).map_err(|error| format!("invalid evaluation set: {error}"))?;
+    set.validate_common()?;
+    if set.cases.len() != 1 || set.cases[0].category != EvaluationCategory::ResumeEvidence {
+        return Err(
+            "resume evidence evaluation sets require exactly one matching case".to_string(),
+        );
+    }
+    Ok(set)
+}
+
 impl V3EvaluationSet {
     fn validate(&self) -> Result<(), String> {
+        self.validate_common()?;
+        let categories = self
+            .cases
+            .iter()
+            .map(|case| case.category)
+            .collect::<BTreeSet<_>>();
+        if categories != EvaluationCategory::ALL.into_iter().collect() {
+            return Err("evaluation set must cover all 11 v3 categories".to_string());
+        }
+        let protected_bases = self
+            .cases
+            .iter()
+            .filter(|case| case.category == EvaluationCategory::ProtectedVeteranAnswers)
+            .map(|case| case.protected_veteran_answer_basis)
+            .collect::<BTreeSet<_>>();
+        if protected_bases
+            != [
+                ProtectedVeteranAnswerBasis::Unanswered,
+                ProtectedVeteranAnswerBasis::UserSelected,
+            ]
+            .into_iter()
+            .collect()
+        {
+            return Err(
+                "protected veteran evaluations require Unanswered and UserSelected cases"
+                    .to_string(),
+            );
+        }
+        Ok(())
+    }
+
+    fn validate_common(&self) -> Result<(), String> {
         if self.schema != SCHEMA {
             return Err("unsupported evaluation schema".to_string());
         }
@@ -146,42 +212,23 @@ impl V3EvaluationSet {
         }
 
         let mut ids = BTreeSet::new();
-        let mut categories = BTreeSet::new();
-        let mut protected_bases = BTreeSet::new();
         for case in &self.cases {
             case.validate()?;
             if !ids.insert(case.id.as_str()) {
                 return Err("evaluation case ids must be unique".to_string());
             }
-            categories.insert(case.category);
-            if case.category == EvaluationCategory::ProtectedVeteranAnswers {
-                protected_bases.insert(case.protected_veteran_answer_basis);
-            }
-        }
-
-        if categories != EvaluationCategory::ALL.into_iter().collect() {
-            return Err("evaluation set must cover all 11 v3 categories".to_string());
-        }
-        if protected_bases
-            != [
-                ProtectedVeteranAnswerBasis::Unanswered,
-                ProtectedVeteranAnswerBasis::UserSelected,
-            ]
-            .into_iter()
-            .collect()
-        {
-            return Err(
-                "protected veteran evaluations require Unanswered and UserSelected cases"
-                    .to_string(),
-            );
         }
         Ok(())
     }
 }
 
 fn is_revision(value: &str) -> bool {
+    is_identifier(value, MAX_REVISION_BYTES)
+}
+
+fn is_identifier(value: &str, max_bytes: usize) -> bool {
     !value.is_empty()
-        && value.len() <= MAX_REVISION_BYTES
+        && value.len() <= max_bytes
         && value
             .bytes()
             .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'-' | b'.' | b'_' | b':'))
@@ -224,9 +271,43 @@ impl EvaluationScorer {
     }
 }
 
+impl AtsResumeRequirementEvaluationScorer {
+    pub(crate) fn new(evaluation: V3EvaluationSet) -> Self {
+        Self { evaluation }
+    }
+
+    pub fn revision(&self) -> &str {
+        &self.evaluation.revision
+    }
+
+    /// Run the fixed ATS component while keeping its one synthetic fixture inside the scorer.
+    pub fn score_target(
+        &self,
+        target: impl FnOnce(&str, &[String], &[String]) -> Result<Vec<EvaluationAssertion>, String>,
+    ) -> Result<bool, String> {
+        self.evaluation.validate_common()?;
+        let case = self
+            .evaluation
+            .cases
+            .first()
+            .filter(|_| self.evaluation.cases.len() == 1)
+            .ok_or_else(|| "resume evidence evaluation case is unavailable".to_string())?;
+        let EvaluationInput::ResumeEvidence {
+            requirement,
+            evidence,
+            shared_keywords,
+        } = &case.input
+        else {
+            return Err("resume evidence evaluation input is invalid".to_string());
+        };
+        let observed = target(requirement, evidence, shared_keywords)?;
+        Ok(case.evaluate(&observed))
+    }
+}
+
 impl V3EvaluationCase {
     fn validate(&self) -> Result<(), String> {
-        if self.id.trim().is_empty() {
+        if !is_identifier(&self.id, MAX_CASE_ID_BYTES) {
             return Err("evaluation case id is required".to_string());
         }
         if self.category != self.input.category()
@@ -251,7 +332,38 @@ impl V3EvaluationCase {
         self.oracle.validate()?;
         self.validate_assertions()?;
         self.input.validate()?;
+        self.validate_execution_bounds()?;
         self.validate_sensitive_bases()
+    }
+
+    fn validate_execution_bounds(&self) -> Result<(), String> {
+        let EvaluationInput::ResumeEvidence {
+            requirement,
+            evidence,
+            shared_keywords,
+        } = &self.input
+        else {
+            return Ok(());
+        };
+        if requirement.len() > MAX_REQUIREMENT_BYTES
+            || requirement.trim() != requirement
+            || requirement.chars().any(char::is_control)
+            || evidence.len() > MAX_EVIDENCE_ITEMS
+            || evidence.iter().any(|value| {
+                value.is_empty()
+                    || value.len() > MAX_EVIDENCE_ITEM_BYTES
+                    || value.chars().any(char::is_control)
+            })
+            || shared_keywords.len() > MAX_SHARED_KEYWORDS
+            || shared_keywords.iter().any(|value| {
+                value.is_empty()
+                    || value.len() > MAX_SHARED_KEYWORD_BYTES
+                    || value.chars().any(char::is_control)
+            })
+        {
+            return Err("resume evidence evaluation input exceeds execution bounds".to_string());
+        }
+        Ok(())
     }
 
     pub fn evaluate(&self, observed: &[EvaluationAssertion]) -> bool {
