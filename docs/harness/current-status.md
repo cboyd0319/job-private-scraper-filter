@@ -43,13 +43,13 @@ Last updated: 2026-08-11
 - Status: `active`
 - Current slice: Signed packs have bounded lifecycle, cleanup, management, reviewed execution, verified static-skill
   reading, private scoring, and one fixed ATS evaluation behind caller-owned trust. It re-verifies the active artifact,
-  runs one bounded synthetic case without user data, and returns aggregate counts. Read-only Settings shows the key ID,
-  fingerprint, derived purpose, no-model-download truth, and prior successful self-test. The renderer accepts only exact
-  current self-tested pack contracts. Desktop startup owns the app-data `pack-artifacts` path without creating it or
-  loading trust. Database startup reconciles reviewed tasks. Active-artifact reconciliation and skill UI remain unwired.
+  runs one synthetic case without user data, and returns aggregate counts. Settings shows signed review facts and
+  offers generation-bound Disable, confirmed Remove, and cleanup retry while retaining history. It rejects stale refresh
+  results and accepts only exact self-tested contracts. Startup owns the app-data `pack-artifacts` path without creating
+  it or loading trust. Database startup reconciles reviewed tasks. Artifact reconciliation and skill UI remain unwired.
 - Next action: Approve exact production key IDs, fingerprints, and ceilings. Then compile immutable trust and reconcile
-  active artifacts at startup. Finish source-pack drop, lifecycle controls, broader product-target evaluation, reviewed
-  local execution, and live platform proof.
+  active artifacts at startup. Finish source-pack drop, install and activation UI, broader product-target evaluation,
+  reviewed local execution, and live platform proof.
 
 ## Deferred
 
