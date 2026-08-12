@@ -2,7 +2,8 @@
 
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
-import { decodeEmployerDossier, EmployerDossierSection } from "./EmployerDossierSection";
+import { EmployerDossierSection } from "./EmployerDossierSection";
+import { decodeEmployerDossier } from "./employerDossier";
 
 function dossier() {
   return {

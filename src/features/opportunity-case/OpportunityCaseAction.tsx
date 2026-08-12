@@ -5,7 +5,8 @@ import { invoke } from "../../platform/tauri";
 import { formatCompactDateTime, formatEventDate } from "../../shared/dateFormatting";
 import { Button } from "../../ui/Button";
 import { Modal } from "../../ui/Modal";
-import { decodeEmployerDossier, EmployerDossierSection, type EmployerDossier } from "../../shared/EmployerDossierSection";
+import { EmployerDossierSection } from "../../shared/EmployerDossierSection";
+import { decodeEmployerDossier, type EmployerDossier } from "../../shared/employerDossier";
 import { PackPacketBuilder } from "./PackPacketBuilder";
 
 type CaseFile = {

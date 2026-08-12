@@ -5,11 +5,8 @@ import { invoke } from "../../platform/tauri";
 import { Card } from "../../ui/Card";
 import { removeStorageValue } from "../../shared/browserStorage";
 import type { CompanyResearchPanelProps } from "../../shared/companyResearch";
-import {
-  decodeEmployerDossier,
-  EmployerDossierSection,
-  type EmployerDossier,
-} from "../../shared/EmployerDossierSection";
+import { EmployerDossierSection } from "../../shared/EmployerDossierSection";
+import { decodeEmployerDossier, type EmployerDossier } from "../../shared/employerDossier";
 
 type OpportunityCaseProjection = {
   job: { job_hash: string };
