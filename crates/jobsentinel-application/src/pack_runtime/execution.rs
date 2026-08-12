@@ -26,10 +26,8 @@ use crate::v3_foundation::{prepare_saved_match_debugger, SavedMatchDebugger};
 use super::{artifact::ArtifactLoadError, load_tested_artifact};
 
 mod packet;
-pub use packet::{
-    execute_draft_packet_task, prepare_draft_packet_task, DraftApplicationPacket,
-    DraftPacketTaskResult, DraftPacketTaskReview,
-};
+pub(crate) use packet::{execute_draft_packet_task, prepare_draft_packet_task};
+pub use packet::{DraftApplicationPacket, DraftPacketTaskResult, DraftPacketTaskReview};
 
 const REVIEW_LIFETIME_MINUTES: i64 = 5;
 
@@ -106,7 +104,7 @@ pub async fn cancel_reviewed_pack_task(database: &Database, run_id: &str) -> Res
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn open_active_static_skill(
+pub(crate) async fn open_active_static_skill(
     database: &Database,
     artifact_root: &Path,
     publisher_key_id: &str,
@@ -153,7 +151,7 @@ pub async fn open_active_static_skill(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn prepare_evidence_review_task(
+pub(crate) async fn prepare_evidence_review_task(
     database: &Database,
     artifact_root: &Path,
     publisher_key_id: &str,
@@ -210,7 +208,7 @@ pub async fn prepare_evidence_review_task(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn execute_evidence_review_task(
+pub(crate) async fn execute_evidence_review_task(
     database: &Database,
     artifact_root: &Path,
     trusted_publishers: &[TrustedPublisherKey],
@@ -232,7 +230,7 @@ pub async fn execute_evidence_review_task(
             "pack task approval is invalid or no longer pending"
         ));
     }
-    let active = load_active_reviewed_task(
+    let active = match load_active_reviewed_task(
         database,
         artifact_root,
         &run.context.publisher_key_id,
@@ -242,11 +240,22 @@ pub async fn execute_evidence_review_task(
         today,
         AgentTaskKind::EvidenceReview,
     )
-    .await?;
+    .await
+    {
+        Ok(active) => active,
+        Err(error) => {
+            database.cancel_pack_task(run_id).await?;
+            return Err(error);
+        }
+    };
     if !matches_context(&run.context, &active) {
+        database.cancel_pack_task(run_id).await?;
         return Err(anyhow!("pack task definition changed before execution"));
     }
-    database.start_pack_task(&run.context).await?;
+    if let Err(error) = database.start_pack_task(&run.context).await {
+        database.cancel_pack_task(run_id).await?;
+        return Err(error);
+    }
 
     let execution = tokio::time::timeout(
         Duration::from_secs(u64::from(active.task.max_duration_seconds)),

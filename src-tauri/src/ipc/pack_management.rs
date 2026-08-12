@@ -1,8 +1,10 @@
 //! Exposes renderer-safe pack review and generation-bound removal controls.
 
 use crate::application::pack_runtime::{
-    disable_pack_artifact, list_pack_management_reviews, retry_pack_artifact_cleanup,
-    uninstall_pack_artifacts, PackArtifactRemoval, PackManagementReview, PackStateChange,
+    activate_production_pack_artifact, disable_pack_artifact, enable_production_pack_artifact,
+    list_pack_management_reviews, open_production_active_static_skill, retry_pack_artifact_cleanup,
+    rollback_production_pack_artifact, uninstall_pack_artifacts, PackArtifactRemoval,
+    PackInstallReview, PackManagementReview, PackStateChange, StaticSkillReview,
 };
 use crate::bootstrap::AppState;
 use crate::desktop::Database;
@@ -32,6 +34,87 @@ pub(crate) async fn disable_pack(
     )
     .await
     .map_err(|error| user_friendly_error("Pack could not be disabled", error))
+}
+
+#[tauri::command]
+pub(crate) async fn activate_pack(
+    publisher_key_id: String,
+    pack_id: String,
+    release_sequence: u64,
+    expected_generation: u64,
+    state: State<'_, AppState>,
+) -> Result<PackInstallReview, String> {
+    validate_pack_identity(&publisher_key_id, &pack_id)?;
+    if release_sequence == 0 {
+        return Err("Refresh Packs before activating this release.".to_string());
+    }
+    activate_production_pack_artifact(
+        state.database.as_ref(),
+        &state.pack_runtime,
+        &publisher_key_id,
+        &pack_id,
+        release_sequence,
+        expected_generation,
+    )
+    .await
+    .map_err(|error| user_friendly_error("Pack could not be activated", error))
+}
+
+#[tauri::command]
+pub(crate) async fn enable_pack(
+    publisher_key_id: String,
+    pack_id: String,
+    expected_generation: u64,
+    state: State<'_, AppState>,
+) -> Result<PackStateChange, String> {
+    validate_pack_identity(&publisher_key_id, &pack_id)?;
+    enable_production_pack_artifact(
+        state.database.as_ref(),
+        &state.pack_runtime,
+        &publisher_key_id,
+        &pack_id,
+        expected_generation,
+    )
+    .await
+    .map_err(|error| user_friendly_error("Pack could not be enabled", error))
+}
+
+#[tauri::command]
+pub(crate) async fn rollback_pack(
+    publisher_key_id: String,
+    pack_id: String,
+    expected_generation: u64,
+    state: State<'_, AppState>,
+) -> Result<PackInstallReview, String> {
+    validate_pack_identity(&publisher_key_id, &pack_id)?;
+    rollback_production_pack_artifact(
+        state.database.as_ref(),
+        &state.pack_runtime,
+        &publisher_key_id,
+        &pack_id,
+        expected_generation,
+    )
+    .await
+    .map_err(|error| user_friendly_error("Pack could not be rolled back", error))
+}
+
+#[tauri::command]
+pub(crate) async fn open_static_skill(
+    publisher_key_id: String,
+    pack_id: String,
+    expected_generation: u64,
+    state: State<'_, AppState>,
+) -> Result<StaticSkillReview, String> {
+    validate_pack_identity(&publisher_key_id, &pack_id)?;
+    open_production_active_static_skill(
+        state.database.as_ref(),
+        &state.pack_runtime,
+        &publisher_key_id,
+        &pack_id,
+        expected_generation,
+    )
+    .await
+    .map_err(|error| user_friendly_error("Static skill could not be opened", error))
 }
 
 #[tauri::command]
@@ -80,7 +163,7 @@ async fn list_pack_management_for_database(
         .map_err(|error| user_friendly_error("Pack information is unavailable", error))
 }
 
-fn validate_pack_identity(publisher_key_id: &str, pack_id: &str) -> Result<(), String> {
+pub(super) fn validate_pack_identity(publisher_key_id: &str, pack_id: &str) -> Result<(), String> {
     if [publisher_key_id, pack_id].into_iter().all(|value| {
         !value.is_empty()
             && value.len() <= 128

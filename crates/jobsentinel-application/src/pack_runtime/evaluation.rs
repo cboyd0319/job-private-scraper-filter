@@ -31,8 +31,16 @@ pub struct EvidenceReviewerResumeRequirementEvaluation {
     pub failed_cases: u8,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StaticSkillHandoffEvaluation {
+    pub target: &'static str,
+    pub passed_cases: u8,
+    pub failed_cases: u8,
+}
+
 #[allow(clippy::too_many_arguments)]
-pub async fn evaluate_active_ats_resume_requirement_pack(
+pub(crate) async fn evaluate_active_ats_resume_requirement_pack(
     database: &Database,
     artifact_root: &Path,
     publisher_key_id: &str,
@@ -67,7 +75,7 @@ pub async fn evaluate_active_ats_resume_requirement_pack(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn evaluate_active_evidence_reviewer_resume_requirement_pack(
+pub(crate) async fn evaluate_active_evidence_reviewer_resume_requirement_pack(
     database: &Database,
     artifact_root: &Path,
     publisher_key_id: &str,
@@ -101,6 +109,47 @@ pub async fn evaluate_active_evidence_reviewer_resume_requirement_pack(
         target: "evidence_reviewer_resume_requirement_v1",
         passed_cases: u8::from(passed),
         failed_cases: u8::from(!passed),
+    })
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(crate) async fn evaluate_active_static_skill_handoff_pack(
+    database: &Database,
+    artifact_root: &Path,
+    publisher_key_id: &str,
+    pack_id: &str,
+    expected_generation: u64,
+    trusted_publishers: &[TrustedPublisherKey],
+    today: NaiveDate,
+) -> Result<StaticSkillHandoffEvaluation> {
+    let active = load_active_pack_payload(
+        database,
+        artifact_root,
+        publisher_key_id,
+        pack_id,
+        expected_generation,
+        trusted_publishers,
+        today,
+    )
+    .await?;
+    let SelfTestedPackPayload::StaticSkill {
+        handoff: Some(handoff),
+        ..
+    } = active.payload
+    else {
+        return Err(anyhow!(
+            "pack does not contain a validated static skill handoff"
+        ));
+    };
+    if handoff.task_kind != jobsentinel_domain::v3_manifests::AgentTaskKind::EvidenceReview {
+        return Err(anyhow!(
+            "static skill does not target the Evidence Reviewer"
+        ));
+    }
+    Ok(StaticSkillHandoffEvaluation {
+        target: "static_skill_evidence_reviewer_handoff_v1",
+        passed_cases: 1,
+        failed_cases: 0,
     })
 }
 

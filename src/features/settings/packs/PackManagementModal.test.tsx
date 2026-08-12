@@ -25,10 +25,20 @@ describe("PackManagementModal", () => {
 
     render(<PackManagementModal onClose={vi.fn()} />);
 
-    expect(
-      await screen.findByText("No packs are installed."),
-    ).toBeInTheDocument();
+    expect(await screen.findByText("No packs are installed.")).toBeInTheDocument();
     expect(mockInvoke).toHaveBeenCalledWith("list_pack_management");
+  });
+
+  it("offers a keyboard-accessible signed-pack chooser and reloads durable truth", async () => {
+    const user = userEvent.setup();
+    mockInvoke.mockResolvedValueOnce([]).mockResolvedValueOnce(true).mockResolvedValueOnce([pack()]);
+    render(<PackManagementModal onClose={vi.fn()} />);
+    await screen.findByText("No packs are installed.");
+
+    await user.click(screen.getByRole("button", { name: "Choose signed pack" }));
+
+    expect(mockInvoke).toHaveBeenCalledWith("choose_and_stage_pack");
+    expect(await screen.findByLabelText("Pack status: Ready")).toBeInTheDocument();
   });
 
   it("discards an older refresh result after newer pack truth arrives", async () => {
@@ -40,18 +50,14 @@ describe("PackManagementModal", () => {
     mockInvoke
       .mockResolvedValueOnce([pack()])
       .mockImplementationOnce(() => older)
-      .mockResolvedValueOnce([
-        pack({ state: "disabled", generation: 5 }),
-      ]);
+      .mockResolvedValueOnce([pack({ state: "disabled", generation: 5 })]);
 
     render(<PackManagementModal onClose={vi.fn()} />);
     expect(await screen.findByLabelText("Pack status: Ready")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Refresh" }));
     await user.click(screen.getByRole("button", { name: "Refresh" }));
-    expect(
-      await screen.findByLabelText("Pack status: Disabled"),
-    ).toBeInTheDocument();
+    expect(await screen.findByLabelText("Pack status: Disabled")).toBeInTheDocument();
 
     await act(async () => {
       resolveOlder([pack()]);
@@ -124,82 +130,42 @@ describe("PackManagementModal", () => {
     const readyPack = await screen.findByRole("article", {
       name: "JobSentinel jobsentinel.sources.us",
     });
-    expect(
-      within(readyPack).getByLabelText("Pack status: Ready"),
-    ).toBeInTheDocument();
+    expect(within(readyPack).getByLabelText("Pack status: Ready")).toBeInTheDocument();
     expect(within(readyPack).getByText("Update available")).toBeInTheDocument();
     const currentReview = within(readyPack).getByRole("region", {
       name: "Current release review",
     });
-    expect(
-      within(currentReview).getByText("Three reviewed source fixtures"),
-    ).toBeInTheDocument();
-    expect(
-      within(currentReview).getByText("Does not use outside AI"),
-    ).toBeInTheDocument();
-    expect(
-      within(currentReview).getByText("Static Content"),
-    ).toBeInTheDocument();
-    expect(
-      within(currentReview).getByText(
-        "a3b1c9d7e5f40123456789abcdef0123456789abcdef0123456789abcdef0123",
-      ),
-    ).toBeInTheDocument();
-    expect(
-      within(currentReview).getByText("Publisher key fingerprint (SHA-256)"),
-    ).toBeInTheDocument();
-    expect(
-      within(currentReview).getByText(/Tasks:/),
-    ).toHaveTextContent("Tasks: No runnable tasks");
-    expect(
-      within(currentReview).getByText(/Approval:/),
-    ).toHaveTextContent("Approval: No execution approval gate");
+    expect(within(currentReview).getByText("Three reviewed source fixtures")).toBeInTheDocument();
+    expect(within(currentReview).getByText("Does not use outside AI")).toBeInTheDocument();
+    expect(within(currentReview).getByText("Static Content")).toBeInTheDocument();
+    expect(within(currentReview).getByText("a3b1c9d7e5f40123456789abcdef0123456789abcdef0123456789abcdef0123")).toBeInTheDocument();
+    expect(within(currentReview).getByText("Publisher key fingerprint (SHA-256)")).toBeInTheDocument();
+    expect(within(currentReview).getByText(/Tasks:/)).toHaveTextContent("Tasks: No runnable tasks");
+    expect(within(currentReview).getByText(/Approval:/)).toHaveTextContent("Approval: No execution approval gate");
     expect(within(currentReview).getByText("What it helps with")).toBeInTheDocument();
-    expect(
-      within(currentReview).getByText("Adds reviewed job-source support."),
-    ).toBeInTheDocument();
+    expect(within(currentReview).getByText("Adds reviewed job-source support.")).toBeInTheDocument();
     expect(within(currentReview).getByText("Model download")).toBeInTheDocument();
     expect(within(currentReview).getByText("Not required")).toBeInTheDocument();
-    expect(
-      within(currentReview).getByText("Last successful self-test"),
-    ).toBeInTheDocument();
+    expect(within(currentReview).getByText("Last successful self-test")).toBeInTheDocument();
 
     const quarantinedPack = screen.getByRole("article", {
       name: "JobSentinel jobsentinel.sources.review",
     });
-    expect(
-      within(quarantinedPack).getAllByText(
-        "Installed file did not pass verification",
-      ),
-    ).toHaveLength(2);
-    expect(
-      within(quarantinedPack).getByText(
-        "Retry cleanup to remove the remaining app-owned files.",
-      ),
-    ).toBeInTheDocument();
-    expect(
-      within(quarantinedPack).getAllByText("Last successful self-test").length,
-    ).toBeGreaterThan(0);
+    expect(within(quarantinedPack).getAllByText("Installed file did not pass verification")).toHaveLength(2);
+    expect(within(quarantinedPack).getByText("Retry cleanup to remove the remaining app-owned files.")).toBeInTheDocument();
+    expect(within(quarantinedPack).getAllByText("Last successful self-test").length).toBeGreaterThan(0);
 
     await userEvent.click(within(readyPack).getByText("Release history"));
     expect(within(readyPack).getByText("Release 2")).toBeInTheDocument();
-    expect(
-      within(readyPack).getByText("Pack self-test failed"),
-    ).toBeInTheDocument();
+    expect(within(readyPack).getByText("Pack self-test failed")).toBeInTheDocument();
     expect(within(readyPack).getByText("Cleanup pending")).toBeInTheDocument();
 
     const update = within(readyPack).getByRole("listitem", {
       name: "Release 3",
     });
-    await userEvent.click(
-      within(update).getByText("Review signed permissions"),
-    );
-    expect(within(update).getByText(/Actions:/)).toHaveTextContent(
-      "No actions",
-    );
-    expect(within(update).getByText(/Gateway policy:/)).toHaveTextContent(
-      "Not used",
-    );
+    await userEvent.click(within(update).getByText("Review signed permissions"));
+    expect(within(update).getByText(/Actions:/)).toHaveTextContent("No actions");
+    expect(within(update).getByText(/Gateway policy:/)).toHaveTextContent("Not used");
   });
 
   it.each([
@@ -209,22 +175,13 @@ describe("PackManagementModal", () => {
   ])("explains the %s lifecycle state", async (state, accessibleState, guidance) => {
     const currentRelease = release({
       isActive: state === "disabled",
-      state:
-        state === "needs_review"
-          ? "self_tested"
-          : state === "removed"
-            ? "removed"
-            : "ready",
+      state: state === "needs_review" ? "self_tested" : state === "removed" ? "removed" : "ready",
     });
-    mockInvoke.mockResolvedValueOnce([
-      pack({ state, currentRelease, releases: [currentRelease] }),
-    ]);
+    mockInvoke.mockResolvedValueOnce([pack({ state, currentRelease, releases: [currentRelease] })]);
 
     render(<PackManagementModal onClose={vi.fn()} />);
 
-    expect(
-      await screen.findByLabelText(`Pack status: ${accessibleState}`),
-    ).toBeInTheDocument();
+    expect(await screen.findByLabelText(`Pack status: ${accessibleState}`)).toBeInTheDocument();
     expect(screen.getByText(guidance)).toBeInTheDocument();
     if (state === "removed") {
       expect(screen.getAllByText("Last successful self-test").length).toBeGreaterThan(0);
@@ -248,14 +205,8 @@ describe("PackManagementModal", () => {
 
     render(<PackManagementModal onClose={vi.fn()} />);
 
-    expect(
-      await screen.findByText(
-        "This pack was removed from use. Signed history remains to prevent unsafe downgrade or replay.",
-      ),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText("Retry cleanup to remove the remaining app-owned files."),
-    ).toBeInTheDocument();
+    expect(await screen.findByText("This pack was removed from use. Signed history remains to prevent unsafe downgrade or replay.")).toBeInTheDocument();
+    expect(screen.getByText("Retry cleanup to remove the remaining app-owned files.")).toBeInTheDocument();
     expect(screen.queryByText(/Local pack files were removed/)).not.toBeInTheDocument();
   });
 
@@ -284,7 +235,9 @@ describe("PackManagementModal", () => {
 
     expect(await screen.findByText(guidance)).toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: /^(Open|Run|Activate|Enable|Approve)/i }),
+      screen.queryByRole("button", {
+        name: /^(Open|Run|Activate|Enable|Approve)/i,
+      }),
     ).not.toBeInTheDocument();
   });
 
@@ -296,40 +249,26 @@ describe("PackManagementModal", () => {
       privacyLabels: ["local_only", "sensitive"],
       allowedDataCategories: ["public_job_posting", "resume_evidence"],
       allowedTaskKinds: ["draft_packet"],
-      allowedActions: [
-        "read_selected_case_file",
-        "read_selected_resume_evidence",
-        "read_public_job_posting",
-        "create_draft_application_packet",
-        "write_local_event",
-      ],
+      allowedActions: ["read_selected_case_file", "read_selected_resume_evidence", "read_public_job_posting", "create_draft_application_packet", "write_local_event"],
       approvalGates: ["per_execution_review"],
     });
-    mockInvoke.mockResolvedValueOnce([
-      pack({ currentRelease: packetAgent, releases: [packetAgent] }),
-    ]);
+    mockInvoke.mockResolvedValueOnce([pack({ currentRelease: packetAgent, releases: [packetAgent] })]);
 
     render(<PackManagementModal onClose={vi.fn()} />);
 
     const currentReview = await screen.findByRole("region", {
       name: "Current release review",
     });
-    expect(
-      within(currentReview).getByText("Builds a draft application packet."),
-    ).toBeInTheDocument();
+    expect(within(currentReview).getByText("Builds a draft application packet.")).toBeInTheDocument();
   });
 
   it("fails closed when the response contains an unknown signed fact", async () => {
     const invalidRelease = release({ packType: "script" });
-    mockInvoke.mockResolvedValueOnce([
-      pack({ currentRelease: invalidRelease, releases: [invalidRelease] }),
-    ]);
+    mockInvoke.mockResolvedValueOnce([pack({ currentRelease: invalidRelease, releases: [invalidRelease] })]);
 
     render(<PackManagementModal onClose={vi.fn()} />);
 
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      "Pack information could not be loaded.",
-    );
+    expect(await screen.findByRole("alert")).toHaveTextContent("Pack information could not be loaded.");
     expect(screen.queryByText("Script")).not.toBeInTheDocument();
   });
 
@@ -339,28 +278,20 @@ describe("PackManagementModal", () => {
     "a3b1c9d7e5f40123456789abcdef0123456789abcdef0123456789abcdef012",
     "a3b1c9d7e5f40123456789abcdef0123456789abcdef0123456789abcdef012z",
   ])("fails closed when the publisher fingerprint is invalid: %s", async (publisherPublicKeySha256) => {
-    mockInvoke.mockResolvedValueOnce([
-      pack({ publisherPublicKeySha256 }),
-    ]);
+    mockInvoke.mockResolvedValueOnce([pack({ publisherPublicKeySha256 })]);
 
     render(<PackManagementModal onClose={vi.fn()} />);
 
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      "Pack information could not be loaded.",
-    );
+    expect(await screen.findByRole("alert")).toHaveTextContent("Pack information could not be loaded.");
   });
 
   it("fails closed when static content claims executable capability", async () => {
     const invalidRelease = release({ allowedActions: ["write_local_event"] });
-    mockInvoke.mockResolvedValueOnce([
-      pack({ currentRelease: invalidRelease, releases: [invalidRelease] }),
-    ]);
+    mockInvoke.mockResolvedValueOnce([pack({ currentRelease: invalidRelease, releases: [invalidRelease] })]);
 
     render(<PackManagementModal onClose={vi.fn()} />);
 
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      "Pack information could not be loaded.",
-    );
+    expect(await screen.findByRole("alert")).toHaveTextContent("Pack information could not be loaded.");
   });
 
   it.each([
@@ -389,34 +320,24 @@ describe("PackManagementModal", () => {
     ],
   ])("fails closed when %s", async (_description, invalidFacts) => {
     const invalidRelease = release(invalidFacts);
-    mockInvoke.mockResolvedValueOnce([
-      pack({ currentRelease: invalidRelease, releases: [invalidRelease] }),
-    ]);
+    mockInvoke.mockResolvedValueOnce([pack({ currentRelease: invalidRelease, releases: [invalidRelease] })]);
 
     render(<PackManagementModal onClose={vi.fn()} />);
 
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      "Pack information could not be loaded.",
-    );
+    expect(await screen.findByRole("alert")).toHaveTextContent("Pack information could not be loaded.");
   });
 
-  it.each([
-    { purpose: "resume_evidence_review" },
-    { modelDownloadRequired: true },
-    { lastSelfTestedAt: "not-a-date" },
-    { lastSelfTestedAt: null },
-  ])("fails closed when a Pack UI fact is invalid: %j", async (invalidFact) => {
-    const invalidRelease = release(invalidFact);
-    mockInvoke.mockResolvedValueOnce([
-      pack({ currentRelease: invalidRelease, releases: [invalidRelease] }),
-    ]);
+  it.each([{ purpose: "resume_evidence_review" }, { modelDownloadRequired: true }, { lastSelfTestedAt: "not-a-date" }, { lastSelfTestedAt: null }])(
+    "fails closed when a Pack UI fact is invalid: %j",
+    async (invalidFact) => {
+      const invalidRelease = release(invalidFact);
+      mockInvoke.mockResolvedValueOnce([pack({ currentRelease: invalidRelease, releases: [invalidRelease] })]);
 
-    render(<PackManagementModal onClose={vi.fn()} />);
+      render(<PackManagementModal onClose={vi.fn()} />);
 
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      "Pack information could not be loaded.",
-    );
-  });
+      expect(await screen.findByRole("alert")).toHaveTextContent("Pack information could not be loaded.");
+    },
+  );
 
   it("fails closed when current review facts disagree with release history", async () => {
     mockInvoke.mockResolvedValueOnce([
@@ -428,16 +349,12 @@ describe("PackManagementModal", () => {
 
     render(<PackManagementModal onClose={vi.fn()} />);
 
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      "Pack information could not be loaded.",
-    );
+    expect(await screen.findByRole("alert")).toHaveTextContent("Pack information could not be loaded.");
   });
 
   it("fails closed when lifecycle flags contradict the pack state", async () => {
     const stagedRelease = release({ isActive: false, state: "staged" });
-    mockInvoke.mockResolvedValueOnce([
-      pack({ currentRelease: stagedRelease, releases: [stagedRelease] }),
-    ]);
+    mockInvoke.mockResolvedValueOnce([pack({ currentRelease: stagedRelease, releases: [stagedRelease] })]);
 
     render(<PackManagementModal onClose={vi.fn()} />);
 
@@ -446,15 +363,11 @@ describe("PackManagementModal", () => {
 
   it("keeps load errors local and retries on request", async () => {
     const user = userEvent.setup();
-    mockInvoke
-      .mockRejectedValueOnce(new Error("raw database detail"))
-      .mockResolvedValueOnce([]);
+    mockInvoke.mockRejectedValueOnce(new Error("raw database detail")).mockResolvedValueOnce([]);
 
     render(<PackManagementModal onClose={vi.fn()} />);
 
-    expect(
-      await screen.findByRole("alert"),
-    ).toHaveTextContent("Pack information could not be loaded.");
+    expect(await screen.findByRole("alert")).toHaveTextContent("Pack information could not be loaded.");
     expect(screen.queryByText("raw database detail")).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Try again" }));

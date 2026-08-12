@@ -21,6 +21,7 @@ pub(crate) mod linkedin_workbench;
 pub(crate) mod market;
 pub(crate) mod native_file_drop;
 pub(crate) mod opportunity_case;
+pub(crate) mod pack_execution;
 pub(crate) mod pack_management;
 pub(crate) mod recovery;
 pub(crate) mod resume;

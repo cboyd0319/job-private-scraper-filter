@@ -6,7 +6,12 @@ use jobsentinel_domain::v3_manifests::{
 };
 use sha2::{Digest, Sha256};
 
-use crate::pack_runtime::production_trusted_publishers;
+use crate::{
+    pack_runtime::{
+        production_trusted_publishers, stage_production_pack_artifact, PackRuntimeEnvironment,
+    },
+    pack_runtime_tests::signed_source_pack,
+};
 
 #[test]
 fn production_trust_contains_only_the_five_approved_publishers() {
@@ -131,6 +136,27 @@ fn production_publishers_have_the_approved_exact_authority_ceilings() {
             PackAction::WriteLocalEvent,
         ],
     );
+}
+
+#[tokio::test]
+async fn production_staging_rejects_a_valid_nonproduction_publisher() {
+    let database = jobsentinel_storage::Database::connect_memory()
+        .await
+        .unwrap();
+    database.migrate().await.unwrap();
+    let data_dir = tempfile::tempdir().unwrap();
+    let runtime = PackRuntimeEnvironment::for_data_dir(data_dir.path());
+    let (_, envelope) = signed_source_pack(1);
+
+    assert!(
+        stage_production_pack_artifact(&database, &runtime, &envelope)
+            .await
+            .is_err()
+    );
+    assert!(database
+        .get_pack_stream(super::PUBLISHER_ID, super::PACK_ID)
+        .await
+        .is_err());
 }
 
 fn assert_agent_ceiling(

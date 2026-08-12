@@ -1,9 +1,14 @@
-import { render, screen, waitFor } from "@testing-library/react";
+/** Proves current opportunity-case review, preparation eligibility, and request identity. */
+
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { OpportunityCaseAction } from "./OpportunityCaseAction";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
+vi.mock("./PackPacketBuilder", () => ({
+  PackPacketBuilder: ({ jobHash }: { jobHash: string }) => <div data-testid="packet-builder">Packet Builder for {jobHash}</div>,
+}));
 
 const { invoke } = await import("@tauri-apps/api/core");
 const mockInvoke = vi.mocked(invoke);
@@ -62,10 +67,7 @@ const caseFile = {
   },
   decision: {
     kind: "research_more",
-    reasons: [
-      "Verify this required qualification before deciding: Active license.",
-      "The saved source snapshot may be stale.",
-    ],
+    reasons: ["Verify this required qualification before deciding: Active license.", "The saved source snapshot may be stale."],
   },
   timeline: [
     { at: "2026-07-20T12:00:00Z", kind: "source_checked_failed" },
@@ -117,8 +119,7 @@ describe("OpportunityCaseAction", () => {
     expect(screen.getByText(/Evidence needs review/i)).toBeVisible();
     expect(screen.getByText("Source check failed")).toBeVisible();
     expect(screen.getByText("Data restored")).toBeVisible();
-    expect(screen.getByText("Source check failed").closest("li")?.querySelector("time"))
-      .toHaveAttribute("datetime", "2026-07-20T12:00:00Z");
+    expect(screen.getByText("Source check failed").closest("li")?.querySelector("time")).toHaveAttribute("datetime", "2026-07-20T12:00:00Z");
     expect(screen.getByText(/Tue, Jul 21, 2026/i)).toBeVisible();
     expect(screen.queryByText("job-1")).not.toBeInTheDocument();
   });
@@ -130,10 +131,10 @@ describe("OpportunityCaseAction", () => {
 
     await user.click(screen.getByRole("button", { name: "Open case" }));
     await screen.findByRole("heading", { name: "Office Assistant" });
-    await waitFor(() =>
-      expect(screen.getByRole("dialog").querySelector(".app-modal-panel")).toHaveFocus(),
-    );
-    const prepareButton = screen.getByRole("button", { name: "Prepare this job" });
+    await waitFor(() => expect(screen.getByRole("dialog").querySelector(".app-modal-panel")).toHaveFocus());
+    const prepareButton = screen.getByRole("button", {
+      name: "Prepare this job",
+    });
     await user.click(prepareButton);
 
     expect(screen.getByRole("heading", { name: "Preparation workup" })).toBeVisible();
@@ -165,14 +166,23 @@ describe("OpportunityCaseAction", () => {
     const user = userEvent.setup();
     mockInvoke.mockResolvedValue({
       ...caseFile,
-      evidence: { ...caseFile.evidence, confirmed_count: 0, stale_packet_count: 0, requirements: [] },
-      decision: { kind: "research_more", reasons: ["Review the posting before tailoring."] },
+      evidence: {
+        ...caseFile.evidence,
+        confirmed_count: 0,
+        stale_packet_count: 0,
+        requirements: [],
+      },
+      decision: {
+        kind: "research_more",
+        reasons: ["Review the posting before tailoring."],
+      },
     });
     render(<OpportunityCaseAction jobHash="job-1" />);
 
     await user.click(screen.getByRole("button", { name: "Open case" }));
     await screen.findByRole("heading", { name: "Office Assistant" });
     await user.click(screen.getByRole("button", { name: "Prepare this job" }));
+    expect(screen.getByTestId("packet-builder")).toHaveTextContent("job-1");
 
     expect(screen.getByText(/No recognized requirements are available/i)).toBeVisible();
     expect(screen.getByText(/Resolve the listed blockers before preparing or submitting/i)).toBeVisible();
@@ -210,10 +220,7 @@ describe("OpportunityCaseAction", () => {
       },
       decision: {
         kind: "research_more",
-        reasons: [
-          "No current saved-resume evidence review is available.",
-          "The saved source snapshot may be stale.",
-        ],
+        reasons: ["No current saved-resume evidence review is available.", "The saved source snapshot may be stale."],
       },
     });
     render(<OpportunityCaseAction jobHash="job-1" />);
@@ -225,15 +232,10 @@ describe("OpportunityCaseAction", () => {
     expect(screen.getByText("Application: Applied. No contact recorded.")).toBeVisible();
     expect(screen.getByText("1 upcoming interview, 0 completed interviews.")).toBeVisible();
     expect(screen.getByText("0 confirmed, 0 current packets.")).toBeVisible();
-    expect(
-      screen.getByText("Compare this job with your active saved resume to build the evidence wall."),
-    ).toBeVisible();
+    expect(screen.getByText("Compare this job with your active saved resume to build the evidence wall.")).toBeVisible();
     expect(screen.getByText("No case activity yet.")).toBeVisible();
     expect(screen.getByText("1 upcoming interview")).toBeVisible();
-    expect(screen.getByText((_, element) =>
-      element?.tagName === "P" &&
-      Boolean(element.textContent?.includes("Source: Employer careers page. Last checked")),
-    )).toBeVisible();
+    expect(screen.getByText((_, element) => element?.tagName === "P" && Boolean(element.textContent?.includes("Source: Employer careers page. Last checked")))).toBeVisible();
     expect(screen.getByRole("dialog").querySelector(".min-w-0")).toHaveClass("min-w-0");
     expect(screen.getByRole("dialog").querySelector(".app-modal-panel")).toHaveClass("max-h-[calc(100dvh-2rem)]");
 
@@ -246,13 +248,24 @@ describe("OpportunityCaseAction", () => {
     mockInvoke
       .mockResolvedValueOnce({
         ...caseFile,
-        evidence: { ...caseFile.evidence, review_status: "needs_refresh", requirements: [] },
-        decision: { kind: "research_more", reasons: ["The saved-resume evidence review needs to be refreshed."] },
+        evidence: {
+          ...caseFile.evidence,
+          review_status: "needs_refresh",
+          requirements: [],
+        },
+        decision: {
+          kind: "research_more",
+          reasons: ["The saved-resume evidence review needs to be refreshed."],
+        },
       })
       .mockResolvedValueOnce({
         ...caseFile,
+        job: { ...caseFile.job, job_hash: "job-2" },
         outcome: { status: "offer_accepted" },
-        decision: { kind: "skip", reasons: ["This opportunity closed with an accepted offer."] },
+        decision: {
+          kind: "skip",
+          reasons: ["This opportunity closed with an accepted offer."],
+        },
       });
     const { rerender } = render(<OpportunityCaseAction jobHash="job-1" />);
 
@@ -260,6 +273,7 @@ describe("OpportunityCaseAction", () => {
     expect(await screen.findByText(/evidence review changed/i)).toBeVisible();
     await user.click(screen.getByRole("button", { name: "Prepare this job" }));
     expect(screen.getByText(/Refresh the active saved-resume evidence review/i)).toBeVisible();
+    expect(screen.queryByTestId("packet-builder")).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Close modal" }));
     rerender(<OpportunityCaseAction jobHash="job-2" />);
     await user.click(screen.getByRole("button", { name: "Open case" }));
@@ -269,14 +283,53 @@ describe("OpportunityCaseAction", () => {
     await user.click(screen.getByRole("button", { name: "Prepare this job" }));
     expect(screen.getByText(/Review the recorded outcome instead of preparing another submission/i)).toBeVisible();
     expect(screen.queryByText(/submit on the employer site yourself/i)).not.toBeInTheDocument();
+    expect(screen.queryByTestId("packet-builder")).not.toBeInTheDocument();
+  });
+
+  it("does not render a stale case after the requested job changes", async () => {
+    const user = userEvent.setup();
+    let resolveA: (value: typeof caseFile) => void = () => undefined;
+    let resolveB: (value: typeof caseFile) => void = () => undefined;
+    mockInvoke
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveA = resolve;
+          }),
+      )
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveB = resolve;
+          }),
+      );
+    const { rerender } = render(<OpportunityCaseAction jobHash="job-1" />);
+
+    await user.click(screen.getByRole("button", { name: "Open case" }));
+    rerender(<OpportunityCaseAction jobHash="job-2" />);
+    await user.click(screen.getByRole("button", { name: "Open case" }));
+    await act(async () =>
+      resolveB({
+        ...caseFile,
+        job: { ...caseFile.job, job_hash: "job-2", title: "Current job" },
+      }),
+    );
+    expect(await screen.findByRole("heading", { name: "Current job" })).toBeVisible();
+
+    await act(async () => resolveA(caseFile));
+    expect(screen.queryByRole("heading", { name: "Office Assistant" })).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Current job" })).toBeVisible();
   });
 
   it("shows a loading state before the local snapshot arrives", async () => {
     const user = userEvent.setup();
     let resolveCase: (value: typeof caseFile) => void;
-    mockInvoke.mockImplementationOnce(() => new Promise((resolve) => {
-      resolveCase = resolve;
-    }));
+    mockInvoke.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveCase = resolve;
+        }),
+    );
     render(<OpportunityCaseAction jobHash="job-1" />);
 
     await user.click(screen.getByRole("button", { name: "Open case" }));

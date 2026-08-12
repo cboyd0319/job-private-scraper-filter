@@ -55,7 +55,7 @@ pub struct DraftPacketTaskResult {
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn prepare_draft_packet_task(
+pub(crate) async fn prepare_draft_packet_task(
     database: &Database,
     artifact_root: &Path,
     publisher_key_id: &str,
@@ -116,7 +116,7 @@ pub async fn prepare_draft_packet_task(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn execute_draft_packet_task(
+pub(crate) async fn execute_draft_packet_task(
     database: &Database,
     artifact_root: &Path,
     trusted_publishers: &[TrustedPublisherKey],
@@ -138,7 +138,7 @@ pub async fn execute_draft_packet_task(
             "pack task approval is invalid or no longer pending"
         ));
     }
-    let active = load_active_reviewed_task(
+    let active = match load_active_reviewed_task(
         database,
         artifact_root,
         &run.context.publisher_key_id,
@@ -148,11 +148,22 @@ pub async fn execute_draft_packet_task(
         today,
         AgentTaskKind::DraftPacket,
     )
-    .await?;
+    .await
+    {
+        Ok(active) => active,
+        Err(error) => {
+            database.cancel_pack_task(run_id).await?;
+            return Err(error);
+        }
+    };
     if !matches_context(&run.context, &active) {
+        database.cancel_pack_task(run_id).await?;
         return Err(anyhow!("pack task definition changed before execution"));
     }
-    database.start_pack_task(&run.context).await?;
+    if let Err(error) = database.start_pack_task(&run.context).await {
+        database.cancel_pack_task(run_id).await?;
+        return Err(error);
+    }
 
     let (packet, input_guard) = match tokio::time::timeout(
         Duration::from_secs(u64::from(active.task.max_duration_seconds)),

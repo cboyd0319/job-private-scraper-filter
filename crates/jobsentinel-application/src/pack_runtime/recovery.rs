@@ -18,7 +18,7 @@ pub struct PackArtifactReconciliation {
     pub quarantined: u64,
 }
 
-pub async fn reconcile_active_pack_artifacts(
+pub(crate) async fn reconcile_active_pack_artifacts(
     database: &Database,
     artifact_root: &Path,
     trusted_publishers: &[TrustedPublisherKey],

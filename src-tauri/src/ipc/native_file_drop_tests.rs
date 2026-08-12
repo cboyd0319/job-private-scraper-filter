@@ -1,4 +1,9 @@
-use super::{open_regular_source, read_bounded_job_text, NativeFileDropState};
+//! Proves native drop staging rejects path races and preserves bounded app-owned copies.
+
+use super::{
+    open_regular_source, pack::read_bounded_pack_artifact, read_bounded_job_text,
+    NativeFileDropState,
+};
 use std::path::Path;
 
 fn state_in(temp: &tempfile::TempDir) -> NativeFileDropState {
@@ -230,6 +235,22 @@ fn job_text_requires_bounded_utf8_before_smart_paste_staging() {
 }
 
 #[test]
+fn signed_pack_reads_are_bounded_before_verification() {
+    let temp = tempfile::tempdir().unwrap();
+    let valid = temp.path().join("valid.jspack");
+    let oversized = temp.path().join("oversized.jspack");
+    std::fs::write(&valid, b"{}\n").unwrap();
+    std::fs::write(
+        &oversized,
+        vec![b' '; jobsentinel_application::pack_runtime::MAX_PACK_ARTIFACT_BYTES + 1],
+    )
+    .unwrap();
+
+    assert_eq!(read_bounded_pack_artifact(&valid).unwrap(), b"{}\n");
+    assert!(read_bounded_pack_artifact(&oversized).is_err());
+}
+
+#[test]
 fn native_drop_commands_are_registered_without_a_filesystem_capability() {
     let registry = include_str!("registry.rs");
     let capability = include_str!("../../capabilities/default.json");
@@ -238,6 +259,8 @@ fn native_drop_commands_are_registered_without_a_filesystem_capability() {
         "import_dropped_resume",
         "preview_dropped_job",
         "stage_dropped_portable_restore",
+        "stage_dropped_pack",
+        "choose_and_stage_pack",
     ] {
         assert!(registry.contains(command));
     }

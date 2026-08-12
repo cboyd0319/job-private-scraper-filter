@@ -43,7 +43,7 @@ current maintained surface at the time of the latest docs sweep.
 | Storage | Local SQLite with SQLx offline mode |
 | Source monitoring | 12 scheduled source adapters plus user-opened search links |
 | Source status | 15 source-status checks with plain help output |
-| Backend surface | 234 registered Tauri commands |
+| Backend surface | 254 registered Tauri commands |
 | Privacy posture | Local-first, no telemetry, external channels user-configured |
 | External AI posture | Optional, disabled by default, routed through `src/shared/externalAi/` |
 | Safe support reports | Reports can be copied or saved locally, reviewed, and shared only when the user chooses help |

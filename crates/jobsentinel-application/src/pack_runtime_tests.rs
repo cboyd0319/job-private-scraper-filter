@@ -156,7 +156,10 @@ fn signed_evidence_review_pack(sequence: u64) -> (TrustedPublisherKey, Vec<u8>) 
     (publisher, envelope)
 }
 
-fn signed_static_skill_pack(sequence: u64) -> (TrustedPublisherKey, Vec<u8>) {
+fn signed_static_skill_pack_with_handoff(
+    sequence: u64,
+    handoff: serde_json::Value,
+) -> (TrustedPublisherKey, Vec<u8>) {
     let (public_key, _) = sign_ed25519_for_test(&[10; 32], &[]).unwrap();
     let publisher = TrustedPublisherKey {
         publisher_key_id: SKILL_PUBLISHER_ID.to_string(),
@@ -181,10 +184,7 @@ fn signed_static_skill_pack(sequence: u64) -> (TrustedPublisherKey, Vec<u8>) {
             "path": "references/rubric.md",
             "content": "# Evidence rubric\n\nUse only confirmed local evidence.\n"
         }],
-        "handoff": {
-            "task_kind": "evidence_review",
-            "label": "Open Resume Evidence Reviewer"
-        }
+        "handoff": handoff
     }))
     .unwrap();
     let manifest = PackManifest {

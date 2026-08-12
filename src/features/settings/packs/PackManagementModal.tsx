@@ -5,6 +5,7 @@ import { invoke } from "../../../platform/tauri";
 import { Button } from "../../../ui/Button";
 import { Modal } from "../../../ui/Modal";
 import { PackLifecycleControls } from "./PackLifecycleControls";
+import { PackStaticSkillReview } from "./PackStaticSkillReview";
 import {
   parsePackManagementReviews,
   type PackManagementReview,
@@ -12,7 +13,7 @@ import {
   type PackReleaseReview,
   type PackState,
   type QuarantineReason,
-} from "./packManagementProjection";
+} from "../../../shared/packManagementProjection";
 
 const STATE_LABELS: Record<PackState, string> = {
   needs_review: "Needs review",
@@ -72,7 +73,8 @@ const PURPOSE_COPY: Record<PackPurpose, string> = {
   regional_guidance: "Adds regional job-search guidance.",
   source_support: "Adds reviewed job-source support.",
   review_rubric: "Adds a local review rubric.",
-  synthetic_product_evaluation: "Tests local product behavior with synthetic data.",
+  synthetic_product_evaluation:
+    "Tests local product behavior with synthetic data.",
   job_search_template: "Adds a static job-search template.",
   operating_system_helper: "Adds a reviewed operating-system helper.",
 };
@@ -112,6 +114,8 @@ interface PackManagementModalProps {
 export function PackManagementModal({ onClose }: PackManagementModalProps) {
   const [packs, setPacks] = useState<PackManagementReview[] | null>(null);
   const [error, setError] = useState(false);
+  const [chooseError, setChooseError] = useState(false);
+  const [choosing, setChoosing] = useState(false);
   const latestLoad = useRef(0);
   const load = useCallback(async () => {
     const loadId = ++latestLoad.current;
@@ -133,6 +137,18 @@ export function PackManagementModal({ onClose }: PackManagementModalProps) {
     void load();
   }, [load]);
 
+  const choosePack = async () => {
+    setChoosing(true);
+    setChooseError(false);
+    try {
+      if (await invoke<boolean>("choose_and_stage_pack")) await load();
+    } catch {
+      setChooseError(true);
+    } finally {
+      setChoosing(false);
+    }
+  };
+
   return (
     <Modal
       isOpen
@@ -144,14 +160,31 @@ export function PackManagementModal({ onClose }: PackManagementModalProps) {
     >
       <div className="mb-4 flex items-start justify-between gap-4">
         <p className="text-sm text-surface-600 dark:text-surface-300">
-          Pack files stay local. You can disable a ready pack or remove its
-          local files. Signed permissions cannot expand, and packs cannot
-          submit applications.
+          Pack files stay local. Review signed permissions before activation.
+          You can disable, roll back, or remove a pack. A pack cannot exceed the
+          signed permissions you approve, and packs cannot submit applications.
         </p>
-        <Button variant="secondary" onClick={() => void load()}>
-          Refresh
-        </Button>
+        <div className="flex shrink-0 flex-wrap gap-2">
+          <Button
+            variant="secondary"
+            loading={choosing}
+            loadingText="Choosing..."
+            onClick={() => void choosePack()}
+          >
+            Choose signed pack
+          </Button>
+          <Button variant="secondary" onClick={() => void load()}>
+            Refresh
+          </Button>
+        </div>
       </div>
+
+      {chooseError ? (
+        <p role="alert" className="mb-4 text-sm text-danger">
+          Signed pack could not be verified and staged. Choose it again or
+          refresh Packs.
+        </p>
+      ) : null}
 
       {error ? (
         <div className="rounded-lg border border-danger/30 bg-danger/5 p-4">
@@ -259,10 +292,21 @@ function PackCard({
         />
       </section>
 
+      {pack.state === "ready" && release.purpose === "static_guidance" ? (
+        <PackStaticSkillReview pack={pack} />
+      ) : null}
+
       <PackLifecycleControls
         key={`${pack.generation}:${pack.state}:${pack.cleanupPending}`}
         pack={pack}
         onChanged={onChanged}
+        renderReleaseReview={(target) => (
+          <ReleaseReviewFacts
+            publisherKeyId={pack.publisherKeyId}
+            publisherPublicKeySha256={pack.publisherPublicKeySha256}
+            release={target}
+          />
+        )}
       />
 
       <details className="mt-4">
@@ -277,7 +321,9 @@ function PackCard({
               className="rounded-md border border-surface-200 p-2 text-xs text-surface-600 dark:border-surface-700 dark:text-surface-300"
             >
               <div className="flex flex-wrap items-center gap-2">
-                <span className="font-medium">Release {history.releaseSequence}</span>
+                <span className="font-medium">
+                  Release {history.releaseSequence}
+                </span>
                 <span>{history.packVersion}</span>
                 <span>{label(history.state)}</span>
                 {history.isActive ? <span>Active</span> : null}
@@ -286,7 +332,9 @@ function PackCard({
                 {history.quarantineReason ? (
                   <span>{QUARANTINE_COPY[history.quarantineReason]}</span>
                 ) : null}
-                {history.artifactCleanupPending ? <span>Cleanup pending</span> : null}
+                {history.artifactCleanupPending ? (
+                  <span>Cleanup pending</span>
+                ) : null}
               </div>
               <details className="mt-2">
                 <summary className="cursor-pointer font-medium text-sentinel-700 dark:text-sentinel-300">
@@ -332,7 +380,10 @@ function ReleaseReviewFacts({
           value={`${release.minimumAppVersion} to ${release.maximumAppVersion}`}
         />
         <Fact label="Signed size" value={formatBytes(release.payloadBytes)} />
-        <Fact label="What it helps with" value={PURPOSE_COPY[release.purpose]} />
+        <Fact
+          label="What it helps with"
+          value={PURPOSE_COPY[release.purpose]}
+        />
         <Fact
           label="Model download"
           value={release.modelDownloadRequired ? "Required" : "Not required"}

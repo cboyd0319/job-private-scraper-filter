@@ -1,3 +1,5 @@
+//! Exposes validated saved-match debugger and reviewed evidence commands to Tauri.
+
 use crate::application::v3_foundation::{
     confirm_saved_match_debugger_evidence, list_saved_match_evidence_packet_claims,
     prepare_saved_match_debugger, save_saved_match_evidence_packet_claim, SavedMatchDebugger,
@@ -113,7 +115,7 @@ pub(crate) async fn save_saved_match_evidence_packet(
     .map_err(|error| user_friendly_error("Reviewed claim could not be saved", error))
 }
 
-pub(super) fn validate_saved_match_debugger_args(
+pub(crate) fn validate_saved_match_debugger_args(
     job_hash: &str,
     resume_id: i64,
 ) -> Result<(), String> {

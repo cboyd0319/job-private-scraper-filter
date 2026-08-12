@@ -1,4 +1,12 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+/** Proves native dropped files remain inert until the matching explicit review action. */
+
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { invalidateCacheByCommand, invoke } from "../platform/tauri";
@@ -11,7 +19,13 @@ vi.mock("../platform/tauri", () => ({
 }));
 
 let receiveDrop:
-  | ((event: { payload: { dropId: string | null; name: string | null; error: string | null } }) => void)
+  | ((event: {
+      payload: {
+        dropId: string | null;
+        name: string | null;
+        error: string | null;
+      };
+    }) => void)
   | undefined;
 
 vi.mock("../platform/tauri/events", () => ({
@@ -39,7 +53,11 @@ const preview = {
   already_exists: false,
 };
 
-async function emit(payload: { dropId: string | null; name: string | null; error: string | null }) {
+async function emit(payload: {
+  dropId: string | null;
+  name: string | null;
+  error: string | null;
+}) {
   await waitFor(() => expect(receiveDrop).toBeDefined());
   await act(async () => receiveDrop?.({ payload }));
 }
@@ -59,8 +77,12 @@ describe("NativeFileDropReview", () => {
     render(<NativeFileDropReview />);
     await emit({ dropId: null, name: null, error: "unsafe event" });
 
-    expect(screen.getByRole("alert")).toHaveTextContent(/drop one regular file/i);
-    expect(screen.getByRole("alert")).toHaveTextContent(/nothing was imported/i);
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      /drop one regular file/i,
+    );
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      /nothing was imported/i,
+    );
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(mockInvoke).not.toHaveBeenCalled();
   });
@@ -68,13 +90,25 @@ describe("NativeFileDropReview", () => {
   it("shows only the sanitized name and explicit local review choices", async () => {
     await openDrop("/private/path/resume.pdf");
 
-    expect(screen.getByRole("dialog", { name: /review dropped file/i })).toHaveTextContent("resume.pdf");
-    expect(screen.queryByText("/private/path/resume.pdf")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("dialog", { name: /review dropped file/i }),
+    ).toHaveTextContent("resume.pdf");
+    expect(
+      screen.queryByText("/private/path/resume.pdf"),
+    ).not.toBeInTheDocument();
     expect(screen.getAllByText(/stays local/i)).not.toHaveLength(0);
-    expect(screen.getByRole("button", { name: "Add resume" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Review job posting" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Backup/Recovery" })).toBeInTheDocument();
-    expect(screen.getByText(/add resume, import job, or backup\/recovery/i)).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Add resume" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Review job posting" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Backup/Recovery" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/add resume, import job, or backup\/recovery/i),
+    ).toBeInTheDocument();
   });
 
   it("discards the token when cancelled", async () => {
@@ -83,7 +117,9 @@ describe("NativeFileDropReview", () => {
 
     await user.click(screen.getByRole("button", { name: "Cancel" }));
 
-    expect(mockInvoke).toHaveBeenCalledWith("discard_native_file_drop", { dropId: "drop-1" });
+    expect(mockInvoke).toHaveBeenCalledWith("discard_native_file_drop", {
+      dropId: "drop-1",
+    });
   });
 
   it("imports a resume only after its explicit action", async () => {
@@ -92,15 +128,73 @@ describe("NativeFileDropReview", () => {
 
     await user.click(screen.getByRole("button", { name: "Add resume" }));
 
-    expect(mockInvoke).toHaveBeenCalledWith("import_dropped_resume", { dropId: "drop-1" });
-    expect(await screen.findByRole("status")).toHaveTextContent(/review it on the resumes page/i);
+    expect(mockInvoke).toHaveBeenCalledWith("import_dropped_resume", {
+      dropId: "drop-1",
+    });
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      /review it on the resumes page/i,
+    );
   });
+
+  it("stages a signed pack for separate review without activating it", async () => {
+    const user = userEvent.setup();
+    mockInvoke.mockResolvedValueOnce({
+      publisherKeyId: "jobsentinel-source-publisher-v1",
+      packId: "jobsentinel.sources.us",
+      state: "needs_review",
+      generation: 1,
+      releaseSequence: 1,
+    });
+    await openDrop("source-release.jspack");
+
+    await user.click(
+      screen.getByRole("button", { name: "Verify and stage signed pack" }),
+    );
+
+    expect(mockInvoke).toHaveBeenCalledWith("stage_dropped_pack", {
+      dropId: "drop-1",
+    });
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      /staged locally for review in Settings > Packs/i,
+    );
+    expect(screen.queryByText(/activated/i)).not.toBeInTheDocument();
+  });
+
+  it.each([
+    ["ready", "is already active"],
+    ["removed", "was previously removed"],
+  ])(
+    "reports a replayed %s pack without claiming it was newly staged",
+    async (state, copy) => {
+      const user = userEvent.setup();
+      mockInvoke.mockResolvedValueOnce({
+        publisherKeyId: "jobsentinel-source-publisher-v1",
+        packId: "jobsentinel.sources.us",
+        state,
+        generation: 4,
+        releaseSequence: 1,
+      });
+      await openDrop("source-release.jspack");
+
+      await user.click(
+        screen.getByRole("button", { name: "Verify and stage signed pack" }),
+      );
+
+      expect(await screen.findByRole("status")).toHaveTextContent(copy);
+      expect(screen.getByRole("status")).not.toHaveTextContent(
+        "staged locally for review",
+      );
+    },
+  );
 
   it("keeps a newer drop visible when an earlier import finishes", async () => {
     const user = userEvent.setup();
     let finishImport: ((value: number) => void) | undefined;
     mockInvoke.mockImplementationOnce(
-      () => new Promise((resolve) => { finishImport = resolve; }),
+      () =>
+        new Promise((resolve) => {
+          finishImport = resolve;
+        }),
     );
     await openDrop("first-resume.pdf");
 
@@ -108,11 +202,13 @@ describe("NativeFileDropReview", () => {
     await emit({ dropId: "drop-2", name: "second-resume.pdf", error: null });
     await act(async () => finishImport?.(42));
 
-    expect(screen.getByRole("dialog", { name: /review dropped file/i })).toHaveTextContent(
+    expect(
+      screen.getByRole("dialog", { name: /review dropped file/i }),
+    ).toHaveTextContent("second-resume.pdf");
+    expect(screen.getByRole("status")).toHaveTextContent("first-resume.pdf");
+    expect(screen.getByRole("status")).not.toHaveTextContent(
       "second-resume.pdf",
     );
-    expect(screen.getByRole("status")).toHaveTextContent("first-resume.pdf");
-    expect(screen.getByRole("status")).not.toHaveTextContent("second-resume.pdf");
   });
 
   it("previews a dropped job without saving, then restages explicit edits", async () => {
@@ -125,12 +221,23 @@ describe("NativeFileDropReview", () => {
     });
     await openDrop();
 
-    await user.click(screen.getByRole("button", { name: "Review job posting" }));
-    expect(mockInvoke).toHaveBeenCalledWith("preview_dropped_job", { dropId: "drop-1" });
-    expect(mockInvoke).not.toHaveBeenCalledWith("confirm_smart_paste", expect.anything());
-    expect(screen.queryByRole("button", { name: "Save Job" })).not.toBeInTheDocument();
+    await user.click(
+      screen.getByRole("button", { name: "Review job posting" }),
+    );
+    expect(mockInvoke).toHaveBeenCalledWith("preview_dropped_job", {
+      dropId: "drop-1",
+    });
+    expect(mockInvoke).not.toHaveBeenCalledWith(
+      "confirm_smart_paste",
+      expect.anything(),
+    );
+    expect(
+      screen.queryByRole("button", { name: "Save Job" }),
+    ).not.toBeInTheDocument();
 
-    fireEvent.change(screen.getByLabelText("Job title"), { target: { value: "Care Coordinator II" } });
+    fireEvent.change(screen.getByLabelText("Job title"), {
+      target: { value: "Care Coordinator II" },
+    });
     await user.click(screen.getByRole("button", { name: "Review Draft" }));
 
     expect(mockInvoke).toHaveBeenLastCalledWith("preview_dropped_job", {
@@ -140,37 +247,56 @@ describe("NativeFileDropReview", () => {
       jobUrl: "https://jobs.example.com/care-coordinator",
       location: null,
     });
-    expect(await screen.findByRole("button", { name: "Save Job" })).toBeEnabled();
+    expect(
+      await screen.findByRole("button", { name: "Save Job" }),
+    ).toBeEnabled();
   });
 
   it("does not attach an earlier preview to a newer dropped file", async () => {
     const user = userEvent.setup();
     let finishPreview: ((value: typeof preview) => void) | undefined;
     mockInvoke.mockImplementationOnce(
-      () => new Promise((resolve) => { finishPreview = resolve; }),
+      () =>
+        new Promise((resolve) => {
+          finishPreview = resolve;
+        }),
     );
     await openDrop("first-job.txt");
 
-    await user.click(screen.getByRole("button", { name: "Review job posting" }));
+    await user.click(
+      screen.getByRole("button", { name: "Review job posting" }),
+    );
     await emit({ dropId: "drop-2", name: "second-job.txt", error: null });
     await act(async () => finishPreview?.(preview));
 
-    expect(screen.getByRole("dialog", { name: /review dropped file/i })).toHaveTextContent(
-      "second-job.txt",
-    );
-    expect(screen.getByRole("button", { name: "Review job posting" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("dialog", { name: /review dropped file/i }),
+    ).toHaveTextContent("second-job.txt");
+    expect(
+      screen.getByRole("button", { name: "Review job posting" }),
+    ).toBeInTheDocument();
     expect(screen.queryByLabelText("Job title")).not.toBeInTheDocument();
   });
 
   it("does not offer Save Job for a duplicate preview", async () => {
     const user = userEvent.setup();
-    mockInvoke.mockResolvedValueOnce({ ...preview, import_id: "duplicate", already_exists: true });
+    mockInvoke.mockResolvedValueOnce({
+      ...preview,
+      import_id: "duplicate",
+      already_exists: true,
+    });
     await openDrop();
 
-    await user.click(screen.getByRole("button", { name: "Review job posting" }));
+    await user.click(
+      screen.getByRole("button", { name: "Review job posting" }),
+    );
 
-    expect(await screen.findByText(/already in your saved jobs/i)).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Save Job" })).not.toBeInTheDocument();
+    expect(
+      await screen.findByText(/already in your saved jobs/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Save Job" }),
+    ).not.toBeInTheDocument();
   });
 
   it("keeps a successful save accurate when temporary drop cleanup is stale", async () => {
@@ -181,18 +307,24 @@ describe("NativeFileDropReview", () => {
       .mockRejectedValueOnce(new Error("stale drop"));
     await openDrop("care-coordinator.txt");
 
-    await user.click(screen.getByRole("button", { name: "Review job posting" }));
+    await user.click(
+      screen.getByRole("button", { name: "Review job posting" }),
+    );
     await user.click(await screen.findByRole("button", { name: "Save Job" }));
 
     expect(mockInvoke).toHaveBeenNthCalledWith(2, "confirm_smart_paste", {
       importId: "draft-1",
     });
-    expect(mockInvalidateCacheByCommand).toHaveBeenCalledWith("get_recent_jobs");
+    expect(mockInvalidateCacheByCommand).toHaveBeenCalledWith(
+      "get_recent_jobs",
+    );
     expect(mockInvalidateCacheByCommand).toHaveBeenCalledWith("get_statistics");
     expect(await screen.findByRole("status")).toHaveTextContent(
       "care-coordinator.txt was saved locally as a job",
     );
-    expect(screen.queryByText(/nothing new was saved/i)).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/nothing new was saved/i),
+    ).not.toBeInTheDocument();
   });
 
   it("requires a 16-character passphrase and stages a backup only on click", async () => {
@@ -215,7 +347,9 @@ describe("NativeFileDropReview", () => {
       dropId: "drop-1",
       passphrase: "😀".repeat(16),
     });
-    expect(await screen.findByRole("status")).toHaveTextContent(/restart is required/i);
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      /restart is required/i,
+    );
   });
 
   it("clears a backup passphrase when leaving its review step", async () => {
@@ -226,7 +360,9 @@ describe("NativeFileDropReview", () => {
       target: { value: "local-backup-passphrase" },
     });
 
-    await user.click(screen.getByRole("button", { name: "Choose another option" }));
+    await user.click(
+      screen.getByRole("button", { name: "Choose another option" }),
+    );
     await user.click(screen.getByRole("button", { name: "Backup/Recovery" }));
 
     expect(screen.getByLabelText("Backup passphrase")).toHaveValue("");
@@ -236,9 +372,16 @@ describe("NativeFileDropReview", () => {
   it("uses narrow-safe action wrapping and an accessible close control", async () => {
     await openDrop();
 
-    expect(screen.getByRole("button", { name: "Close file drop review" })).toBeInTheDocument();
-    expect(screen.getByTestId("native-file-drop-actions")).toHaveClass("flex-col");
-    expect(listen).toHaveBeenCalledWith("native-file-drop", expect.any(Function));
+    expect(
+      screen.getByRole("button", { name: "Close file drop review" }),
+    ).toBeInTheDocument();
+    expect(screen.getByTestId("native-file-drop-actions")).toHaveClass(
+      "flex-col",
+    );
+    expect(listen).toHaveBeenCalledWith(
+      "native-file-drop",
+      expect.any(Function),
+    );
     const panel = document.querySelector<HTMLElement>(".app-modal-panel");
     await waitFor(() => expect(document.activeElement).toBe(panel));
   });

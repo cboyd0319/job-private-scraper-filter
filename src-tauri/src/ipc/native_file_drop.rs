@@ -1,10 +1,13 @@
+//! Owns bounded native file-drop staging and routes reviewed imports to typed owners.
+
 use crate::bootstrap::{AppState, StartupRecoveryState};
 use crate::ipc::import::stage_smart_paste_text;
 use crate::ipc::recovery::{stage_portable_restore_from_path, PortableRestoreActionResult};
 use crate::ipc::resume::resume_file_commands::import_selected_resume_from_path;
 use crate::ipc::resume_file_names::safe_resume_file_stem;
-use jobsentinel_application::JobImportPreview;
+use jobsentinel_application::{pack_runtime::MAX_PACK_ARTIFACT_BYTES, JobImportPreview};
 use serde::Serialize;
+use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
@@ -196,6 +199,12 @@ impl NativeFileDropState {
             return Ok(None);
         }
         let mut source = open_regular_source(source_path)?;
+        if has_pack_extension(source_path) {
+            match source.metadata() {
+                Ok(metadata) if metadata.len() <= MAX_PACK_ARTIFACT_BYTES as u64 => {}
+                _ => return Err(DROPPED_FILE_UNAVAILABLE_ERROR.to_string()),
+            }
+        }
 
         if !self.is_current_reservation(reservation) {
             return Ok(None);
@@ -208,7 +217,20 @@ impl NativeFileDropState {
             .create_new(true)
             .open(&destination)
             .map_err(|_| DROPPED_FILE_UNAVAILABLE_ERROR.to_string())?;
-        if std::io::copy(&mut source, &mut staged).is_err() {
+        let copied = if has_pack_extension(source_path) {
+            std::io::copy(
+                &mut source.take(MAX_PACK_ARTIFACT_BYTES as u64 + 1),
+                &mut staged,
+            )
+        } else {
+            std::io::copy(&mut source, &mut staged)
+        };
+        if !matches!(
+            copied,
+            Ok(bytes)
+                if !has_pack_extension(source_path)
+                    || bytes <= MAX_PACK_ARTIFACT_BYTES as u64
+        ) {
             drop(staged);
             let _ = std::fs::remove_file(&destination);
             return Err(DROPPED_FILE_UNAVAILABLE_ERROR.to_string());
@@ -461,6 +483,14 @@ pub(crate) fn read_bounded_job_text(path: &Path) -> Result<String, String> {
     }
     Ok(text)
 }
+
+fn has_pack_extension(path: &Path) -> bool {
+    path.extension()
+        .and_then(|extension| extension.to_str())
+        .is_some_and(|extension| extension.eq_ignore_ascii_case("jspack"))
+}
+
+pub(crate) mod pack;
 
 #[cfg(test)]
 #[path = "native_file_drop_tests.rs"]

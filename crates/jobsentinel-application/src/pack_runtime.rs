@@ -24,27 +24,49 @@ mod artifact;
 mod evaluation;
 mod execution;
 mod management;
+mod production;
 mod recovery;
 mod trust;
 
 use artifact::{load_tested_artifact, persist_artifact, remove_owned_artifact, ArtifactLoadError};
-pub use evaluation::{
+#[cfg(test)]
+pub(crate) use evaluation::{
     evaluate_active_ats_resume_requirement_pack,
-    evaluate_active_evidence_reviewer_resume_requirement_pack, AtsResumeRequirementEvaluation,
-    EvidenceReviewerResumeRequirementEvaluation,
+    evaluate_active_evidence_reviewer_resume_requirement_pack,
+    evaluate_active_static_skill_handoff_pack,
+};
+pub use evaluation::{
+    AtsResumeRequirementEvaluation, EvidenceReviewerResumeRequirementEvaluation,
+    StaticSkillHandoffEvaluation,
 };
 pub use execution::{
-    cancel_reviewed_pack_task, execute_draft_packet_task, execute_evidence_review_task,
-    open_active_static_skill, prepare_draft_packet_task, prepare_evidence_review_task,
-    DraftApplicationPacket, DraftPacketTaskResult, DraftPacketTaskReview, EvidenceReviewTaskResult,
-    PackTaskReview, PackTaskReviewStep, StaticSkillHandoff, StaticSkillResource, StaticSkillReview,
+    cancel_reviewed_pack_task, DraftApplicationPacket, DraftPacketTaskResult,
+    DraftPacketTaskReview, EvidenceReviewTaskResult, PackTaskReview, PackTaskReviewStep,
+    StaticSkillHandoff, StaticSkillResource, StaticSkillReview,
+};
+pub(crate) use execution::{
+    execute_draft_packet_task, execute_evidence_review_task, open_active_static_skill,
+    prepare_draft_packet_task, prepare_evidence_review_task,
 };
 pub use management::{
     list_pack_management_reviews, PackManagementReleaseReview, PackManagementReview, PackPurpose,
     PackReleaseReviewState, PackReviewQuarantineReason,
 };
-pub use recovery::{reconcile_active_pack_artifacts, PackArtifactReconciliation};
+pub use production::{
+    activate_production_pack_artifact, enable_production_pack_artifact,
+    evaluate_production_active_ats_resume_requirement_pack,
+    evaluate_production_active_evidence_reviewer_resume_requirement_pack,
+    evaluate_production_active_static_skill_handoff_pack, execute_production_draft_packet_task,
+    execute_production_evidence_review_task, open_production_active_static_skill,
+    prepare_production_draft_packet_task, prepare_production_evidence_review_task,
+    rollback_production_pack_artifact, stage_production_pack_artifact,
+};
+pub(crate) use recovery::reconcile_active_pack_artifacts;
+pub use recovery::PackArtifactReconciliation;
 pub(crate) use trust::production_trusted_publishers;
+
+pub const MAX_PACK_ARTIFACT_BYTES: usize =
+    jobsentinel_domain::v3_signed_packs::MAX_SIGNED_PACK_BYTES;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PackRuntimeEnvironment {
@@ -116,7 +138,7 @@ pub struct PackStateChange {
     pub generation: u64,
 }
 
-pub async fn stage_pack_artifact(
+pub(crate) async fn stage_pack_artifact(
     database: &Database,
     artifact_root: &Path,
     envelope: &[u8],
@@ -157,7 +179,7 @@ pub async fn stage_pack_artifact(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn activate_pack_artifact(
+pub(crate) async fn activate_pack_artifact(
     database: &Database,
     artifact_root: &Path,
     publisher_key_id: &str,
@@ -199,7 +221,7 @@ pub async fn activate_pack_artifact(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn rollback_pack_artifact(
+pub(crate) async fn rollback_pack_artifact(
     database: &Database,
     artifact_root: &Path,
     publisher_key_id: &str,
@@ -257,7 +279,7 @@ pub async fn disable_pack_artifact(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn enable_pack_artifact(
+pub(crate) async fn enable_pack_artifact(
     database: &Database,
     artifact_root: &Path,
     publisher_key_id: &str,

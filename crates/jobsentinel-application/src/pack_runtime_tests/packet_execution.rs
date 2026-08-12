@@ -235,6 +235,51 @@ async fn exact_reviewed_draft_packet_is_single_use_bounded_and_audited() {
 }
 
 #[tokio::test]
+async fn packet_preflight_failure_cancels_the_authenticated_pending_approval() {
+    let (database, job_hash, resume_id) = saved_match().await;
+    confirm_first_evidence(&database, &job_hash, resume_id).await;
+    let (artifact_root, publisher, generation) = activated_packet_pack(&database, 524_288).await;
+    let prepared = prepare_draft_packet_task(
+        &database,
+        artifact_root.path(),
+        PACKET_PUBLISHER_ID,
+        PACKET_PACK_ID,
+        generation,
+        std::slice::from_ref(&publisher),
+        NaiveDate::from_ymd_opt(2026, 7, 20).unwrap(),
+        &job_hash,
+        resume_id,
+    )
+    .await
+    .unwrap();
+    disable_pack_artifact(&database, PACKET_PUBLISHER_ID, PACKET_PACK_ID, generation)
+        .await
+        .unwrap();
+
+    assert!(execute_draft_packet_task(
+        &database,
+        artifact_root.path(),
+        std::slice::from_ref(&publisher),
+        NaiveDate::from_ymd_opt(2026, 7, 20).unwrap(),
+        &prepared.task.run_id,
+        &prepared.task.approval_reference,
+        &job_hash,
+        resume_id,
+    )
+    .await
+    .is_err());
+    assert_eq!(
+        database
+            .get_pack_task(&prepared.task.run_id)
+            .await
+            .unwrap()
+            .unwrap()
+            .status,
+        PackTaskStatus::Cancelled
+    );
+}
+
+#[tokio::test]
 async fn draft_packet_is_not_offered_when_the_signed_output_limit_cannot_hold_it() {
     let (database, job_hash, resume_id) = saved_match().await;
     confirm_first_evidence(&database, &job_hash, resume_id).await;

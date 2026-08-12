@@ -1,8 +1,11 @@
+/** Displays exact saved-match evidence and its reviewed local Evidence Reviewer action. */
+
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { safeInvoke } from "../../../platform/tauri";
 import { Button } from "../../../ui/Button";
 import { Modal, ModalFooter } from "../../../ui/Modal";
 import type { MatchResult } from "./resumePageModel";
+import { PackEvidenceReviewer } from "./PackEvidenceReviewer";
 
 interface SavedMatchDebuggerRequirement {
   requirement: string;
@@ -363,6 +366,7 @@ export function MatchDebuggerModal({ isOpen, match, onClose }: MatchDebuggerModa
           </ul>
         )}
       </section>
+      {match ? <PackEvidenceReviewer match={match} /> : null}
       <ModalFooter>
         <Button variant="secondary" onClick={onClose}>Close</Button>
       </ModalFooter>
