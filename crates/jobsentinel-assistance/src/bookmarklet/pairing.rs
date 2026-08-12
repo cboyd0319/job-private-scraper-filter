@@ -1,3 +1,5 @@
+// Owns scoped, expiring, replay-resistant browser companion pairing.
+
 use std::{collections::BTreeSet, fmt};
 
 use chrono::{DateTime, TimeDelta, Utc};
@@ -286,6 +288,7 @@ mod tests {
     };
 
     use super::*;
+    use crate::bookmarklet::companion_request_for_test;
 
     fn issued_pairing() -> (
         CompanionPairing,
@@ -306,26 +309,13 @@ mod tests {
         (pairing, code, now)
     }
 
-    fn request(code: &CompanionPairingCode, nonce: &str) -> CompanionRequest {
-        CompanionRequest {
-            protocol_version: code.protocol_version,
-            pairing_id: code.pairing_id.clone(),
-            client_id: code.client_id.clone(),
-            source_id: code.source_id.clone(),
-            policy_ref: code.policy_ref.clone(),
-            policy_revision: code.policy_revision,
-            operation: SourceOperation::VisiblePageCapture,
-            origin: code.origin.clone(),
-            nonce: nonce.to_string(),
-            token: code.token.clone(),
-        }
-    }
-
     #[test]
     fn pairing_binds_scope_and_rejects_replay_without_consuming_failed_nonces() {
         let (mut pairing, code, now) = issued_pairing();
         assert_eq!(
-            pairing.authorize(&request(&code, "nonce-1"), now).unwrap(),
+            pairing
+                .authorize(&companion_request_for_test(&code, "nonce-1"), now)
+                .unwrap(),
             SourceGrantState::Granted {
                 source_id: code.source_id.clone(),
                 policy_ref: code.policy_ref.clone(),
@@ -335,41 +325,43 @@ mod tests {
             }
         );
         assert_eq!(
-            pairing.authorize(&request(&code, "nonce-1"), now),
+            pairing.authorize(&companion_request_for_test(&code, "nonce-1"), now),
             Err(CompanionPairingError::Replay)
         );
 
-        let mut wrong_client = request(&code, "nonce-2");
+        let mut wrong_client = companion_request_for_test(&code, "nonce-2");
         wrong_client.client_id = "browser-client-2".to_string();
         assert_eq!(
             pairing.authorize(&wrong_client, now),
             Err(CompanionPairingError::ScopeMismatch)
         );
-        let mut wrong_source = request(&code, "nonce-2");
+        let mut wrong_source = companion_request_for_test(&code, "nonce-2");
         wrong_source.source_id = "other-source".to_string();
         assert_eq!(
             pairing.authorize(&wrong_source, now),
             Err(CompanionPairingError::ScopeMismatch)
         );
-        let mut wrong_operation = request(&code, "nonce-2");
+        let mut wrong_operation = companion_request_for_test(&code, "nonce-2");
         wrong_operation.operation = SourceOperation::AppliedLogging;
         assert_eq!(
             pairing.authorize(&wrong_operation, now),
             Err(CompanionPairingError::ScopeMismatch)
         );
-        let mut wrong_origin = request(&code, "nonce-2");
+        let mut wrong_origin = companion_request_for_test(&code, "nonce-2");
         wrong_origin.origin = "https://other.example".to_string();
         assert_eq!(
             pairing.authorize(&wrong_origin, now),
             Err(CompanionPairingError::ScopeMismatch)
         );
-        let mut wrong_token = request(&code, "nonce-2");
+        let mut wrong_token = companion_request_for_test(&code, "nonce-2");
         wrong_token.token = "wrong-token".to_string();
         assert_eq!(
             pairing.authorize(&wrong_token, now),
             Err(CompanionPairingError::Unauthorized)
         );
-        assert!(pairing.authorize(&request(&code, "nonce-2"), now).is_ok());
+        assert!(pairing
+            .authorize(&companion_request_for_test(&code, "nonce-2"), now)
+            .is_ok());
     }
 
     #[test]
@@ -377,7 +369,10 @@ mod tests {
         let (mut pairing, code, now) = issued_pairing();
         assert!(pairing.is_current(now));
         assert_eq!(
-            pairing.authorize(&request(&code, "nonce-1"), now + TimeDelta::minutes(10)),
+            pairing.authorize(
+                &companion_request_for_test(&code, "nonce-1"),
+                now + TimeDelta::minutes(10)
+            ),
             Err(CompanionPairingError::Expired)
         );
         assert!(!pairing.is_current(now + TimeDelta::minutes(10)));
@@ -386,7 +381,7 @@ mod tests {
         assert!(!pairing.is_current(now));
         assert!(pairing.secret_is_empty());
         assert_eq!(
-            pairing.authorize(&request(&code, "nonce-2"), now),
+            pairing.authorize(&companion_request_for_test(&code, "nonce-2"), now),
             Err(CompanionPairingError::Revoked)
         );
     }
@@ -398,13 +393,19 @@ mod tests {
         for index in 0..MAX_COMPANION_REQUESTS_PER_PAIRING {
             assert!(pairing.is_current(now));
             pairing
-                .authorize(&request(&code, &format!("nonce-{index}")), now)
+                .authorize(
+                    &companion_request_for_test(&code, &format!("nonce-{index}")),
+                    now,
+                )
                 .unwrap();
         }
 
         assert!(!pairing.is_current(now));
         assert_eq!(
-            pairing.authorize(&request(&code, "nonce-over-capacity"), now),
+            pairing.authorize(
+                &companion_request_for_test(&code, "nonce-over-capacity"),
+                now
+            ),
             Err(CompanionPairingError::CapacityReached)
         );
     }
@@ -466,7 +467,7 @@ mod tests {
     #[test]
     fn pairing_debug_output_never_exposes_the_secret() {
         let (pairing, code, _) = issued_pairing();
-        let request = request(&code, "nonce-1");
+        let request = companion_request_for_test(&code, "nonce-1");
         let output = format!("{pairing:?}\n{code:?}\n{request:?}");
 
         assert!(!output.contains(&code.token));
@@ -476,7 +477,7 @@ mod tests {
     #[test]
     fn companion_request_has_a_structured_wire_envelope() {
         let (_, code, _) = issued_pairing();
-        let request = request(&code, "nonce-1");
+        let request = companion_request_for_test(&code, "nonce-1");
         let serialized = serde_json::to_string(&request).unwrap();
         let decoded: CompanionRequest = serde_json::from_str(&serialized).unwrap();
         let legacy = format!(

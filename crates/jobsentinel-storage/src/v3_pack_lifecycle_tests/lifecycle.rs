@@ -129,24 +129,7 @@ async fn disable_preserves_the_ready_release_and_rejects_stale_generation() {
     let database = migrated_database().await;
     let publisher = publisher(7);
     let release = release(1, valid_source_payload(), &publisher);
-    let PackStageOutcome::Staged(staged) = database
-        .stage_verified_pack(&release, &publisher)
-        .await
-        .unwrap()
-    else {
-        panic!("release must stage");
-    };
-    let tested =
-        parse_and_self_test_pack_payload(&release, NaiveDate::from_ymd_opt(2026, 7, 20).unwrap())
-            .unwrap();
-    let self_tested = database
-        .record_pack_self_test(&tested, staged.generation)
-        .await
-        .unwrap();
-    let active = database
-        .activate_self_tested_pack(&tested, &publisher, self_tested.generation)
-        .await
-        .unwrap();
+    let (tested, active) = activate_release(&database, &release, &publisher).await;
 
     let disabled = database
         .disable_pack(PUBLISHER_ID, PACK_ID, active.generation)
@@ -185,24 +168,7 @@ async fn concurrent_disable_accepts_one_generation_compare_and_swap() {
     let database = migrated_database().await;
     let publisher = publisher(7);
     let release = release(1, valid_source_payload(), &publisher);
-    let PackStageOutcome::Staged(staged) = database
-        .stage_verified_pack(&release, &publisher)
-        .await
-        .unwrap()
-    else {
-        panic!("release must stage");
-    };
-    let tested =
-        parse_and_self_test_pack_payload(&release, NaiveDate::from_ymd_opt(2026, 7, 20).unwrap())
-            .unwrap();
-    let self_tested = database
-        .record_pack_self_test(&tested, staged.generation)
-        .await
-        .unwrap();
-    let active = database
-        .activate_self_tested_pack(&tested, &publisher, self_tested.generation)
-        .await
-        .unwrap();
+    let (_, active) = activate_release(&database, &release, &publisher).await;
 
     let (left, right) = tokio::join!(
         database.disable_pack(PUBLISHER_ID, PACK_ID, active.generation),
@@ -230,24 +196,7 @@ async fn rollback_swaps_only_retained_ready_releases_without_lowering_high_water
     let database = migrated_database().await;
     let publisher = publisher(7);
     let first = release(1, valid_source_payload(), &publisher);
-    let PackStageOutcome::Staged(first_staged) = database
-        .stage_verified_pack(&first, &publisher)
-        .await
-        .unwrap()
-    else {
-        panic!("first release must stage");
-    };
-    let first_tested =
-        parse_and_self_test_pack_payload(&first, NaiveDate::from_ymd_opt(2026, 7, 20).unwrap())
-            .unwrap();
-    let first_self_tested = database
-        .record_pack_self_test(&first_tested, first_staged.generation)
-        .await
-        .unwrap();
-    let first_active = database
-        .activate_self_tested_pack(&first_tested, &publisher, first_self_tested.generation)
-        .await
-        .unwrap();
+    let (first_tested, first_active) = activate_release(&database, &first, &publisher).await;
     let third = release(3, valid_source_payload(), &publisher);
     let PackStageOutcome::Staged(third_staged) = database
         .stage_verified_pack(&third, &publisher)

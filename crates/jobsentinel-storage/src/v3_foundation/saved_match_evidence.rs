@@ -1,3 +1,5 @@
+// Persists and reads revision-bound saved match evidence for opportunity cases.
+
 use super::case_evidence::insert_case_file_evidence_in_transaction;
 use super::*;
 use chrono::{DateTime, Utc};
@@ -126,32 +128,9 @@ impl Database {
         job_hash: &str,
         resume_id: i64,
     ) -> Result<EvidenceBoundPacketClaimsRead> {
-        validate_saved_match_context(job_hash, resume_id)?;
         let mut transaction = self.pool().begin().await?;
-        let saved_match_exists: bool = sqlx::query_scalar(
-            "SELECT EXISTS(
-                SELECT 1
-                FROM resume_job_matches AS saved_match
-                JOIN jobs AS j ON j.hash = saved_match.job_hash
-                JOIN resumes AS r ON r.id = saved_match.resume_id
-                WHERE saved_match.resume_id = ? AND saved_match.job_hash = ?
-            )",
-        )
-        .bind(resume_id)
-        .bind(job_hash)
-        .fetch_one(&mut *transaction)
-        .await?;
-        if !saved_match_exists {
-            return Err(anyhow!("saved match no longer exists"));
-        }
-        let case_file_id: Option<String> = sqlx::query_scalar(
-            "SELECT case_file_id
-             FROM opportunity_case_files
-             WHERE job_hash = ?",
-        )
-        .bind(job_hash)
-        .fetch_optional(&mut *transaction)
-        .await?;
+        let case_file_id =
+            require_saved_match_case_file(&mut transaction, job_hash, resume_id).await?;
         transaction.commit().await?;
         let Some(case_file_id) = case_file_id else {
             return Ok(EvidenceBoundPacketClaimsRead::Current(Vec::new()));
@@ -165,32 +144,9 @@ impl Database {
         job_hash: &str,
         resume_id: i64,
     ) -> Result<SavedMatchConfirmedEvidence> {
-        validate_saved_match_context(job_hash, resume_id)?;
         let mut transaction = self.pool().begin().await?;
-        let saved_match_exists: bool = sqlx::query_scalar(
-            "SELECT EXISTS(
-                SELECT 1
-                FROM resume_job_matches AS saved_match
-                JOIN jobs AS j ON j.hash = saved_match.job_hash
-                JOIN resumes AS r ON r.id = saved_match.resume_id
-                WHERE saved_match.resume_id = ? AND saved_match.job_hash = ?
-            )",
-        )
-        .bind(resume_id)
-        .bind(job_hash)
-        .fetch_one(&mut *transaction)
-        .await?;
-        if !saved_match_exists {
-            return Err(anyhow!("saved match no longer exists"));
-        }
-        let case_file_id: Option<String> = sqlx::query_scalar(
-            "SELECT case_file_id
-             FROM opportunity_case_files
-             WHERE job_hash = ?",
-        )
-        .bind(job_hash)
-        .fetch_optional(&mut *transaction)
-        .await?;
+        let case_file_id =
+            require_saved_match_case_file(&mut transaction, job_hash, resume_id).await?;
         let Some(case_file_id) = case_file_id else {
             transaction.commit().await?;
             return Ok(SavedMatchConfirmedEvidence {
@@ -230,6 +186,39 @@ impl Database {
             evidence_ids,
         })
     }
+}
+
+async fn require_saved_match_case_file(
+    transaction: &mut sqlx::Transaction<'_, sqlx::Sqlite>,
+    job_hash: &str,
+    resume_id: i64,
+) -> Result<Option<String>> {
+    validate_saved_match_context(job_hash, resume_id)?;
+    let saved_match_exists: bool = sqlx::query_scalar(
+        "SELECT EXISTS(
+            SELECT 1
+            FROM resume_job_matches AS saved_match
+            JOIN jobs AS j ON j.hash = saved_match.job_hash
+            JOIN resumes AS r ON r.id = saved_match.resume_id
+            WHERE saved_match.resume_id = ? AND saved_match.job_hash = ?
+        )",
+    )
+    .bind(resume_id)
+    .bind(job_hash)
+    .fetch_one(&mut **transaction)
+    .await?;
+    if !saved_match_exists {
+        return Err(anyhow!("saved match no longer exists"));
+    }
+    sqlx::query_scalar(
+        "SELECT case_file_id
+         FROM opportunity_case_files
+         WHERE job_hash = ?",
+    )
+    .bind(job_hash)
+    .fetch_optional(&mut **transaction)
+    .await
+    .map_err(Into::into)
 }
 
 async fn create_case_file_in_transaction(

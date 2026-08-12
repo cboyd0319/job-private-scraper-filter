@@ -5,6 +5,7 @@ mod portable_backup;
 mod portable_restore;
 mod portable_restore_bundle;
 mod portable_restore_promotion;
+mod recovery_operations;
 mod reviewed_export;
 mod reviewed_export_inspect;
 mod reviewed_export_sanitize;
@@ -28,6 +29,7 @@ use super::encryption::{
     connect_encrypted_pool, encrypt_plaintext_database, load_or_create_database_key,
     probe_encrypted_user_version, probe_plaintext_user_version,
 };
+use recovery_operations::finish_recovery_operation_record;
 
 const DATABASE_SCHEMA_VERSION: i64 = 2;
 static MIGRATOR: sqlx::migrate::Migrator = sqlx::migrate!("./migrations");

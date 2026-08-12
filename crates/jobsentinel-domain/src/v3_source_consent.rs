@@ -1,3 +1,5 @@
+//! Defines exact source-consent contexts, statuses, and review reasons.
+
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
@@ -202,22 +204,21 @@ mod tests {
     }
 
     fn workbench_context() -> SourceConsentContext {
-        SourceConsentContext {
-            source_id: "linkedin-workbench".to_string(),
-            operation: SourceConsentOperation::RestrictedWorkbench,
-            warning_version: 1,
-            behavior_revision: 1,
-            policy_ref: "jobsentinel.source-policy.linkedin-workbench".to_string(),
-            policy_revision: 1,
-            source_class: SourceClass::RestrictedUserOpened,
-            data_categories: vec![
-                DataCategory::PublicJobPosting,
-                DataCategory::ApplicationHistory,
-                DataCategory::CareerGoals,
-            ],
-            destination_sha256: "c".repeat(64),
-            request_sha256: "d".repeat(64),
-        }
+        let mut context = context();
+        context.source_id = "linkedin-workbench".to_string();
+        context.operation = SourceConsentOperation::RestrictedWorkbench;
+        context.behavior_revision = 1;
+        context.policy_ref = "jobsentinel.source-policy.linkedin-workbench".to_string();
+        context.policy_revision = 1;
+        context.source_class = SourceClass::RestrictedUserOpened;
+        context.data_categories = vec![
+            DataCategory::PublicJobPosting,
+            DataCategory::ApplicationHistory,
+            DataCategory::CareerGoals,
+        ];
+        context.destination_sha256 = "c".repeat(64);
+        context.request_sha256 = "d".repeat(64);
+        context
     }
 
     #[test]

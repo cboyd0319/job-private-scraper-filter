@@ -256,65 +256,13 @@ impl Database {
         expected_generation: u64,
         reason: &str,
     ) -> Result<PackStream> {
-        let sequence = i64::try_from(release.release_sequence).map_err(|_| invalid())?;
-        let generation = i64::try_from(expected_generation).map_err(|_| invalid())?;
-        if !is_sha256(&release.signed_release_sha256) {
-            return Err(invalid());
-        }
-        let now = Utc::now().to_rfc3339();
-        let mut transaction = self.pool().begin().await?;
-        let stream_updated = sqlx::query(
-            "UPDATE v3_pack_streams
-             SET active_release_sequence = NULL,
-                 rollback_release_sequence = NULL,
-                 availability = 'quarantined',
-                 generation = generation + 1, updated_at = ?
-             WHERE publisher_key_id = ? AND pack_id = ? AND generation = ?
-               AND availability IN ('ready', 'disabled')
-               AND active_release_sequence = ?",
+        self.quarantine_pack_artifact(
+            release,
+            expected_generation,
+            reason,
+            QuarantinedArtifactRole::Active,
         )
-        .bind(&now)
-        .bind(&release.publisher_key_id)
-        .bind(&release.pack_id)
-        .bind(generation)
-        .bind(sequence)
-        .execute(&mut *transaction)
-        .await?;
-        if stream_updated.rows_affected() != 1 {
-            return Err(stream_guard_error(
-                &mut transaction,
-                &release.publisher_key_id,
-                &release.pack_id,
-                generation,
-            )
-            .await?);
-        }
-        let release_updated = sqlx::query(
-            "UPDATE v3_pack_releases
-             SET lifecycle_state = 'quarantined', quarantine_reason = ?, updated_at = ?
-             WHERE publisher_key_id = ? AND pack_id = ?
-               AND release_sequence = ? AND signed_release_sha256 = ?
-               AND lifecycle_state = 'ready'",
-        )
-        .bind(reason)
-        .bind(&now)
-        .bind(&release.publisher_key_id)
-        .bind(&release.pack_id)
-        .bind(sequence)
-        .bind(&release.signed_release_sha256)
-        .execute(&mut *transaction)
-        .await?;
-        if release_updated.rows_affected() != 1 {
-            return Err(invalid_state());
-        }
-        let stream = fetch_stream_by_id(
-            &mut transaction,
-            &release.publisher_key_id,
-            &release.pack_id,
-        )
-        .await?;
-        transaction.commit().await?;
-        Ok(stream)
+        .await
     }
 
     pub async fn quarantine_unavailable_rollback_pack_artifact(
@@ -350,6 +298,22 @@ impl Database {
         expected_generation: u64,
         reason: &str,
     ) -> Result<PackStream> {
+        self.quarantine_pack_artifact(
+            release,
+            expected_generation,
+            reason,
+            QuarantinedArtifactRole::Rollback,
+        )
+        .await
+    }
+
+    async fn quarantine_pack_artifact(
+        &self,
+        release: &StoredPackRelease,
+        expected_generation: u64,
+        reason: &str,
+        role: QuarantinedArtifactRole,
+    ) -> Result<PackStream> {
         let sequence = i64::try_from(release.release_sequence).map_err(|_| invalid())?;
         let generation = i64::try_from(expected_generation).map_err(|_| invalid())?;
         if !is_sha256(&release.signed_release_sha256) {
@@ -357,22 +321,14 @@ impl Database {
         }
         let now = Utc::now().to_rfc3339();
         let mut transaction = self.pool().begin().await?;
-        let stream_updated = sqlx::query(
-            "UPDATE v3_pack_streams
-             SET rollback_release_sequence = NULL,
-                 generation = generation + 1, updated_at = ?
-             WHERE publisher_key_id = ? AND pack_id = ? AND generation = ?
-               AND availability IN ('ready', 'disabled')
-               AND active_release_sequence IS NOT NULL
-               AND rollback_release_sequence = ?",
-        )
-        .bind(&now)
-        .bind(&release.publisher_key_id)
-        .bind(&release.pack_id)
-        .bind(generation)
-        .bind(sequence)
-        .execute(&mut *transaction)
-        .await?;
+        let stream_updated = sqlx::query(role.stream_update())
+            .bind(&now)
+            .bind(&release.publisher_key_id)
+            .bind(&release.pack_id)
+            .bind(generation)
+            .bind(sequence)
+            .execute(&mut *transaction)
+            .await?;
         if stream_updated.rows_affected() != 1 {
             return Err(stream_guard_error(
                 &mut transaction,
@@ -408,6 +364,38 @@ impl Database {
         .await?;
         transaction.commit().await?;
         Ok(stream)
+    }
+}
+
+#[derive(Clone, Copy)]
+enum QuarantinedArtifactRole {
+    Active,
+    Rollback,
+}
+
+impl QuarantinedArtifactRole {
+    const fn stream_update(self) -> &'static str {
+        match self {
+            Self::Active => {
+                "UPDATE v3_pack_streams
+                 SET active_release_sequence = NULL,
+                     rollback_release_sequence = NULL,
+                     availability = 'quarantined',
+                     generation = generation + 1, updated_at = ?
+                 WHERE publisher_key_id = ? AND pack_id = ? AND generation = ?
+                   AND availability IN ('ready', 'disabled')
+                   AND active_release_sequence = ?"
+            }
+            Self::Rollback => {
+                "UPDATE v3_pack_streams
+                 SET rollback_release_sequence = NULL,
+                     generation = generation + 1, updated_at = ?
+                 WHERE publisher_key_id = ? AND pack_id = ? AND generation = ?
+                   AND availability IN ('ready', 'disabled')
+                   AND active_release_sequence IS NOT NULL
+                   AND rollback_release_sequence = ?"
+            }
+        }
     }
 }
 

@@ -1,9 +1,8 @@
-//! Bookmarklet server module
-//!
-//! Provides a local HTTP server that receives job data from browser bookmarklets.
-//! This allows users to import jobs from any website by clicking a bookmark.
+//! Owns paired local bookmarklet imports and explicit pending-job review.
 
 mod pairing;
+#[cfg(test)]
+mod pairing_test_support;
 mod pending;
 mod server;
 
@@ -14,6 +13,8 @@ pub use pairing::{
     CompanionPairing, CompanionPairingCode, CompanionPairingError, CompanionRequest,
     COMPANION_PROTOCOL_VERSION,
 };
+#[cfg(test)]
+pub(crate) use pairing_test_support::companion_request_for_test;
 pub use pending::{
     BookmarkletImportConfirmResult, PendingBookmarkletImportPreview, PendingBookmarkletImports,
 };

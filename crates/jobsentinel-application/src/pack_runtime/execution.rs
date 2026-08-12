@@ -23,7 +23,7 @@ use uuid::Uuid;
 
 use crate::v3_foundation::{prepare_saved_match_debugger, SavedMatchDebugger};
 
-use super::{artifact::ArtifactLoadError, load_tested_artifact};
+use super::load_active_tested_artifact;
 
 mod packet;
 pub(crate) use packet::{execute_draft_packet_task, prepare_draft_packet_task};
@@ -278,22 +278,7 @@ pub(crate) async fn execute_evidence_review_task(
     if serde_json::to_vec(&result)?.len() > active.task.max_output_bytes as usize {
         return fail(database, run_id, &active.failure_message).await;
     }
-    let receipt = PrivacyReceipt {
-        schema: SchemaId::PrivacyReceiptV1,
-        receipt_id: result.receipt_id.clone(),
-        task_id: active.task.task_id,
-        pack_id: active.task.pack_id,
-        labels: active.task.privacy_labels,
-        data_categories: active.task.data_categories,
-        stored_locally: true,
-        data_left_device: false,
-        external_destination: None,
-        gateway_policy_id: None,
-        approval_reference: None,
-        delete_or_revoke_action:
-            "Disable or remove the pack to prevent future runs; local audit history remains."
-                .to_string(),
-    };
+    let receipt = local_task_receipt(&active, result.receipt_id.clone());
     if database
         .complete_reviewed_pack_task(run_id, &receipt, job_hash, None)
         .await
@@ -369,28 +354,15 @@ pub(super) async fn load_active_pack_payload(
     let stored = database
         .get_stored_pack_release(publisher_key_id, pack_id, release_sequence)
         .await?;
-    let (_, tested, _) =
-        match load_tested_artifact(artifact_root, &stored, trusted_publishers, today) {
-            Ok(loaded) => loaded,
-            Err(ArtifactLoadError::Missing) => {
-                database
-                    .quarantine_unavailable_active_pack_artifact(&stored, expected_generation)
-                    .await?;
-                return Err(anyhow!("pack artifact is unavailable"));
-            }
-            Err(ArtifactLoadError::Invalid) => {
-                database
-                    .quarantine_invalid_active_pack_artifact(&stored, expected_generation)
-                    .await?;
-                return Err(anyhow!("pack artifact verification failed"));
-            }
-            Err(ArtifactLoadError::TrustRevoked) => {
-                database
-                    .quarantine_trust_revoked_active_pack_artifact(&stored, expected_generation)
-                    .await?;
-                return Err(anyhow!("pack publisher trust is revoked"));
-            }
-        };
+    let (_, tested, _) = load_active_tested_artifact(
+        database,
+        artifact_root,
+        &stored,
+        expected_generation,
+        trusted_publishers,
+        today,
+    )
+    .await?;
     Ok(ActivePackPayload {
         payload: tested.into_payload(),
         release_sequence,
@@ -406,6 +378,28 @@ fn review_steps(plan: Vec<ReviewedTaskPlanStep>) -> Vec<PackTaskReviewStep> {
             label: step.label,
         })
         .collect()
+}
+
+pub(super) fn local_task_receipt(
+    active: &ActiveReviewedTask,
+    receipt_id: String,
+) -> PrivacyReceipt {
+    PrivacyReceipt {
+        schema: SchemaId::PrivacyReceiptV1,
+        receipt_id,
+        task_id: active.task.task_id.clone(),
+        pack_id: active.task.pack_id.clone(),
+        labels: active.task.privacy_labels.clone(),
+        data_categories: active.task.data_categories.clone(),
+        stored_locally: true,
+        data_left_device: false,
+        external_destination: None,
+        gateway_policy_id: None,
+        approval_reference: None,
+        delete_or_revoke_action:
+            "Disable or remove the pack to prevent future runs; local audit history remains."
+                .to_string(),
+    }
 }
 
 pub(super) fn matches_context(context: &PackTaskContext, active: &ActiveReviewedTask) -> bool {

@@ -1,3 +1,5 @@
+// Runs governed public Greenhouse and Lever ATS source workers.
+
 use std::{
     num::NonZeroU16,
     sync::{atomic::AtomicBool, Arc},
@@ -250,7 +252,7 @@ mod tests {
                     .simulate(
                         &policy,
                         SourceOperation::ScheduledCheck,
-                        chrono::NaiveDate::from_ymd_opt(2026, 7, 19).unwrap(),
+                        manifest.verified_on,
                         SourceGrantState::NotRequired,
                         &fixtures,
                     )

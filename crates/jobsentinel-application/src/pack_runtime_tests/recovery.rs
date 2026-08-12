@@ -2,6 +2,32 @@
 
 use super::*;
 
+async fn active_artifact_with_rollback() -> (
+    Database,
+    tempfile::TempDir,
+    TrustedPublisherKey,
+    std::path::PathBuf,
+) {
+    let database = Database::connect_memory().await.unwrap();
+    database.migrate().await.unwrap();
+    let artifact_root = tempfile::tempdir().unwrap();
+    let (publisher, _) = signed_source_pack(1);
+    stage_and_activate(&database, artifact_root.path(), &publisher, 1).await;
+    stage_and_activate(&database, artifact_root.path(), &publisher, 3).await;
+    let active = database
+        .get_stored_pack_release(PUBLISHER_ID, PACK_ID, 3)
+        .await
+        .unwrap();
+    let active_artifact = walk_files(artifact_root.path())
+        .into_iter()
+        .find(|path| {
+            path.to_string_lossy()
+                .contains(&active.signed_release_sha256)
+        })
+        .unwrap();
+    (database, artifact_root, publisher, active_artifact)
+}
+
 #[tokio::test]
 async fn startup_leaves_a_verified_active_artifact_unchanged() {
     let database = Database::connect_memory().await.unwrap();
@@ -68,24 +94,9 @@ async fn startup_treats_an_omitted_publisher_as_revoked_trust() {
 
 #[tokio::test]
 async fn startup_replaces_an_invalid_active_artifact_with_a_verified_rollback() {
-    let database = Database::connect_memory().await.unwrap();
-    database.migrate().await.unwrap();
-    let artifact_root = tempfile::tempdir().unwrap();
-    let (publisher, _) = signed_source_pack(1);
-    stage_and_activate(&database, artifact_root.path(), &publisher, 1).await;
-    stage_and_activate(&database, artifact_root.path(), &publisher, 3).await;
-    let active = database
-        .get_stored_pack_release(PUBLISHER_ID, PACK_ID, 3)
-        .await
-        .unwrap();
-    let active_artifact = walk_files(artifact_root.path())
-        .into_iter()
-        .find(|path| {
-            path.to_string_lossy()
-                .contains(&active.signed_release_sha256)
-        })
-        .unwrap();
-    std::fs::write(active_artifact, b"altered active").unwrap();
+    let (database, artifact_root, publisher, active_artifact) =
+        active_artifact_with_rollback().await;
+    std::fs::write(&active_artifact, b"altered active").unwrap();
 
     let reconciled = reconcile_active_pack_artifacts(
         &database,
@@ -118,23 +129,8 @@ async fn startup_replaces_an_invalid_active_artifact_with_a_verified_rollback() 
 
 #[tokio::test]
 async fn startup_records_a_missing_active_artifact_before_verified_rollback() {
-    let database = Database::connect_memory().await.unwrap();
-    database.migrate().await.unwrap();
-    let artifact_root = tempfile::tempdir().unwrap();
-    let (publisher, _) = signed_source_pack(1);
-    stage_and_activate(&database, artifact_root.path(), &publisher, 1).await;
-    stage_and_activate(&database, artifact_root.path(), &publisher, 3).await;
-    let active = database
-        .get_stored_pack_release(PUBLISHER_ID, PACK_ID, 3)
-        .await
-        .unwrap();
-    let active_artifact = walk_files(artifact_root.path())
-        .into_iter()
-        .find(|path| {
-            path.to_string_lossy()
-                .contains(&active.signed_release_sha256)
-        })
-        .unwrap();
+    let (database, artifact_root, publisher, active_artifact) =
+        active_artifact_with_rollback().await;
     std::fs::remove_file(active_artifact).unwrap();
 
     reconcile_active_pack_artifacts(

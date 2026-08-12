@@ -1,5 +1,8 @@
+// Opens and validates portable restore bundles without following unsafe filesystem links.
+
 use super::portable_restore::{restore_error, sibling_path};
 use crate::encryption::sqlite_sidecar_path;
+use jobsentinel_platform::opened_file_matches_path;
 use std::{
     io,
     path::{Path, PathBuf},
@@ -51,7 +54,7 @@ fn copy_regular_bundle(source: &Path, destination: &Path) -> Result<(), sqlx::Er
             ));
         }
         let mut input = std::fs::File::open(source).map_err(sqlx::Error::Io)?;
-        if !opened_file_matches(&input, source) {
+        if !opened_file_matches_path(&input, source) {
             remove_linked_files(&copied);
             return Err(restore_error(
                 "Portable restore quarantine changed while it was checked",
@@ -83,32 +86,6 @@ fn copy_regular_bundle(source: &Path, destination: &Path) -> Result<(), sqlx::Er
         return Err(error);
     }
     Ok(())
-}
-
-fn opened_file_matches(file: &std::fs::File, path: &Path) -> bool {
-    let Ok(path_metadata) = std::fs::symlink_metadata(path) else {
-        return false;
-    };
-    if !path_metadata.file_type().is_file() {
-        return false;
-    }
-    let Ok(opened_metadata) = file.metadata() else {
-        return false;
-    };
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::MetadataExt;
-        (opened_metadata.dev(), opened_metadata.ino()) == (path_metadata.dev(), path_metadata.ino())
-    }
-    #[cfg(windows)]
-    {
-        use std::os::windows::fs::MetadataExt;
-        opened_metadata.volume_serial_number() == path_metadata.volume_serial_number()
-            && opened_metadata.file_index() == path_metadata.file_index()
-            && opened_metadata.file_index().is_some()
-    }
-    #[cfg(not(any(unix, windows)))]
-    true
 }
 
 fn set_private_permissions(file: &std::fs::File) -> std::io::Result<()> {

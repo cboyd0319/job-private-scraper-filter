@@ -1,4 +1,6 @@
-use super::{Database, DATABASE_SCHEMA_VERSION, MIGRATOR};
+// Creates encrypted portable backups and records their durable recovery outcomes.
+
+use super::{finish_recovery_operation_record, Database, DATABASE_SCHEMA_VERSION, MIGRATOR};
 use crate::encryption::{
     connect_encrypted_pool, connect_encrypted_read_only_pool, remove_sqlite_sidecars,
     sqlite_sidecar_path,
@@ -337,21 +339,7 @@ impl Database {
         operation_id: &str,
         error_kind: Option<&str>,
     ) -> Result<(), sqlx::Error> {
-        let updated = sqlx::query(
-            "UPDATE v3_recovery_operations
-             SET outcome = CASE WHEN ? IS NULL THEN 'succeeded' ELSE 'failed' END,
-                 error_kind = ?,
-                 completed_at = datetime('now')
-             WHERE operation_id = ?
-               AND (outcome = 'started' OR (? IS NOT NULL AND outcome = 'succeeded'))",
-        )
-        .bind(error_kind)
-        .bind(error_kind)
-        .bind(operation_id)
-        .bind(error_kind)
-        .execute(&self.pool)
-        .await?;
-        if updated.rows_affected() == 1 {
+        if finish_recovery_operation_record(&self.pool, operation_id, error_kind).await? {
             Ok(())
         } else {
             Err(protocol_error("Portable backup provenance update failed"))

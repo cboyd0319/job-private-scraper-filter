@@ -1,3 +1,5 @@
+// Matches ATS keywords against plain-text resume evidence.
+
 use chrono::{Datelike, Utc};
 use jobsentinel_domain::{ResumeEvidenceCitation, ResumeEvidenceSnapshot};
 
@@ -51,22 +53,15 @@ impl AtsAnalyzer {
                 }
             }
 
-            if frequency > 0 {
-                matches.push(MatchedKeyword {
-                    keyword_match: KeywordMatch {
-                        keyword: keyword.clone(),
-                        found_in,
-                        frequency,
-                        importance: *importance,
-                    },
-                    evidence_citations,
-                });
-            } else {
-                missing.push(MissingKeyword {
-                    keyword: keyword.clone(),
-                    importance: *importance,
-                });
-            }
+            record_keyword_result(
+                keyword,
+                *importance,
+                found_in,
+                frequency,
+                evidence_citations,
+                &mut matches,
+                &mut missing,
+            );
         }
 
         sort_keyword_matches(&mut matches);
@@ -374,6 +369,33 @@ fn keyword_importance_order(importance: KeywordImportance) -> usize {
         KeywordImportance::Required => 0,
         KeywordImportance::Preferred => 1,
         KeywordImportance::Industry => 2,
+    }
+}
+
+fn record_keyword_result(
+    keyword: &str,
+    importance: KeywordImportance,
+    found_in: Vec<String>,
+    frequency: usize,
+    evidence_citations: Vec<ResumeEvidenceCitation>,
+    matches: &mut Vec<MatchedKeyword>,
+    missing: &mut Vec<MissingKeyword>,
+) {
+    if frequency > 0 {
+        matches.push(MatchedKeyword {
+            keyword_match: KeywordMatch {
+                keyword: keyword.to_string(),
+                found_in,
+                frequency,
+                importance,
+            },
+            evidence_citations,
+        });
+    } else {
+        missing.push(MissingKeyword {
+            keyword: keyword.to_string(),
+            importance,
+        });
     }
 }
 

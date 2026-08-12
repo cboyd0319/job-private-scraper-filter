@@ -1,8 +1,11 @@
+// Restores or quarantines desktop data during fail-closed startup recovery.
+
 use std::{
     io::{Read, Write},
     path::Path,
 };
 
+use jobsentinel_platform::opened_file_matches_path;
 use serde::Serialize;
 
 use super::DesktopStartupError;
@@ -40,7 +43,7 @@ fn repair_invalid_startup_config_at(
     source
         .read_to_string(&mut content)
         .map_err(|_| config_repair_error("Saved settings could not be inspected"))?;
-    if !opened_file_matches(&source, config_path) || Config::from_json(&content).is_ok() {
+    if !opened_file_matches_path(&source, config_path) || Config::from_json(&content).is_ok() {
         return Err(config_repair_error(
             "Saved settings are not eligible for recovery",
         ));
@@ -62,7 +65,7 @@ fn repair_invalid_startup_config_at(
         .write_all(content.as_bytes())
         .and_then(|()| recovery.sync_all())
         .and_then(|()| set_private_recovery_permissions(&recovery));
-    if prepared.is_err() || !opened_file_matches(&source, config_path) {
+    if prepared.is_err() || !opened_file_matches_path(&source, config_path) {
         drop(recovery);
         let _ = std::fs::remove_file(&preserved);
         return Err(config_repair_error(
@@ -83,32 +86,6 @@ fn repair_invalid_startup_config_at(
         outcome: StartupConfigRepairOutcome::PreservedAndReset,
         connectivity_required: false,
     })
-}
-
-fn opened_file_matches(file: &std::fs::File, path: &Path) -> bool {
-    let Ok(path_metadata) = std::fs::symlink_metadata(path) else {
-        return false;
-    };
-    if !path_metadata.file_type().is_file() {
-        return false;
-    }
-    let Ok(opened_metadata) = file.metadata() else {
-        return false;
-    };
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::MetadataExt;
-        (opened_metadata.dev(), opened_metadata.ino()) == (path_metadata.dev(), path_metadata.ino())
-    }
-    #[cfg(windows)]
-    {
-        use std::os::windows::fs::MetadataExt;
-        opened_metadata.volume_serial_number() == path_metadata.volume_serial_number()
-            && opened_metadata.file_index() == path_metadata.file_index()
-            && opened_metadata.file_index().is_some()
-    }
-    #[cfg(not(any(unix, windows)))]
-    true
 }
 
 fn set_private_recovery_permissions(file: &std::fs::File) -> std::io::Result<()> {

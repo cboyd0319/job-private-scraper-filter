@@ -1,3 +1,5 @@
+/** Verifies resume library rendering, feedback, and local match interactions. */
+
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -9,6 +11,26 @@ import {
   resetResumeLibraryMocks,
 } from "./ResumeLibraryPage.testSupport";
 import ResumeLibraryPage from "./ResumeLibraryPage";
+
+function makeFeedbackMatch() {
+  return {
+    id: 10,
+    resume_id: 1,
+    job_hash: "job-feedback",
+    job_title: "Care Coordinator",
+    company: "Community Health Partners",
+    overall_match_score: 0.82,
+    skills_match_score: 0.75,
+    experience_match_score: 0.5,
+    education_match_score: 0.25,
+    matching_skills: ["Scheduling"],
+    missing_skills: ["Case Management"],
+    gap_analysis: null,
+    feedback: null,
+    created_at: "2026-05-21T12:00:00Z",
+  };
+}
+
 describe("Resume page", () => {
   beforeEach(resetResumeLibraryMocks);
 
@@ -144,24 +166,7 @@ describe("Resume page", () => {
     const user = userEvent.setup();
     mockResumeLibraryResponses({
       get_active_resume: makeResumeSummary(),
-      get_recent_matches: [
-        {
-          id: 10,
-          resume_id: 1,
-          job_hash: "job-feedback",
-          job_title: "Care Coordinator",
-          company: "Community Health Partners",
-          overall_match_score: 0.82,
-          skills_match_score: 0.75,
-          experience_match_score: 0.5,
-          education_match_score: 0.25,
-          matching_skills: ["Scheduling"],
-          missing_skills: ["Case Management"],
-          gap_analysis: null,
-          feedback: null,
-          created_at: "2026-05-21T12:00:00Z",
-        },
-      ],
+      get_recent_matches: [makeFeedbackMatch()],
     });
     mockSafeInvokeWithToast
       .mockResolvedValueOnce({
@@ -205,22 +210,7 @@ describe("Resume page", () => {
 
   it("prevents another saved-match feedback action while one is pending", async () => {
     const user = userEvent.setup();
-    const match = {
-      id: 10,
-      resume_id: 1,
-      job_hash: "job-feedback",
-      job_title: "Care Coordinator",
-      company: "Community Health Partners",
-      overall_match_score: 0.82,
-      skills_match_score: 0.75,
-      experience_match_score: 0.5,
-      education_match_score: 0.25,
-      matching_skills: ["Scheduling"],
-      missing_skills: ["Case Management"],
-      gap_analysis: null,
-      feedback: null,
-      created_at: "2026-05-21T12:00:00Z",
-    };
+    const match = makeFeedbackMatch();
     mockResumeLibraryResponses({
       get_active_resume: makeResumeSummary(),
       get_recent_matches: [

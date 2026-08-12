@@ -1,3 +1,5 @@
+//! Verifies staged portable restore, promotion, rollback, and unsafe-path refusal.
+
 use super::*;
 use crate::encryption::{
     connect_encrypted_read_only_pool, load_or_create_database_key, sqlite_sidecar_path,
@@ -25,29 +27,7 @@ pub(super) async fn database_with_probe(
         .await
         .unwrap();
     if include_secrets {
-        sqlx::query(
-            "INSERT INTO secret_vault(
-                key, algorithm, key_version, nonce, ciphertext
-             ) VALUES ('restore-secret', 'xchacha20poly1305', 1, ?, ?)",
-        )
-        .bind(vec![1_u8; 24])
-        .bind(vec![2_u8; 32])
-        .execute(database.pool())
-        .await
-        .unwrap();
-        sqlx::query(
-            "INSERT INTO credential_key_wrapping(
-                id, mode, kdf, memory_kib, iterations, parallelism,
-                salt, algorithm, nonce, ciphertext
-             ) VALUES (1, 'passphrase', 'argon2id', 19456, 2, 1, ?,
-                       'xchacha20poly1305', ?, ?)",
-        )
-        .bind(vec![3_u8; 16])
-        .bind(vec![4_u8; 24])
-        .bind(vec![5_u8; 32])
-        .execute(database.pool())
-        .await
-        .unwrap();
+        insert_private_credential_rows(&database, "restore-secret").await;
     }
     database
 }

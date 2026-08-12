@@ -1,6 +1,8 @@
+// Verifies active companion pairing replacement, expiry, and atomic consumption.
+
 use super::*;
 use crate::bookmarklet::{
-    CompanionPairing, CompanionPairingCode, CompanionPairingError, CompanionRequest,
+    companion_request_for_test, CompanionPairing, CompanionPairingCode, CompanionPairingError,
 };
 use chrono::DateTime;
 use jobsentinel_domain::v3_source_manifest::SourceOperation;
@@ -21,21 +23,6 @@ fn pairing(origin: &str) -> (CompanionPairing, CompanionPairingCode, DateTime<Ut
     (pairing, code, now)
 }
 
-fn request(code: &CompanionPairingCode, nonce: &str) -> CompanionRequest {
-    CompanionRequest {
-        protocol_version: code.protocol_version,
-        pairing_id: code.pairing_id.clone(),
-        client_id: code.client_id.clone(),
-        source_id: code.source_id.clone(),
-        policy_ref: code.policy_ref.clone(),
-        policy_revision: code.policy_revision,
-        operation: SourceOperation::VisiblePageCapture,
-        origin: code.origin.clone(),
-        nonce: nonce.to_string(),
-        token: code.token.clone(),
-    }
-}
-
 #[test]
 fn active_pairing_is_atomic_and_one_use() {
     let (pairing, code, now) = pairing("https://jobs.example");
@@ -43,10 +30,12 @@ fn active_pairing_is_atomic_and_one_use() {
     replace_active_pairing(&active, pairing);
 
     assert!(active_pairing_is_current(&active, now));
-    assert!(consume_active_pairing(&active, &request(&code, "nonce-1"), now).is_ok());
+    assert!(
+        consume_active_pairing(&active, &companion_request_for_test(&code, "nonce-1"), now).is_ok()
+    );
     assert!(!active_pairing_is_current(&active, now));
     assert_eq!(
-        consume_active_pairing(&active, &request(&code, "nonce-2"), now),
+        consume_active_pairing(&active, &companion_request_for_test(&code, "nonce-2"), now),
         Err(CompanionPairingError::Revoked)
     );
 }
@@ -60,10 +49,19 @@ fn replacing_pairing_invalidates_the_prior_code() {
     replace_active_pairing(&active, second);
 
     assert_eq!(
-        consume_active_pairing(&active, &request(&first_code, "nonce-1"), now),
+        consume_active_pairing(
+            &active,
+            &companion_request_for_test(&first_code, "nonce-1"),
+            now
+        ),
         Err(CompanionPairingError::ScopeMismatch)
     );
-    assert!(consume_active_pairing(&active, &request(&second_code, "nonce-2"), now).is_ok());
+    assert!(consume_active_pairing(
+        &active,
+        &companion_request_for_test(&second_code, "nonce-2"),
+        now
+    )
+    .is_ok());
 }
 
 #[test]
@@ -76,7 +74,7 @@ fn concurrent_pairing_consumption_allows_one_success() {
         .map(|index| {
             let active = active.clone();
             let barrier = barrier.clone();
-            let request = request(&code, &format!("nonce-{index}"));
+            let request = companion_request_for_test(&code, &format!("nonce-{index}"));
             std::thread::spawn(move || {
                 barrier.wait();
                 consume_active_pairing(&active, &request, now).is_ok()

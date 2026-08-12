@@ -1,3 +1,5 @@
+// Runs the governed RemoteOK source worker.
+
 use std::{
     num::NonZeroU16,
     sync::{atomic::AtomicBool, Arc},
@@ -68,9 +70,8 @@ pub(super) async fn run_remoteok(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use jobsentinel_domain::{
-        v3_source_authorization::SourceGrantState,
-        v3_source_manifest::{parse_source_manifest, REMOTEOK_SOURCE_MANIFEST_V1},
+    use jobsentinel_domain::v3_source_manifest::{
+        parse_source_manifest, REMOTEOK_SOURCE_MANIFEST_V1,
     };
 
     use crate::test_support::minimal_test_config;
@@ -151,21 +152,6 @@ mod tests {
             ),
         ];
 
-        assert_eq!(
-            manifest
-                .simulate(
-                    &policy,
-                    SourceOperation::ScheduledCheck,
-                    chrono::NaiveDate::from_ymd_opt(2026, 7, 19).unwrap(),
-                    SourceGrantState::NotRequired,
-                    &fixtures,
-                )
-                .unwrap()
-                .decision,
-            SourceActionDecision::Allowed {
-                request_limit_per_hour: 500,
-                connectivity_required: true,
-            }
-        );
+        super::super::assert_scheduled_simulation_allowed(&manifest, &policy, &fixtures);
     }
 }

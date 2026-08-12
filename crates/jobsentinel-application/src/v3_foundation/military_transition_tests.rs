@@ -1,3 +1,5 @@
+// Verifies evidence-bound military-to-civilian wording review and confirmation.
+
 use super::*;
 use crate::test_support::test_job;
 use chrono::NaiveDate;
@@ -128,6 +130,50 @@ async fn confirm_clearance(
     citation
 }
 
+async fn prepared_transition() -> (Database, String, i64, MilitaryOccupationReviewDraft) {
+    let (database, case_file_id, resume_id, snapshot, military_citation) =
+        confirmed_context(RESUME_TEXT).await;
+    let clearance_citation = confirm_clearance(&database, &case_file_id, &snapshot).await;
+    let review = prepare_military_transition_review(
+        &database,
+        &case_file_id,
+        MilitaryBranch::Army,
+        transition_wording(),
+        &snapshot,
+        &military_citation,
+        Some(&clearance_citation),
+        today(),
+    )
+    .await
+    .unwrap();
+    (database, case_file_id, resume_id, review)
+}
+
+async fn assert_transition_preparation_conflict(
+    database: &Database,
+    case_file_id: &str,
+    snapshot: &ResumeEvidenceSnapshot,
+    military_citation: &ResumeEvidenceCitation,
+    clearance_citation: &ResumeEvidenceCitation,
+) {
+    assert_eq!(
+        prepare_military_transition_review(
+            database,
+            case_file_id,
+            MilitaryBranch::Army,
+            transition_wording(),
+            snapshot,
+            military_citation,
+            Some(clearance_citation),
+            today(),
+        )
+        .await
+        .err()
+        .unwrap(),
+        FoundationError::Conflict
+    );
+}
+
 #[tokio::test]
 async fn reviewed_wording_preserves_exact_backed_transition_claims_without_writes() {
     let (database, case_file_id, _, snapshot, military_citation) =
@@ -236,61 +282,31 @@ async fn preparation_rejects_unbacked_or_unconfirmed_transition_claims() {
         )
         .await;
     let clearance_citation = confirm_clearance(&database, &case_file_id, &snapshot).await;
-    assert_eq!(
-        prepare_military_transition_review(
-            &database,
-            &case_file_id,
-            MilitaryBranch::Army,
-            transition_wording(),
-            &snapshot,
-            &military_citation,
-            Some(&clearance_citation),
-            today(),
-        )
-        .await
-        .err()
-        .unwrap(),
-        FoundationError::Conflict
-    );
+    assert_transition_preparation_conflict(
+        &database,
+        &case_file_id,
+        &snapshot,
+        &military_citation,
+        &clearance_citation,
+    )
+    .await;
 
     let (database, case_file_id, _, snapshot, military_citation) =
         confirmed_context(RESUME_TEXT).await;
     let clearance_citation = ResumeEvidenceCitation::for_field(&snapshot, "clearance").unwrap();
-    assert_eq!(
-        prepare_military_transition_review(
-            &database,
-            &case_file_id,
-            MilitaryBranch::Army,
-            transition_wording(),
-            &snapshot,
-            &military_citation,
-            Some(&clearance_citation),
-            today(),
-        )
-        .await
-        .err()
-        .unwrap(),
-        FoundationError::Conflict
-    );
+    assert_transition_preparation_conflict(
+        &database,
+        &case_file_id,
+        &snapshot,
+        &military_citation,
+        &clearance_citation,
+    )
+    .await;
 }
 
 #[tokio::test]
 async fn confirmation_rejects_changed_or_deleted_saved_evidence() {
-    let (database, case_file_id, resume_id, snapshot, military_citation) =
-        confirmed_context(RESUME_TEXT).await;
-    let clearance_citation = confirm_clearance(&database, &case_file_id, &snapshot).await;
-    let review = prepare_military_transition_review(
-        &database,
-        &case_file_id,
-        MilitaryBranch::Army,
-        transition_wording(),
-        &snapshot,
-        &military_citation,
-        Some(&clearance_citation),
-        today(),
-    )
-    .await
-    .unwrap();
+    let (database, case_file_id, resume_id, review) = prepared_transition().await;
     database
         .resume_matcher()
         .extract_skills(resume_id)
@@ -305,21 +321,7 @@ async fn confirmation_rejects_changed_or_deleted_saved_evidence() {
         FoundationError::Conflict
     );
 
-    let (database, case_file_id, resume_id, snapshot, military_citation) =
-        confirmed_context(RESUME_TEXT).await;
-    let clearance_citation = confirm_clearance(&database, &case_file_id, &snapshot).await;
-    let review = prepare_military_transition_review(
-        &database,
-        &case_file_id,
-        MilitaryBranch::Army,
-        transition_wording(),
-        &snapshot,
-        &military_citation,
-        Some(&clearance_citation),
-        today(),
-    )
-    .await
-    .unwrap();
+    let (database, case_file_id, resume_id, review) = prepared_transition().await;
     database
         .resume_matcher()
         .delete_resume(resume_id)

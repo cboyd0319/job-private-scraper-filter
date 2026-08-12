@@ -4,7 +4,7 @@ use chrono::NaiveDate;
 use jobsentinel_domain::{
     v3_contracts::SchemaId,
     v3_manifests::{PackExecutionClass, PackManifest, PackType, PrivacyLabel},
-    v3_pack_payloads::parse_and_self_test_pack_payload,
+    v3_pack_payloads::{parse_and_self_test_pack_payload, SelfTestedPackRelease},
     v3_signed_packs::{parse_signed_pack_release, TrustedPublisherKey, VerifiedPackRelease},
 };
 use jobsentinel_security::sign_ed25519_for_test;
@@ -14,7 +14,7 @@ use sha2::{Digest, Sha256};
 use crate::{
     pack_lifecycle_error_kind,
     test_support::migrated_database,
-    v3_pack_lifecycle::{PackAvailability, PackStageOutcome},
+    v3_pack_lifecycle::{PackAvailability, PackStageOutcome, PackStream},
 };
 
 const PUBLISHER_ID: &str = "jobsentinel-test-source-v1";
@@ -125,6 +125,32 @@ fn valid_source_payload() -> String {
         ]
     }))
     .unwrap()
+}
+
+async fn activate_release(
+    database: &crate::Database,
+    release: &VerifiedPackRelease,
+    publisher: &TrustedPublisherKey,
+) -> (SelfTestedPackRelease, PackStream) {
+    let PackStageOutcome::Staged(staged) = database
+        .stage_verified_pack(release, publisher)
+        .await
+        .unwrap()
+    else {
+        panic!("release must stage before activation");
+    };
+    let tested =
+        parse_and_self_test_pack_payload(release, NaiveDate::from_ymd_opt(2026, 7, 20).unwrap())
+            .unwrap();
+    let self_tested = database
+        .record_pack_self_test(&tested, staged.generation)
+        .await
+        .unwrap();
+    let active = database
+        .activate_self_tested_pack(&tested, publisher, self_tested.generation)
+        .await
+        .unwrap();
+    (tested, active)
 }
 
 mod artifacts;

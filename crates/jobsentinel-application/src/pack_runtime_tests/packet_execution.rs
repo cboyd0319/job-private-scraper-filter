@@ -268,15 +268,8 @@ async fn packet_preflight_failure_cancels_the_authenticated_pending_approval() {
     )
     .await
     .is_err());
-    assert_eq!(
-        database
-            .get_pack_task(&prepared.task.run_id)
-            .await
-            .unwrap()
-            .unwrap()
-            .status,
-        PackTaskStatus::Cancelled
-    );
+    assert_pack_task_without_receipt(&database, &prepared.task.run_id, PackTaskStatus::Cancelled)
+        .await;
 }
 
 #[tokio::test]

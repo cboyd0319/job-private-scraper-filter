@@ -1,7 +1,19 @@
+// Verifies saved-match debugger evidence identity, confirmation, and stale-input rejection.
+
 use super::*;
 use crate::test_support::test_job;
 use jobsentinel_documents::{RequirementMatchState, ResumeMatchFeedbackLabel};
 use jobsentinel_storage::{resume::NewSkill, Database};
+
+fn scheduling_evidence_id(debugger: &SavedMatchDebugger) -> &str {
+    debugger
+        .requirements()
+        .iter()
+        .find(|requirement| requirement.requirement() == "scheduling")
+        .unwrap()
+        .evidence()[0]
+        .evidence_id()
+}
 
 pub(super) async fn saved_match_context() -> (Database, String, i64) {
     let database = Database::connect_memory().await.unwrap();
@@ -237,13 +249,7 @@ async fn saved_match_debugger_fails_closed_for_changed_deleted_or_unknown_saved_
             &job_hash,
             resume_id,
             current.debugger_id(),
-            current
-                .requirements()
-                .iter()
-                .find(|requirement| requirement.requirement() == "scheduling")
-                .unwrap()
-                .evidence()[0]
-                .evidence_id(),
+            scheduling_evidence_id(&current),
         )
         .await
         .unwrap_err(),
@@ -270,13 +276,7 @@ async fn saved_match_debugger_fails_closed_for_changed_deleted_or_unknown_saved_
             &job_hash,
             resume_id,
             current.debugger_id(),
-            current
-                .requirements()
-                .iter()
-                .find(|requirement| requirement.requirement() == "scheduling")
-                .unwrap()
-                .evidence()[0]
-                .evidence_id(),
+            scheduling_evidence_id(&current),
         )
         .await
         .unwrap_err(),

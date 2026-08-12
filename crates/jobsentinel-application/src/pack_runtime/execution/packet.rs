@@ -4,11 +4,7 @@ use std::{path::Path, time::Duration};
 
 use anyhow::{anyhow, Result};
 use chrono::{Duration as ChronoDuration, NaiveDate, Utc};
-use jobsentinel_domain::{
-    v3_contracts::SchemaId,
-    v3_manifests::{AgentTaskKind, PrivacyReceipt},
-    v3_signed_packs::TrustedPublisherKey,
-};
+use jobsentinel_domain::{v3_manifests::AgentTaskKind, v3_signed_packs::TrustedPublisherKey};
 use jobsentinel_storage::{
     pack_tasks::{DraftPacketInputGuard, PackTaskStatus},
     Database,
@@ -22,8 +18,8 @@ use crate::v3_foundation::{
 };
 
 use super::{
-    fail, load_active_reviewed_task, matches_context, PackTaskContext, PackTaskReview,
-    REVIEW_LIFETIME_MINUTES,
+    fail, load_active_reviewed_task, local_task_receipt, matches_context, PackTaskContext,
+    PackTaskReview, REVIEW_LIFETIME_MINUTES,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -183,22 +179,7 @@ pub(crate) async fn execute_draft_packet_task(
     if draft_packet_output_size(&result.packet)? > active.task.max_output_bytes as usize {
         return fail(database, run_id, &active.failure_message).await;
     }
-    let receipt = PrivacyReceipt {
-        schema: SchemaId::PrivacyReceiptV1,
-        receipt_id: result.receipt_id.clone(),
-        task_id: active.task.task_id,
-        pack_id: active.task.pack_id,
-        labels: active.task.privacy_labels,
-        data_categories: active.task.data_categories,
-        stored_locally: true,
-        data_left_device: false,
-        external_destination: None,
-        gateway_policy_id: None,
-        approval_reference: None,
-        delete_or_revoke_action:
-            "Disable or remove the pack to prevent future runs; local audit history remains."
-                .to_string(),
-    };
+    let receipt = local_task_receipt(&active, result.receipt_id.clone());
     if database
         .complete_reviewed_pack_task(run_id, &receipt, job_hash, Some(&input_guard))
         .await

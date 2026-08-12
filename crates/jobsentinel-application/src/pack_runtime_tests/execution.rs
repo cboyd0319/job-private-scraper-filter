@@ -42,11 +42,17 @@ async fn activated_evidence_pack(
     (artifact_root, publisher, active.generation)
 }
 
-#[tokio::test]
-async fn exact_reviewed_evidence_task_is_single_use_bounded_and_audited() {
+async fn prepared_evidence_task() -> (
+    Database,
+    String,
+    i64,
+    tempfile::TempDir,
+    TrustedPublisherKey,
+    u64,
+    crate::pack_runtime::PackTaskReview,
+) {
     let (database, job_hash, resume_id) = saved_match().await;
     let (artifact_root, publisher, generation) = activated_evidence_pack(&database).await;
-
     let prepared = prepare_evidence_review_task(
         &database,
         artifact_root.path(),
@@ -60,6 +66,21 @@ async fn exact_reviewed_evidence_task_is_single_use_bounded_and_audited() {
     )
     .await
     .unwrap();
+    (
+        database,
+        job_hash,
+        resume_id,
+        artifact_root,
+        publisher,
+        generation,
+        prepared,
+    )
+}
+
+#[tokio::test]
+async fn exact_reviewed_evidence_task_is_single_use_bounded_and_audited() {
+    let (database, job_hash, resume_id, artifact_root, publisher, _, prepared) =
+        prepared_evidence_task().await;
 
     assert_eq!(prepared.task_kind, AgentTaskKind::EvidenceReview);
     assert_eq!(prepared.plan.len(), 2);
@@ -121,21 +142,8 @@ async fn exact_reviewed_evidence_task_is_single_use_bounded_and_audited() {
 
 #[tokio::test]
 async fn cancelled_review_cannot_execute() {
-    let (database, job_hash, resume_id) = saved_match().await;
-    let (artifact_root, publisher, generation) = activated_evidence_pack(&database).await;
-    let prepared = prepare_evidence_review_task(
-        &database,
-        artifact_root.path(),
-        EVIDENCE_PUBLISHER_ID,
-        EVIDENCE_PACK_ID,
-        generation,
-        std::slice::from_ref(&publisher),
-        NaiveDate::from_ymd_opt(2026, 7, 20).unwrap(),
-        &job_hash,
-        resume_id,
-    )
-    .await
-    .unwrap();
+    let (database, job_hash, resume_id, artifact_root, publisher, _, prepared) =
+        prepared_evidence_task().await;
 
     cancel_reviewed_pack_task(&database, &prepared.run_id)
         .await
@@ -166,21 +174,8 @@ async fn cancelled_review_cannot_execute() {
 
 #[tokio::test]
 async fn disabled_pack_cannot_commit_an_approved_review() {
-    let (database, job_hash, resume_id) = saved_match().await;
-    let (artifact_root, publisher, generation) = activated_evidence_pack(&database).await;
-    let prepared = prepare_evidence_review_task(
-        &database,
-        artifact_root.path(),
-        EVIDENCE_PUBLISHER_ID,
-        EVIDENCE_PACK_ID,
-        generation,
-        std::slice::from_ref(&publisher),
-        NaiveDate::from_ymd_opt(2026, 7, 20).unwrap(),
-        &job_hash,
-        resume_id,
-    )
-    .await
-    .unwrap();
+    let (database, job_hash, resume_id, artifact_root, publisher, generation, prepared) =
+        prepared_evidence_task().await;
     assert!(execute_evidence_review_task(
         &database,
         artifact_root.path(),
@@ -234,21 +229,8 @@ async fn disabled_pack_cannot_commit_an_approved_review() {
 
 #[tokio::test]
 async fn changed_saved_input_fails_without_a_receipt() {
-    let (database, job_hash, resume_id) = saved_match().await;
-    let (artifact_root, publisher, generation) = activated_evidence_pack(&database).await;
-    let prepared = prepare_evidence_review_task(
-        &database,
-        artifact_root.path(),
-        EVIDENCE_PUBLISHER_ID,
-        EVIDENCE_PACK_ID,
-        generation,
-        std::slice::from_ref(&publisher),
-        NaiveDate::from_ymd_opt(2026, 7, 20).unwrap(),
-        &job_hash,
-        resume_id,
-    )
-    .await
-    .unwrap();
+    let (database, job_hash, resume_id, artifact_root, publisher, _, prepared) =
+        prepared_evidence_task().await;
     let mut changed = database.get_job_by_hash(&job_hash).await.unwrap().unwrap();
     changed.description = Some("Required: scheduling and payroll".to_string());
     changed.updated_at = Utc::now() + chrono::Duration::seconds(1);
@@ -266,19 +248,13 @@ async fn changed_saved_input_fails_without_a_receipt() {
     )
     .await
     .is_err());
-    let run = database
-        .get_pack_task(&prepared.run_id)
-        .await
-        .unwrap()
-        .unwrap();
-    assert_eq!(run.status, PackTaskStatus::Failed);
-    assert!(run.receipt_id.is_none());
+    assert_pack_task_without_receipt(&database, &prepared.run_id, PackTaskStatus::Failed).await;
 }
 
 #[tokio::test]
 async fn changed_evidence_confirmation_fails_without_a_receipt() {
-    let (database, job_hash, resume_id) = saved_match().await;
-    let (artifact_root, publisher, generation) = activated_evidence_pack(&database).await;
+    let (database, job_hash, resume_id, artifact_root, publisher, _, prepared) =
+        prepared_evidence_task().await;
     let debugger = prepare_saved_match_debugger(&database, &job_hash, resume_id)
         .await
         .unwrap();
@@ -290,19 +266,6 @@ async fn changed_evidence_confirmation_fails_without_a_receipt() {
         .unwrap()
         .evidence_id()
         .to_string();
-    let prepared = prepare_evidence_review_task(
-        &database,
-        artifact_root.path(),
-        EVIDENCE_PUBLISHER_ID,
-        EVIDENCE_PACK_ID,
-        generation,
-        std::slice::from_ref(&publisher),
-        NaiveDate::from_ymd_opt(2026, 7, 20).unwrap(),
-        &job_hash,
-        resume_id,
-    )
-    .await
-    .unwrap();
     confirm_saved_match_debugger_evidence(
         &database,
         &job_hash,
@@ -325,11 +288,5 @@ async fn changed_evidence_confirmation_fails_without_a_receipt() {
     )
     .await
     .is_err());
-    let run = database
-        .get_pack_task(&prepared.run_id)
-        .await
-        .unwrap()
-        .unwrap();
-    assert_eq!(run.status, PackTaskStatus::Failed);
-    assert!(run.receipt_id.is_none());
+    assert_pack_task_without_receipt(&database, &prepared.run_id, PackTaskStatus::Failed).await;
 }

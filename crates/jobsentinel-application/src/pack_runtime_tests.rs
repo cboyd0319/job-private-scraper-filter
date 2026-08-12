@@ -10,7 +10,10 @@ use jobsentinel_domain::{
     v3_signed_packs::TrustedPublisherKey,
 };
 use jobsentinel_security::sign_ed25519_for_test;
-use jobsentinel_storage::v3_pack_lifecycle::{PackQuarantineReason, PackReleaseState};
+use jobsentinel_storage::{
+    pack_tasks::PackTaskStatus,
+    v3_pack_lifecycle::{PackQuarantineReason, PackReleaseState},
+};
 use jobsentinel_storage::{v3_pack_lifecycle::PackAvailability, Database};
 use serde_json::json;
 use sha2::{Digest, Sha256};
@@ -278,6 +281,16 @@ async fn saved_match() -> (Database, String, i64) {
     (database, job.hash, resume_id)
 }
 
+async fn assert_pack_task_without_receipt(
+    database: &Database,
+    run_id: &str,
+    expected_status: PackTaskStatus,
+) {
+    let run = database.get_pack_task(run_id).await.unwrap().unwrap();
+    assert_eq!(run.status, expected_status);
+    assert!(run.receipt_id.is_none());
+}
+
 pub(crate) async fn stage_and_activate(
     database: &Database,
     artifact_root: &std::path::Path,
@@ -309,20 +322,21 @@ pub(crate) async fn stage_and_activate(
 }
 
 fn valid_source_payload() -> String {
+    let policy = json!({
+        "source_id": "synthetic-official-jobs",
+        "source_class": "official_public_api",
+        "access": "disabled",
+        "request_limit_per_hour": 0,
+        "user_review_required": false,
+        "policy_ref": "synthetic-official-jobs-v1",
+        "revision": 1,
+        "restriction_reason_code": null,
+        "reviewed_at": "2026-07-19T00:00:00Z"
+    });
     serde_json::to_string(&json!({
         "schema": "jobsentinel.v3.pack-payload.v1",
         "pack_type": "source",
-        "policy": {
-            "source_id": "synthetic-official-jobs",
-            "source_class": "official_public_api",
-            "access": "disabled",
-            "request_limit_per_hour": 0,
-            "user_review_required": false,
-            "policy_ref": "synthetic-official-jobs-v1",
-            "revision": 1,
-            "restriction_reason_code": null,
-            "reviewed_at": "2026-07-19T00:00:00Z"
-        },
+        "policy": policy,
         "manifest_json": include_str!(
             "../../jobsentinel-domain/src/fixtures/v3_source_manifest_v1.json"
         ),

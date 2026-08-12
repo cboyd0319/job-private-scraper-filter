@@ -1,7 +1,9 @@
-use super::{sort_keyword_matches, sort_missing_keywords, MatchedKeyword};
+// Matches ATS keywords against structured resume fields and evidence citations.
+
+use super::{record_keyword_result, sort_keyword_matches, sort_missing_keywords, MatchedKeyword};
 use crate::{
     ats_analyzer::{term_expansion, AtsAnalyzer},
-    ats_types::{KeywordImportance, KeywordMatch, MissingKeyword, RegionalMatchingProfile},
+    ats_types::{KeywordImportance, MissingKeyword, RegionalMatchingProfile},
     structured_resume::ResumeAnalysisInput,
 };
 use jobsentinel_domain::{ResumeEvidenceCitation, ResumeEvidenceSnapshot};
@@ -258,22 +260,15 @@ impl AtsAnalyzer {
                 );
             }
 
-            if frequency > 0 {
-                matches.push(MatchedKeyword {
-                    keyword_match: KeywordMatch {
-                        keyword: keyword.clone(),
-                        found_in,
-                        frequency,
-                        importance: *importance,
-                    },
-                    evidence_citations,
-                });
-            } else {
-                missing.push(MissingKeyword {
-                    keyword: keyword.clone(),
-                    importance: *importance,
-                });
-            }
+            record_keyword_result(
+                keyword,
+                *importance,
+                found_in,
+                frequency,
+                evidence_citations,
+                &mut matches,
+                &mut missing,
+            );
         }
 
         sort_keyword_matches(&mut matches);

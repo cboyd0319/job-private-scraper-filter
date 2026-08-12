@@ -1,6 +1,4 @@
-//! Scraper execution logic
-//!
-//! Runs all configured scrapers and collects jobs
+//! Runs configured scrapers with source-governance audit and failure handling.
 
 mod federal;
 mod hn_hiring_worker;
@@ -44,6 +42,35 @@ fn record_audit_failure(errors: &mut Vec<String>, source_label: &'static str) {
         "Source check audit unavailable"
     );
     errors.push(source_failure_message(source_label, "audit_unavailable"));
+}
+
+#[cfg(test)]
+fn assert_scheduled_simulation_allowed(
+    manifest: &jobsentinel_domain::v3_source_manifest::SourceManifest,
+    policy: &jobsentinel_domain::v3_foundation::SourcePolicy,
+    fixtures: &[(&str, &[u8])],
+) {
+    use jobsentinel_domain::{
+        v3_source_authorization::{SourceActionDecision, SourceGrantState},
+        v3_source_manifest::SourceOperation,
+    };
+
+    assert_eq!(
+        manifest
+            .simulate(
+                policy,
+                SourceOperation::ScheduledCheck,
+                chrono::NaiveDate::from_ymd_opt(2026, 7, 19).unwrap(),
+                SourceGrantState::NotRequired,
+                fixtures,
+            )
+            .unwrap()
+            .decision,
+        SourceActionDecision::Allowed {
+            request_limit_per_hour: 500,
+            connectivity_required: true,
+        }
+    );
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

@@ -1,5 +1,7 @@
+// Verifies local bookmarklet HTTP validation, pairing, imports, and confirmations.
+
 use super::*;
-use crate::bookmarklet::{CompanionPairing, CompanionPairingCode, CompanionRequest};
+use crate::bookmarklet::{companion_request_for_test, CompanionPairing, CompanionPairingCode};
 use chrono::TimeDelta;
 use jobsentinel_domain::v3_source_manifest::SourceOperation;
 use std::sync::Arc;
@@ -294,24 +296,9 @@ fn bookmarklet_pairing_at(
     (active, code)
 }
 
-fn bookmarklet_pairing_request(code: &CompanionPairingCode) -> CompanionRequest {
-    CompanionRequest {
-        protocol_version: code.protocol_version,
-        pairing_id: code.pairing_id.clone(),
-        client_id: code.client_id.clone(),
-        source_id: code.source_id.clone(),
-        policy_ref: code.policy_ref.clone(),
-        policy_revision: code.policy_revision,
-        operation: code.operations[0],
-        origin: code.origin.clone(),
-        nonce: "test-nonce".to_string(),
-        token: code.token.clone(),
-    }
-}
-
 fn bookmarklet_import_body(code: &CompanionPairingCode, job: serde_json::Value) -> String {
     serde_json::json!({
-        "pairing": bookmarklet_pairing_request(code),
+        "pairing": companion_request_for_test(code, "test-nonce"),
         "job": job,
     })
     .to_string()
@@ -319,7 +306,7 @@ fn bookmarklet_import_body(code: &CompanionPairingCode, job: serde_json::Value) 
 
 fn bookmarklet_import_batch_body(code: &CompanionPairingCode, jobs: serde_json::Value) -> String {
     serde_json::json!({
-        "pairing": bookmarklet_pairing_request(code),
+        "pairing": companion_request_for_test(code, "test-nonce"),
         "jobs": jobs,
     })
     .to_string()

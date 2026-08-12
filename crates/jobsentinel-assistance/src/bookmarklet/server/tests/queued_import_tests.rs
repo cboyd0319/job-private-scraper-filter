@@ -1,11 +1,12 @@
+// Verifies governed bookmarklet imports remain pending until explicit confirmation.
+
 use super::*;
 
-#[tokio::test]
-async fn test_bookmarklet_import_requires_persisted_authorization_before_queue() {
-    let database = bookmarklet_test_database().await;
-    database.set_authorization_allowed(false);
+async fn queue_example_import(
+    database: Arc<TestBookmarkletRepository>,
+    pending_imports: PendingBookmarkletImports,
+) -> serde_json::Value {
     let (active_pairing, code) = bookmarklet_pairing("https://example.com");
-    let pending_imports = bookmarklet_pending_imports();
     let body = bookmarklet_import_body(
         &code,
         serde_json::json!({
@@ -14,15 +15,55 @@ async fn test_bookmarklet_import_requires_persisted_authorization_before_queue()
             "url": "https://example.com/jobs/1"
         }),
     );
-
     let (response, _) = handle_import_request(
         &bookmarklet_import_request(&body),
+        &active_pairing,
+        pending_imports,
+        database,
+    )
+    .await;
+    serde_json::from_str(&response).unwrap()
+}
+
+async fn queue_url_import(
+    url: &str,
+) -> (
+    serde_json::Value,
+    PendingBookmarkletImports,
+    Arc<TestBookmarkletRepository>,
+) {
+    let database = bookmarklet_test_database().await;
+    let origin = external_https_origin(url).unwrap();
+    let (active_pairing, code) = bookmarklet_pairing(&origin);
+    let pending_imports = bookmarklet_pending_imports();
+    let body = bookmarklet_import_body(
+        &code,
+        serde_json::json!({
+            "title": "Care Coordinator",
+            "company": "Example",
+            "url": url
+        }),
+    );
+    let (response, _) = handle_import_request(
+        &bookmarklet_import_request_from_origin(&body, &origin, url),
         &active_pairing,
         pending_imports.clone(),
         database.clone(),
     )
     .await;
-    let parsed: serde_json::Value = serde_json::from_str(&response).unwrap();
+    (
+        serde_json::from_str(&response).unwrap(),
+        pending_imports,
+        database,
+    )
+}
+
+#[tokio::test]
+async fn test_bookmarklet_import_requires_persisted_authorization_before_queue() {
+    let database = bookmarklet_test_database().await;
+    database.set_authorization_allowed(false);
+    let pending_imports = bookmarklet_pending_imports();
+    let parsed = queue_example_import(database.clone(), pending_imports.clone()).await;
 
     assert_eq!(parsed["error"], BOOKMARKLET_AUTHORIZATION_FAILURE_MESSAGE);
     assert!(pending_bookmarklet_import_previews(&pending_imports).is_empty());
@@ -32,24 +73,8 @@ async fn test_bookmarklet_import_requires_persisted_authorization_before_queue()
 #[tokio::test]
 async fn test_bookmarklet_confirm_keeps_pending_import_after_authorization_drift() {
     let database = bookmarklet_test_database().await;
-    let (active_pairing, code) = bookmarklet_pairing("https://example.com");
     let pending_imports = bookmarklet_pending_imports();
-    let body = bookmarklet_import_body(
-        &code,
-        serde_json::json!({
-            "title": "Care Coordinator",
-            "company": "Community Care",
-            "url": "https://example.com/jobs/1"
-        }),
-    );
-    let (response, _) = handle_import_request(
-        &bookmarklet_import_request(&body),
-        &active_pairing,
-        pending_imports.clone(),
-        database.clone(),
-    )
-    .await;
-    let parsed: serde_json::Value = serde_json::from_str(&response).unwrap();
+    let parsed = queue_example_import(database.clone(), pending_imports.clone()).await;
     let preview = pending_bookmarklet_import_previews(&pending_imports)
         .pop()
         .unwrap();
@@ -78,27 +103,7 @@ async fn test_bookmarklet_import_rejects_policy_blocked_page_capture() {
         "https://linkedin.com/jobs/view/1",
         "https://www.linkedin.com/jobs/view/2",
     ] {
-        let database = bookmarklet_test_database().await;
-        let origin = external_https_origin(url).unwrap();
-        let (active_pairing, code) = bookmarklet_pairing(&origin);
-        let pending_imports = bookmarklet_pending_imports();
-        let body = bookmarklet_import_body(
-            &code,
-            serde_json::json!({
-                "title": "Care Coordinator",
-                "company": "Example",
-                "url": url
-            }),
-        );
-
-        let (response, _) = handle_import_request(
-            &bookmarklet_import_request_from_origin(&body, &origin, url),
-            &active_pairing,
-            pending_imports.clone(),
-            database.clone(),
-        )
-        .await;
-        let parsed: serde_json::Value = serde_json::from_str(&response).unwrap();
+        let (parsed, pending_imports, database) = queue_url_import(url).await;
 
         assert_eq!(
             parsed["error"],
@@ -117,27 +122,7 @@ async fn test_bookmarklet_import_allows_visible_capture_for_fetch_blocked_boards
         "https://www.simplyhired.com/job/3",
         "https://jobs.glassdoor.com/jobs/4",
     ] {
-        let database = bookmarklet_test_database().await;
-        let origin = external_https_origin(url).unwrap();
-        let (active_pairing, code) = bookmarklet_pairing(&origin);
-        let pending_imports = bookmarklet_pending_imports();
-        let body = bookmarklet_import_body(
-            &code,
-            serde_json::json!({
-                "title": "Care Coordinator",
-                "company": "Example",
-                "url": url
-            }),
-        );
-
-        let (response, _) = handle_import_request(
-            &bookmarklet_import_request_from_origin(&body, &origin, url),
-            &active_pairing,
-            pending_imports.clone(),
-            database,
-        )
-        .await;
-        let parsed: serde_json::Value = serde_json::from_str(&response).unwrap();
+        let (parsed, pending_imports, _) = queue_url_import(url).await;
         let previews = pending_bookmarklet_import_previews(&pending_imports);
 
         assert_eq!(parsed["success"], true, "{url}");

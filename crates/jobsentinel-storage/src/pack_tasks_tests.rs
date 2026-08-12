@@ -12,6 +12,27 @@ use crate::test_support::migrated_database;
 mod expiry;
 mod input_guard;
 
+async fn assert_started_without_audit(database: &crate::Database, run_id: &str) {
+    assert_eq!(
+        database
+            .get_pack_task(run_id)
+            .await
+            .unwrap()
+            .unwrap()
+            .status,
+        crate::pack_tasks::PackTaskStatus::Started
+    );
+    let receipt_count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM v3_privacy_receipts")
+        .fetch_one(database.pool())
+        .await
+        .unwrap();
+    let event_count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM v3_job_events")
+        .fetch_one(database.pool())
+        .await
+        .unwrap();
+    assert_eq!((receipt_count, event_count), (0, 0));
+}
+
 #[tokio::test]
 async fn creates_an_immutable_pending_evidence_review() {
     let database = migrated_database().await;
@@ -237,29 +258,7 @@ async fn invalid_completion_leaves_started_run_and_audit_empty() {
         .complete_reviewed_pack_task(&context.run_id, &receipt, "missing-job", None)
         .await
         .is_err());
-    assert_eq!(
-        database
-            .get_pack_task(&context.run_id)
-            .await
-            .unwrap()
-            .unwrap()
-            .status,
-        crate::pack_tasks::PackTaskStatus::Started
-    );
-    assert_eq!(
-        sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM v3_privacy_receipts")
-            .fetch_one(database.pool())
-            .await
-            .unwrap(),
-        0
-    );
-    assert_eq!(
-        sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM v3_job_events")
-            .fetch_one(database.pool())
-            .await
-            .unwrap(),
-        0
-    );
+    assert_started_without_audit(&database, &context.run_id).await;
 }
 
 #[tokio::test]
@@ -278,29 +277,7 @@ async fn missing_completion_case_leaves_started_run_and_audit_empty() {
         )
         .await
         .is_err());
-    assert_eq!(
-        database
-            .get_pack_task(&context.run_id)
-            .await
-            .unwrap()
-            .unwrap()
-            .status,
-        crate::pack_tasks::PackTaskStatus::Started
-    );
-    assert_eq!(
-        sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM v3_privacy_receipts")
-            .fetch_one(database.pool())
-            .await
-            .unwrap(),
-        0
-    );
-    assert_eq!(
-        sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM v3_job_events")
-            .fetch_one(database.pool())
-            .await
-            .unwrap(),
-        0
-    );
+    assert_started_without_audit(&database, &context.run_id).await;
 }
 
 #[tokio::test]

@@ -2,6 +2,45 @@
 
 use super::*;
 
+async fn seed_pack_lifecycle(database: &Database, release_digest: &str, payload_digest: &str) {
+    sqlx::query(
+        "INSERT INTO v3_pack_publishers (
+            publisher_key_id, public_key_sha256, trust_state,
+            revoked_at, created_at, updated_at
+         ) VALUES ('publisher', ?, 'trusted', NULL, 'now', 'now')",
+    )
+    .bind(release_digest)
+    .execute(database.pool())
+    .await
+    .unwrap();
+    sqlx::query(
+        "INSERT INTO v3_pack_streams (
+            publisher_key_id, pack_id, high_water_sequence,
+            high_water_signed_release_sha256, active_release_sequence,
+            rollback_release_sequence, availability, generation,
+            created_at, updated_at
+         ) VALUES ('publisher', 'pack', 0, NULL, NULL, NULL,
+                   'quarantined', 0, 'now', 'now')",
+    )
+    .execute(database.pool())
+    .await
+    .unwrap();
+    sqlx::query(
+        "INSERT INTO v3_pack_releases (
+            publisher_key_id, pack_id, release_sequence, release_id,
+            signed_release_sha256, payload_sha256, pack_version,
+            pack_type, execution_class, lifecycle_state,
+            quarantine_reason, self_tested_at, created_at, updated_at
+         ) VALUES ('publisher', 'pack', 1, 'release', ?, ?, '1.0.0',
+                   'source', 'static_content', 'staged', NULL, NULL, 'now', 'now')",
+    )
+    .bind(release_digest)
+    .bind(payload_digest)
+    .execute(database.pool())
+    .await
+    .unwrap();
+}
+
 #[tokio::test]
 async fn migration_23_adds_transactional_pack_lifecycle_tables() {
     let database = Database::connect_memory().await.unwrap();
@@ -36,42 +75,8 @@ async fn migration_26_conservatively_marks_removed_release_cleanup_pending() {
     let database = Database::connect_memory().await.unwrap();
     MIGRATOR.run_to(25, database.pool()).await.unwrap();
     let digest = "a".repeat(64);
-    sqlx::query(
-        "INSERT INTO v3_pack_publishers (
-            publisher_key_id, public_key_sha256, trust_state,
-            revoked_at, created_at, updated_at
-         ) VALUES ('publisher', ?, 'trusted', NULL, 'now', 'now')",
-    )
-    .bind(&digest)
-    .execute(database.pool())
-    .await
-    .unwrap();
-    sqlx::query(
-        "INSERT INTO v3_pack_streams (
-            publisher_key_id, pack_id, high_water_sequence,
-            high_water_signed_release_sha256, active_release_sequence,
-            rollback_release_sequence, availability, generation,
-            created_at, updated_at
-         ) VALUES ('publisher', 'pack', 0, NULL, NULL, NULL,
-                   'quarantined', 0, 'now', 'now')",
-    )
-    .execute(database.pool())
-    .await
-    .unwrap();
-    sqlx::query(
-        "INSERT INTO v3_pack_releases (
-            publisher_key_id, pack_id, release_sequence, release_id,
-            signed_release_sha256, payload_sha256, pack_version,
-            pack_type, execution_class, lifecycle_state,
-            quarantine_reason, self_tested_at, created_at, updated_at
-         ) VALUES ('publisher', 'pack', 1, 'release', ?, ?, '1.0.0',
-                   'source', 'static_content', 'staged', NULL, NULL, 'now', 'now')",
-    )
-    .bind(&digest)
-    .bind("b".repeat(64))
-    .execute(database.pool())
-    .await
-    .unwrap();
+    let payload_digest = "b".repeat(64);
+    seed_pack_lifecycle(&database, &digest, &payload_digest).await;
     sqlx::query(
         "UPDATE v3_pack_streams
          SET availability = 'removed', generation = generation + 1
@@ -112,42 +117,7 @@ async fn pack_lifecycle_triggers_reject_state_bypass_history_loss_and_retrust() 
     MIGRATOR.run(database.pool()).await.unwrap();
     let digest = "a".repeat(64);
     let payload_digest = "b".repeat(64);
-    sqlx::query(
-        "INSERT INTO v3_pack_publishers (
-            publisher_key_id, public_key_sha256, trust_state,
-            revoked_at, created_at, updated_at
-         ) VALUES ('publisher', ?, 'trusted', NULL, 'now', 'now')",
-    )
-    .bind(&digest)
-    .execute(database.pool())
-    .await
-    .unwrap();
-    sqlx::query(
-        "INSERT INTO v3_pack_streams (
-            publisher_key_id, pack_id, high_water_sequence,
-            high_water_signed_release_sha256, active_release_sequence,
-            rollback_release_sequence, availability, generation,
-            created_at, updated_at
-         ) VALUES ('publisher', 'pack', 0, NULL, NULL, NULL,
-                   'quarantined', 0, 'now', 'now')",
-    )
-    .execute(database.pool())
-    .await
-    .unwrap();
-    sqlx::query(
-        "INSERT INTO v3_pack_releases (
-            publisher_key_id, pack_id, release_sequence, release_id,
-            signed_release_sha256, payload_sha256, pack_version,
-            pack_type, execution_class, lifecycle_state,
-            quarantine_reason, self_tested_at, created_at, updated_at
-         ) VALUES ('publisher', 'pack', 1, 'release', ?, ?, '1.0.0',
-                   'source', 'static_content', 'staged', NULL, NULL, 'now', 'now')",
-    )
-    .bind(&digest)
-    .bind(&payload_digest)
-    .execute(database.pool())
-    .await
-    .unwrap();
+    seed_pack_lifecycle(&database, &digest, &payload_digest).await;
     sqlx::query(
         r#"INSERT INTO pack_release_reviews (
             publisher_key_id, pack_id, release_sequence, publisher_name,

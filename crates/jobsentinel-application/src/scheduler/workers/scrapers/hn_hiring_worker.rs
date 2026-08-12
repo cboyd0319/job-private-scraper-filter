@@ -1,3 +1,5 @@
+// Runs the governed Hacker News Who Is Hiring source worker.
+
 use std::{
     num::NonZeroU16,
     sync::{atomic::AtomicBool, Arc},
@@ -70,7 +72,7 @@ mod tests {
     use std::sync::{atomic::AtomicBool, Arc};
 
     use jobsentinel_domain::{
-        v3_source_authorization::{SourceActionDecision, SourceGrantState},
+        v3_source_authorization::SourceActionDecision,
         v3_source_manifest::{
             parse_source_manifest, SourceOperation, HN_HIRING_ITEM_ENDPOINT_PREFIX,
             HN_HIRING_SEARCH_ENDPOINT, HN_HIRING_SOURCE_MANIFEST_V1,
@@ -163,21 +165,6 @@ mod tests {
             ),
         ];
 
-        assert_eq!(
-            manifest
-                .simulate(
-                    &policy,
-                    SourceOperation::ScheduledCheck,
-                    chrono::NaiveDate::from_ymd_opt(2026, 7, 19).unwrap(),
-                    SourceGrantState::NotRequired,
-                    &fixtures,
-                )
-                .unwrap()
-                .decision,
-            SourceActionDecision::Allowed {
-                request_limit_per_hour: 500,
-                connectivity_required: true,
-            }
-        );
+        super::super::assert_scheduled_simulation_allowed(&manifest, &policy, &fixtures);
     }
 }

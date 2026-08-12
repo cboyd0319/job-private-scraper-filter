@@ -9,7 +9,7 @@ use jobsentinel_domain::{
         AgentTaskKind, ApprovalGate, DataCategory, PackAction, PackExecutionClass, PackType,
         PrivacyLabel,
     },
-    v3_pack_payloads::parse_and_self_test_pack_payload,
+    v3_pack_payloads::{parse_and_self_test_pack_payload, SelfTestedPackRelease},
     v3_signed_packs::{TrustedPublisherKey, VerifiedPackRelease},
 };
 use jobsentinel_storage::{
@@ -295,32 +295,54 @@ pub(crate) async fn enable_pack_artifact(
     let stored = database
         .get_stored_pack_release(publisher_key_id, pack_id, sequence)
         .await?;
-    let (_, tested, publisher) =
-        match load_tested_artifact(artifact_root, &stored, trusted_publishers, today) {
-            Ok(loaded) => loaded,
-            Err(ArtifactLoadError::Missing) => {
-                database
-                    .quarantine_unavailable_active_pack_artifact(&stored, expected_generation)
-                    .await?;
-                return Err(anyhow!("pack artifact is unavailable"));
-            }
-            Err(ArtifactLoadError::Invalid) => {
-                database
-                    .quarantine_invalid_active_pack_artifact(&stored, expected_generation)
-                    .await?;
-                return Err(anyhow!("pack artifact verification failed"));
-            }
-            Err(ArtifactLoadError::TrustRevoked) => {
-                database
-                    .quarantine_trust_revoked_active_pack_artifact(&stored, expected_generation)
-                    .await?;
-                return Err(anyhow!("pack publisher trust is revoked"));
-            }
-        };
+    let (_, tested, publisher) = load_active_tested_artifact(
+        database,
+        artifact_root,
+        &stored,
+        expected_generation,
+        trusted_publishers,
+        today,
+    )
+    .await?;
     let enabled = database
         .enable_pack(&tested, publisher, expected_generation)
         .await?;
     Ok(state_change(enabled))
+}
+
+async fn load_active_tested_artifact<'a>(
+    database: &Database,
+    artifact_root: &Path,
+    stored: &StoredPackRelease,
+    expected_generation: u64,
+    trusted_publishers: &'a [TrustedPublisherKey],
+    today: NaiveDate,
+) -> Result<(
+    VerifiedPackRelease,
+    SelfTestedPackRelease,
+    &'a TrustedPublisherKey,
+)> {
+    match load_tested_artifact(artifact_root, stored, trusted_publishers, today) {
+        Ok(loaded) => Ok(loaded),
+        Err(ArtifactLoadError::Missing) => {
+            database
+                .quarantine_unavailable_active_pack_artifact(stored, expected_generation)
+                .await?;
+            Err(anyhow!("pack artifact is unavailable"))
+        }
+        Err(ArtifactLoadError::Invalid) => {
+            database
+                .quarantine_invalid_active_pack_artifact(stored, expected_generation)
+                .await?;
+            Err(anyhow!("pack artifact verification failed"))
+        }
+        Err(ArtifactLoadError::TrustRevoked) => {
+            database
+                .quarantine_trust_revoked_active_pack_artifact(stored, expected_generation)
+                .await?;
+            Err(anyhow!("pack publisher trust is revoked"))
+        }
+    }
 }
 
 pub async fn uninstall_pack_artifacts(

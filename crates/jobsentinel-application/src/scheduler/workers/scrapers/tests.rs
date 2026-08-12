@@ -1,7 +1,28 @@
+// Verifies shared scraper execution, audit, cancellation, and failure behavior.
+
 use super::*;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 static RUNNING: AtomicBool = AtomicBool::new(false);
+
+async fn run_closing_scraper<S: JobScraper>(
+    database: &Arc<Database>,
+    scraper: &S,
+) -> (ScraperRunOutcome, Vec<Job>, Vec<String>) {
+    let mut jobs = Vec::new();
+    let mut errors = Vec::new();
+    let outcome = run_scraper(
+        database,
+        scraper,
+        "stub",
+        "Stub",
+        &RUNNING,
+        &mut jobs,
+        &mut errors,
+    )
+    .await;
+    (outcome, jobs, errors)
+}
 
 enum StubOutcome {
     Success(Vec<Job>),
@@ -197,19 +218,7 @@ async fn scraper_runner_does_not_report_success_when_terminal_audit_write_fails(
     let scraper = ClosingScraper {
         database: Arc::clone(&database),
     };
-    let mut jobs = Vec::new();
-    let mut errors = Vec::new();
-
-    let outcome = run_scraper(
-        &database,
-        &scraper,
-        "stub",
-        "Stub",
-        &RUNNING,
-        &mut jobs,
-        &mut errors,
-    )
-    .await;
+    let (outcome, jobs, errors) = run_closing_scraper(&database, &scraper).await;
 
     assert_eq!(outcome, ScraperRunOutcome::Failure);
     assert!(jobs.is_empty());
@@ -222,19 +231,7 @@ async fn scraper_runner_reports_failed_terminal_error_audit_write() {
     let scraper = ClosingFailureScraper {
         database: Arc::clone(&database),
     };
-    let mut jobs = Vec::new();
-    let mut errors = Vec::new();
-
-    let outcome = run_scraper(
-        &database,
-        &scraper,
-        "stub",
-        "Stub",
-        &RUNNING,
-        &mut jobs,
-        &mut errors,
-    )
-    .await;
+    let (outcome, jobs, errors) = run_closing_scraper(&database, &scraper).await;
 
     assert_eq!(outcome, ScraperRunOutcome::Failure);
     assert!(jobs.is_empty());

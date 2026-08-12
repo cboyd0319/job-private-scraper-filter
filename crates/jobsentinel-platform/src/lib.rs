@@ -210,6 +210,34 @@ pub fn open_private_file(path: &Path) -> std::io::Result<Option<std::fs::File>> 
     windows_private_files::open_private_file(path)
 }
 
+/// Returns whether an opened regular file still identifies the requested path.
+#[must_use]
+pub fn opened_file_matches_path(file: &std::fs::File, path: &Path) -> bool {
+    let Ok(path_metadata) = std::fs::symlink_metadata(path) else {
+        return false;
+    };
+    if !path_metadata.file_type().is_file() {
+        return false;
+    }
+    let Ok(opened_metadata) = file.metadata() else {
+        return false;
+    };
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::MetadataExt;
+        (opened_metadata.dev(), opened_metadata.ino()) == (path_metadata.dev(), path_metadata.ino())
+    }
+    #[cfg(windows)]
+    {
+        use std::os::windows::fs::MetadataExt;
+        opened_metadata.volume_serial_number() == path_metadata.volume_serial_number()
+            && opened_metadata.file_index() == path_metadata.file_index()
+            && opened_metadata.file_index().is_some()
+    }
+    #[cfg(not(any(unix, windows)))]
+    true
+}
+
 /// Apply private file modes to SQLite sidecar files when they exist.
 pub fn ensure_private_sqlite_files(db_path: &Path) -> std::io::Result<()> {
     ensure_private_file(db_path)?;

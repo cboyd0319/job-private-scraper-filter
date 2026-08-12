@@ -1,3 +1,5 @@
+/** Verifies application projections, summaries, and next-action guidance. */
+
 import { describe, expect, it } from "vitest";
 import {
   findApplicationById,
@@ -22,6 +24,31 @@ const baseApplication: Application = {
   notes: null,
   last_contact: null,
 };
+
+const routineReviewActions = [
+  {
+    id: "weekly-review",
+    handoff: {
+      description: "Replan lanes, sources, pacing, and stop rules from tracker evidence.",
+      label: "Job-search plan",
+    },
+    kind: "weekly_review",
+    priority: "low",
+    title: "Review this week's plan",
+    description: "Compare sources, quiet roles, saved roles, responses, and interviews before changing pace.",
+  },
+  {
+    id: "source-review",
+    handoff: {
+      description: "Review enabled sources and start any connectivity-required check yourself.",
+      label: "Job sources",
+    },
+    kind: "source_review",
+    priority: "low",
+    title: "Review job sources",
+    description: "Review enabled sources; no source is contacted until you choose a source action.",
+  },
+] as const;
 
 function emptyApplications(): ApplicationsByStatus {
   return {
@@ -349,28 +376,7 @@ describe("applicationsModel", () => {
           title: "Review completed outcomes",
           description: "Review closed roles and outcomes before changing your search plan.",
         },
-        {
-          id: "weekly-review",
-          handoff: {
-            description: "Replan lanes, sources, pacing, and stop rules from tracker evidence.",
-            label: "Job-search plan",
-          },
-          kind: "weekly_review",
-          priority: "low",
-          title: "Review this week's plan",
-          description: "Compare sources, quiet roles, saved roles, responses, and interviews before changing pace.",
-        },
-        {
-          id: "source-review",
-          handoff: {
-            description: "Review enabled sources and start any connectivity-required check yourself.",
-            label: "Job sources",
-          },
-          kind: "source_review",
-          priority: "low",
-          title: "Review job sources",
-          description: "Review enabled sources; no source is contacted until you choose a source action.",
-        },
+        ...routineReviewActions,
       ],
     });
   });
@@ -391,28 +397,7 @@ describe("applicationsModel", () => {
           title: "Add a job to track",
           description: "Save, paste, or import one job to start an opportunity case.",
         },
-        {
-          id: "weekly-review",
-          handoff: {
-            description: "Replan lanes, sources, pacing, and stop rules from tracker evidence.",
-            label: "Job-search plan",
-          },
-          kind: "weekly_review",
-          priority: "low",
-          title: "Review this week's plan",
-          description: "Compare sources, quiet roles, saved roles, responses, and interviews before changing pace.",
-        },
-        {
-          id: "source-review",
-          handoff: {
-            description: "Review enabled sources and start any connectivity-required check yourself.",
-            label: "Job sources",
-          },
-          kind: "source_review",
-          priority: "low",
-          title: "Review job sources",
-          description: "Review enabled sources; no source is contacted until you choose a source action.",
-        },
+        ...routineReviewActions,
       ],
     });
   });

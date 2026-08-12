@@ -168,6 +168,30 @@ async fn evaluate_evidence_reviewer(
     .await
 }
 
+fn assert_opaque_evaluation_result(result: &(impl serde::Serialize + std::fmt::Debug)) {
+    let value = serde_json::to_value(result).unwrap();
+    let encoded = value.to_string();
+    let fields = value
+        .as_object()
+        .unwrap()
+        .keys()
+        .cloned()
+        .collect::<Vec<_>>();
+    assert_eq!(fields, ["failedCases", "passedCases", "target"]);
+    for private_value in [
+        "production Rust experience",
+        EVALUATION_CASE_ID,
+        "fixture-secret-id",
+        "receipt",
+        "task",
+    ] {
+        assert!(!encoded.contains(private_value));
+    }
+    let debug = format!("{result:?}");
+    assert!(!debug.contains("production Rust experience"));
+    assert!(!debug.contains("fixture-secret-id"));
+}
+
 #[tokio::test]
 async fn active_evaluation_pack_runs_the_plain_text_ats_target_opaquely() {
     let passing = evaluate(false, "production Rust experience").await.unwrap();
@@ -178,22 +202,7 @@ async fn active_evaluation_pack_runs_the_plain_text_ats_target_opaquely() {
     assert_eq!((failing.passed_cases, failing.failed_cases), (0, 1));
 
     for result in [passing, failing] {
-        let value = serde_json::to_value(&result).unwrap();
-        let encoded = value.to_string();
-        let fields = value
-            .as_object()
-            .unwrap()
-            .keys()
-            .cloned()
-            .collect::<Vec<_>>();
-        assert_eq!(fields, ["failedCases", "passedCases", "target"]);
-        assert!(!encoded.contains("production Rust experience"));
-        assert!(!encoded.contains(EVALUATION_CASE_ID));
-        assert!(!encoded.contains("fixture-secret-id"));
-        assert!(!encoded.contains("receipt"));
-        assert!(!encoded.contains("task"));
-        assert!(!format!("{result:?}").contains("production Rust experience"));
-        assert!(!format!("{result:?}").contains("fixture-secret-id"));
+        assert_opaque_evaluation_result(&result);
     }
 }
 
@@ -278,22 +287,7 @@ async fn active_evaluation_pack_runs_the_evidence_reviewer_target_opaquely() {
     assert_eq!((failing.passed_cases, failing.failed_cases), (0, 1));
 
     for result in [passing, failing] {
-        let value = serde_json::to_value(&result).unwrap();
-        let encoded = value.to_string();
-        let fields = value
-            .as_object()
-            .unwrap()
-            .keys()
-            .cloned()
-            .collect::<Vec<_>>();
-        assert_eq!(fields, ["failedCases", "passedCases", "target"]);
-        assert!(!encoded.contains("production Rust experience"));
-        assert!(!encoded.contains(EVALUATION_CASE_ID));
-        assert!(!encoded.contains("fixture-secret-id"));
-        assert!(!encoded.contains("receipt"));
-        assert!(!encoded.contains("task"));
-        assert!(!format!("{result:?}").contains("production Rust experience"));
-        assert!(!format!("{result:?}").contains("fixture-secret-id"));
+        assert_opaque_evaluation_result(&result);
     }
 }
 

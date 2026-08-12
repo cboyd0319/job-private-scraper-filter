@@ -1,3 +1,5 @@
+// Verifies pack lifecycle revocation and recovery behavior.
+
 use super::*;
 
 #[tokio::test]
@@ -125,24 +127,7 @@ async fn uninstall_removes_every_release_but_retains_the_downgrade_tombstone() {
     let database = migrated_database().await;
     let publisher = publisher(7);
     let first = release(1, valid_source_payload(), &publisher);
-    let PackStageOutcome::Staged(first_staged) = database
-        .stage_verified_pack(&first, &publisher)
-        .await
-        .unwrap()
-    else {
-        panic!("first release must stage");
-    };
-    let first_tested =
-        parse_and_self_test_pack_payload(&first, NaiveDate::from_ymd_opt(2026, 7, 20).unwrap())
-            .unwrap();
-    let first_self_tested = database
-        .record_pack_self_test(&first_tested, first_staged.generation)
-        .await
-        .unwrap();
-    database
-        .activate_self_tested_pack(&first_tested, &publisher, first_self_tested.generation)
-        .await
-        .unwrap();
+    activate_release(&database, &first, &publisher).await;
     let third = release(3, valid_source_payload(), &publisher);
     let PackStageOutcome::Staged(third_staged) = database
         .stage_verified_pack(&third, &publisher)

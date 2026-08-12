@@ -1,3 +1,5 @@
+/** Verifies macOS package parsing, signature, checksum, and launch-smoke helpers. */
+
 import assert from "node:assert/strict";
 import { chmodSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -28,16 +30,10 @@ import {
   verifyLocalDmgChecksum,
 } from "../../release/verify-macos-package.mjs";
 
-test("macOS verifier resolves bundle icon resource names", () => {
-  assert.deepEqual(bundleIconResourceNames("icon.icns"), ["icon.icns"]);
-  assert.deepEqual(bundleIconResourceNames("AppIcon"), ["AppIcon", "AppIcon.icns"]);
-  assert.deepEqual(bundleIconResourceNames(""), []);
-});
-
-test("macOS verifier parses positional and flagged DMG arguments", () => {
-  assert.deepEqual(parseArgs(["build.dmg"], "arm64"), {
+function expectedParsedArgs(dmgPath, verifyChecksum) {
+  return {
     appName: "JobSentinel.app",
-    dmgPath: "build.dmg",
+    dmgPath,
     expectedBundleMetadata: {
       bundleIdentifier: undefined,
       iconFile: undefined,
@@ -51,9 +47,19 @@ test("macOS verifier parses positional and flagged DMG arguments", () => {
     requireChecksum: false,
     requireGatekeeper: false,
     runtimeProfile: "essentials",
-    verifyChecksum: true,
+    verifyChecksum,
     smokeSeconds: 12,
-  });
+  };
+}
+
+test("macOS verifier resolves bundle icon resource names", () => {
+  assert.deepEqual(bundleIconResourceNames("icon.icns"), ["icon.icns"]);
+  assert.deepEqual(bundleIconResourceNames("AppIcon"), ["AppIcon", "AppIcon.icns"]);
+  assert.deepEqual(bundleIconResourceNames(""), []);
+});
+
+test("macOS verifier parses positional and flagged DMG arguments", () => {
+  assert.deepEqual(parseArgs(["build.dmg"], "arm64"), expectedParsedArgs("build.dmg", true));
 
   assert.deepEqual(
     parseArgs([
@@ -99,25 +105,10 @@ test("macOS verifier parses positional and flagged DMG arguments", () => {
     },
   );
 
-  assert.deepEqual(parseArgs(["--dmg", "build.dmg", "--no-checksum"], "arm64"), {
-    appName: "JobSentinel.app",
-    dmgPath: "build.dmg",
-    expectedBundleMetadata: {
-      bundleIdentifier: undefined,
-      iconFile: undefined,
-      minimumSystemVersion: undefined,
-      productName: undefined,
-      version: undefined,
-    },
-    expectedArchitectures: ["arm64"],
-    installSmoke: false,
-    launchSmoke: false,
-    requireChecksum: false,
-    requireGatekeeper: false,
-    runtimeProfile: "essentials",
-    verifyChecksum: false,
-    smokeSeconds: 12,
-  });
+  assert.deepEqual(
+    parseArgs(["--dmg", "build.dmg", "--no-checksum"], "arm64"),
+    expectedParsedArgs("build.dmg", false),
+  );
 });
 
 test("macOS verifier maps local Node architectures to Mach-O architectures", () => {

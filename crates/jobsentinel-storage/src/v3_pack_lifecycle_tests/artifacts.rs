@@ -1,3 +1,5 @@
+// Verifies pack artifact quarantine, cleanup, and secure retention transitions.
+
 use super::*;
 use crate::v3_pack_lifecycle::{PackQuarantineReason, PackReleaseState};
 
@@ -6,24 +8,7 @@ async fn invalid_active_artifact_is_unlinked_and_quarantined_atomically() {
     let database = migrated_database().await;
     let publisher = publisher(7);
     let release = release(1, valid_source_payload(), &publisher);
-    let PackStageOutcome::Staged(staged) = database
-        .stage_verified_pack(&release, &publisher)
-        .await
-        .unwrap()
-    else {
-        panic!("release must stage");
-    };
-    let tested =
-        parse_and_self_test_pack_payload(&release, NaiveDate::from_ymd_opt(2026, 7, 20).unwrap())
-            .unwrap();
-    let self_tested = database
-        .record_pack_self_test(&tested, staged.generation)
-        .await
-        .unwrap();
-    let active = database
-        .activate_self_tested_pack(&tested, &publisher, self_tested.generation)
-        .await
-        .unwrap();
+    let (_, active) = activate_release(&database, &release, &publisher).await;
     let stored = database
         .get_stored_pack_release(PUBLISHER_ID, PACK_ID, 1)
         .await

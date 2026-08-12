@@ -1,4 +1,7 @@
+// Produces bounded reviewed exports and records their durable recovery outcomes.
+
 use super::{
+    finish_recovery_operation_record,
     reviewed_export_inspect::{
         inspect_reviewed_export_inner, ExportComplete, ExportHeader, ExportRecord,
     },
@@ -399,21 +402,7 @@ async fn finish_export_operation(
     operation_id: &str,
     error_kind: Option<&str>,
 ) -> Result<(), sqlx::Error> {
-    let updated = sqlx::query(
-        "UPDATE v3_recovery_operations
-         SET outcome = CASE WHEN ? IS NULL THEN 'succeeded' ELSE 'failed' END,
-             error_kind = ?,
-             completed_at = datetime('now')
-         WHERE operation_id = ?
-           AND (outcome = 'started' OR (? IS NOT NULL AND outcome = 'succeeded'))",
-    )
-    .bind(error_kind)
-    .bind(error_kind)
-    .bind(operation_id)
-    .bind(error_kind)
-    .execute(pool)
-    .await?;
-    if updated.rows_affected() == 1 {
+    if finish_recovery_operation_record(pool, operation_id, error_kind).await? {
         Ok(())
     } else {
         Err(protocol_error("Reviewed export provenance update failed"))
