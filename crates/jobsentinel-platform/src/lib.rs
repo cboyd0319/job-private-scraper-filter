@@ -13,6 +13,18 @@ mod database_key;
 mod platform_health;
 mod private_files;
 mod secure_storage;
+#[cfg(any(windows, test))]
+mod windows_acl_policy;
+#[cfg(windows)]
+mod windows_private_child;
+#[cfg(windows)]
+mod windows_private_directory;
+#[cfg(windows)]
+mod windows_private_files;
+#[cfg(windows)]
+mod windows_private_native;
+#[cfg(windows)]
+mod windows_private_path;
 
 pub use credential_vault_key::{
     credential_vault_key_storage_policy, decode_credential_vault_key, delete_credential_vault_key,
@@ -30,6 +42,10 @@ pub use platform_health::{
 pub use private_files::write_file_atomic_private;
 pub use secure_storage::{
     delete_device_secret, retrieve_device_secret, store_device_secret, SecureStorageError,
+};
+#[cfg(windows)]
+pub use windows_private_directory::{
+    open_or_create_private_dir, open_private_dir, PrivateDirectory,
 };
 
 /// Service namespace for JobSentinel device secure-storage entries.
@@ -140,17 +156,26 @@ pub fn package_smoke_root() -> Option<PathBuf> {
     macos::package_smoke_root()
 }
 
-/// Create an app-owned directory and keep it private on Unix platforms.
+/// Create an app-owned directory and keep it private with native permissions.
 pub fn ensure_private_dir(path: &Path) -> std::io::Result<()> {
-    std::fs::create_dir_all(path)?;
-    set_private_dir_permissions(path)?;
-    Ok(())
+    #[cfg(windows)]
+    {
+        windows_private_directory::ensure_private_dir(path)
+    }
+
+    #[cfg(not(windows))]
+    {
+        std::fs::create_dir_all(path)?;
+        set_private_dir_permissions(path)?;
+        Ok(())
+    }
 }
 
-/// Create an app-owned directory and keep every existing child private.
+/// Create an app-owned directory and apply the native private-storage policy.
 ///
-/// Symlinks are ignored so a user-controlled link inside app storage cannot
-/// make startup chmod files outside the app-owned tree.
+/// Unix tightens existing children while ignoring child symlinks. Windows
+/// applies a protected inheritable DACL to the root; sensitive child owners
+/// reapply the same policy when each object is opened or persisted.
 pub fn ensure_private_dir_tree(path: &Path) -> std::io::Result<()> {
     #[cfg(not(unix))]
     {
@@ -163,12 +188,26 @@ pub fn ensure_private_dir_tree(path: &Path) -> std::io::Result<()> {
     }
 }
 
-/// Keep an app-owned file private on Unix platforms.
+/// Keep an app-owned file private with native permissions.
 pub fn ensure_private_file(path: &Path) -> std::io::Result<()> {
-    if path.exists() {
-        set_private_file_permissions(path)?;
+    #[cfg(windows)]
+    {
+        windows_private_files::ensure_private_file(path)
     }
-    Ok(())
+
+    #[cfg(not(windows))]
+    {
+        if path.exists() {
+            set_private_file_permissions(path)?;
+        }
+        Ok(())
+    }
+}
+
+/// Open an existing Windows private file through the validated no-delete handle.
+#[cfg(windows)]
+pub fn open_private_file(path: &Path) -> std::io::Result<Option<std::fs::File>> {
+    windows_private_files::open_private_file(path)
 }
 
 /// Apply private file modes to SQLite sidecar files when they exist.
@@ -188,7 +227,7 @@ fn set_private_dir_permissions(path: &Path) -> std::io::Result<()> {
     std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o700))
 }
 
-#[cfg(not(unix))]
+#[cfg(not(any(unix, windows)))]
 fn set_private_dir_permissions(_path: &Path) -> std::io::Result<()> {
     Ok(())
 }
@@ -200,7 +239,7 @@ fn set_private_file_permissions(path: &Path) -> std::io::Result<()> {
     std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o600))
 }
 
-#[cfg(not(unix))]
+#[cfg(not(any(unix, windows)))]
 fn set_private_file_permissions(_path: &Path) -> std::io::Result<()> {
     Ok(())
 }

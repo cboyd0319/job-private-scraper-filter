@@ -77,6 +77,7 @@
     "sha2": "SHA-256 hashing for integrity and dedup keys.",
     "ring": "Maintained Ed25519 verification for signed pack publisher identity; custom cryptography is not acceptable.",
     "rustix": "Safe descriptor-relative filesystem operations prevent signed pack artifact paths from escaping app-owned storage during parent swaps.",
+    "windows-sys": "Generated Windows security and handle-relative filesystem bindings avoid handwritten FFI for private DACL and path enforcement.",
     "hex": "Encodes and validates database keys, canonical job hashes, and model digests without custom security-sensitive codecs.",
     "dirs": "Locates per-OS data and config directories.",
     "lettre": "SMTP email for opt-in alerts.",

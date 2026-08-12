@@ -1,3 +1,5 @@
+// Persists and reads signed pack artifacts without following links outside app-owned storage.
+
 use std::{io, path::Path};
 
 #[cfg(unix)]
@@ -162,20 +164,9 @@ mod platform {
 
 #[cfg(windows)]
 mod platform {
-    use std::{
-        fs::{File, OpenOptions},
-        io::{self, Read, Write},
-        os::windows::fs::{MetadataExt, OpenOptionsExt},
-        path::{Path, PathBuf},
-    };
+    use std::{io, path::Path};
 
     use jobsentinel_domain::v3_signed_packs::MAX_SIGNED_PACK_BYTES;
-
-    const FILE_ATTRIBUTE_REPARSE_POINT: u32 = 0x0000_0400;
-    const FILE_FLAG_BACKUP_SEMANTICS: u32 = 0x0200_0000;
-    const FILE_FLAG_OPEN_REPARSE_POINT: u32 = 0x0020_0000;
-    const FILE_SHARE_READ: u32 = 0x0000_0001;
-    const FILE_SHARE_WRITE: u32 = 0x0000_0002;
 
     pub(super) fn persist(
         root: &Path,
@@ -184,22 +175,13 @@ mod platform {
         file_name: &str,
         bytes: &[u8],
     ) -> io::Result<()> {
-        let (_locks, directory) = lock_tree(root, publisher_dir, pack_dir, true)?;
-        let path = directory.join(file_name);
-        let mut temporary = tempfile::NamedTempFile::new_in(&directory)?;
-        temporary.write_all(bytes)?;
-        temporary.as_file().sync_all()?;
-        match temporary.into_temp_path().persist_noclobber(&path) {
-            Ok(_) => {}
-            Err(error) if error.error.kind() == io::ErrorKind::AlreadyExists => {
-                if read_file(&path)? != bytes {
-                    return Err(io::Error::other("pack artifact already differs"));
-                }
-            }
-            Err(error) => return Err(error.error),
+        let directory = lock_tree(root, publisher_dir, pack_dir, true)?;
+        if !directory.write_file_noclobber(file_name, bytes)?
+            && read_file(&directory, file_name)? != bytes
+        {
+            return Err(io::Error::other("pack artifact already differs"));
         }
-        jobsentinel_platform::ensure_private_file(&path)?;
-        if read_file(&path)? != bytes {
+        if read_file(&directory, file_name)? != bytes {
             return Err(io::Error::other("pack artifact verification failed"));
         }
         Ok(())
@@ -211,8 +193,8 @@ mod platform {
         pack_dir: &str,
         file_name: &str,
     ) -> io::Result<Vec<u8>> {
-        let (_locks, directory) = lock_tree(root, publisher_dir, pack_dir, false)?;
-        read_file(&directory.join(file_name))
+        let directory = lock_tree(root, publisher_dir, pack_dir, false)?;
+        read_file(&directory, file_name)
     }
 
     pub(super) fn remove(
@@ -221,16 +203,8 @@ mod platform {
         pack_dir: &str,
         file_name: &str,
     ) -> io::Result<()> {
-        let (_locks, directory) = lock_tree(root, publisher_dir, pack_dir, false)?;
-        let path = directory.join(file_name);
-        match std::fs::symlink_metadata(&path) {
-            Ok(metadata) if metadata.is_file() && !is_reparse(&metadata) => {
-                std::fs::remove_file(path)
-            }
-            Ok(_) => Err(io::Error::other("pack artifact is invalid")),
-            Err(error) if error.kind() == io::ErrorKind::NotFound => Ok(()),
-            Err(error) => Err(error),
-        }
+        let directory = lock_tree(root, publisher_dir, pack_dir, false)?;
+        directory.remove_file(file_name)
     }
 
     fn lock_tree(
@@ -238,65 +212,23 @@ mod platform {
         publisher_dir: &str,
         pack_dir: &str,
         create: bool,
-    ) -> io::Result<(Vec<File>, PathBuf)> {
-        let mut locks = Vec::with_capacity(3);
-        let mut current = root.to_path_buf();
-        for component in [None, Some(publisher_dir), Some(pack_dir)] {
-            if let Some(component) = component {
-                current.push(component);
-            }
-            if create {
-                match std::fs::create_dir(&current) {
-                    Ok(()) => {}
-                    Err(error) if error.kind() == io::ErrorKind::AlreadyExists => {}
-                    Err(error) => return Err(error),
-                }
-            }
-            locks.push(lock_dir(&current)?);
-            jobsentinel_platform::ensure_private_dir(&current)?;
+    ) -> io::Result<jobsentinel_platform::PrivateDirectory> {
+        if create {
+            jobsentinel_platform::open_or_create_private_dir(root)?
+                .open_or_create_child(publisher_dir)?
+                .open_or_create_child(pack_dir)
+        } else {
+            jobsentinel_platform::open_private_dir(root)?
+                .open_child(publisher_dir)?
+                .open_child(pack_dir)
         }
-        Ok((locks, current))
     }
 
-    fn lock_dir(path: &Path) -> io::Result<File> {
-        let mut options = OpenOptions::new();
-        options
-            .read(true)
-            .share_mode(FILE_SHARE_READ | FILE_SHARE_WRITE)
-            .custom_flags(FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT);
-        let directory = options.open(path)?;
-        let metadata = directory.metadata()?;
-        if !metadata.is_dir() || is_reparse(&metadata) {
-            return Err(io::Error::other("pack artifact directory is invalid"));
-        }
-        Ok(directory)
-    }
-
-    fn read_file(path: &Path) -> io::Result<Vec<u8>> {
-        let mut options = OpenOptions::new();
-        options
-            .read(true)
-            .custom_flags(FILE_FLAG_OPEN_REPARSE_POINT);
-        let mut file = options.open(path)?;
-        let metadata = file.metadata()?;
-        if !metadata.is_file()
-            || is_reparse(&metadata)
-            || metadata.len() > MAX_SIGNED_PACK_BYTES as u64
-        {
-            return Err(io::Error::other("pack artifact is invalid"));
-        }
-        let mut bytes = Vec::with_capacity(metadata.len() as usize);
-        Read::by_ref(&mut file)
-            .take(MAX_SIGNED_PACK_BYTES as u64 + 1)
-            .read_to_end(&mut bytes)?;
-        if bytes.len() > MAX_SIGNED_PACK_BYTES {
-            return Err(io::Error::other("pack artifact is too large"));
-        }
-        Ok(bytes)
-    }
-
-    fn is_reparse(metadata: &std::fs::Metadata) -> bool {
-        metadata.file_attributes() & FILE_ATTRIBUTE_REPARSE_POINT != 0
+    fn read_file(
+        directory: &jobsentinel_platform::PrivateDirectory,
+        file_name: &str,
+    ) -> io::Result<Vec<u8>> {
+        directory.read_file(file_name, MAX_SIGNED_PACK_BYTES)
     }
 }
 
