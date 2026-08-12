@@ -1,3 +1,5 @@
+<!-- Explains Browser Import setup, review, privacy, and recovery behavior. -->
+
 # Browser Import Button
 
 The browser import button adds the visible job posting you choose to a local
@@ -48,7 +50,7 @@ happens. Copy a fresh browser button before importing.
 
 Each copied button works once for the confirmed site and expires after about
 ten minutes. Copy a fresh button for every import, after changing the button
-setup number, or after restarting JobSentinel.
+setup number, or after closing and reopening JobSentinel.
 
 Your browser may ask whether the confirmed site can connect to devices or apps
 on your local network. This permission is required for that site to reach the

@@ -1,3 +1,5 @@
+/** Detects privacy, authorization, and error-redaction regressions in command surfaces. */
+
 import { existsSync } from "node:fs";
 import {
   readFileSync,
@@ -358,7 +360,7 @@ export function hasUnauthenticatedBookmarkletImports(root, path) {
     return (
       !/#\[serde\(deny_unknown_fields\)\]/.test(productionText) ||
       !/consume_active_pairing\(/.test(productionText) ||
-      !/authorize_visible_page_capture\(/.test(productionText)
+      !/authorize_browser_action\(/.test(productionText)
     );
   }
   return false;

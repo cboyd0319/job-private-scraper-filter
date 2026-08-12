@@ -76,6 +76,10 @@ export const applyMockPackCommand: MockCommandAdapter = (command, args) => {
   return handleMockPackCommand(command, args);
 };
 
+export const applyMockUnavailableNativeFileDropCommand: MockCommandAdapter = () => {
+  throw new Error("Native file drop is unavailable in browser development.");
+};
+
 export const applyMockSupportCommand: MockCommandAdapter = (command, args) => {
   const result = handleMockSupportCommand(
     command,

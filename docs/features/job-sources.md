@@ -1,3 +1,5 @@
+<!-- Defines supported job-source behavior, governance, and privacy boundaries. -->
+
 # Job Sources
 
 JobSentinel favors official-source job monitoring and public job sources
@@ -65,7 +67,7 @@ minimized request fingerprint.
 | Category | Sources |
 | -------- | ------- |
 | Scheduled job checks | Greenhouse, Lever, RemoteOK, WeWorkRemotely, and community hiring posts |
-| Review-required configured source | USAJobs stops before credential access until approved-use evidence is current |
+| Source awaiting reviewed access | USAJobs stops before credential access until approved-use evidence is current |
 | Disabled legacy sources | JobsWithGPT, Built In, Dice HTML, SimplyHired, and Glassdoor settings remain loadable but cannot authorize transport |
 | Source-check helpers | Active scheduled sources plus locally skipped Indeed, Wellfound, and ZipRecruiter availability checks |
 | Company careers discovery | Employer careers pages that JobSentinel can classify before choosing a safe source path |
@@ -323,7 +325,7 @@ Representative source pacing:
 | Lever | Paced, at most 1,000/hour | Official public Postings API |
 | USAJobs | High | Official source with user-provided access code |
 | RemoteOK | Medium | Public job feed |
-| Hacker News Who Is Hiring | Medium | Public community posts through Algolia HN Search |
+| Who Is Hiring community thread | Medium | Public community posts through Algolia HN Search |
 | WeWorkRemotely | Moderate | Public feed/page |
 | JobsWithGPT | Disabled | Provider endpoint and usage-policy review required |
 | Built In, Dice HTML, SimplyHired, Glassdoor | Disabled | Provider policy does not authorize the retired adapters |
@@ -397,7 +399,7 @@ pace one request per hour with burst one, and disable automatic retries. Policy
 drift, unexpected access controls, attribution loss, parser drift, and stale
 review stop the source before network access.
 
-Hacker News Who Is Hiring scheduled and connectivity checks use the
+Who Is Hiring community checks use the
 [Algolia HN Search API](https://hn.algolia.com/api) to locate only the monthly
 thread posted by the `whoishiring` account. JobSentinel then reads the exact
 numeric thread item and treats only its direct replies as job posts, so nested
@@ -405,7 +407,7 @@ discussion is not imported as listings. The exact persisted manifest and
 policy gate the source action before either request, and the health check
 validates both reviewed endpoints. Checks use a paced 500-request-per-hour
 policy with burst one and no automatic retries. JobSentinel preserves canonical
-Hacker News comment links, keeps normalized results local, and does not export
+community-comment links, keeps normalized results local, and does not export
 the raw community corpus or send it to external model training. Schema drift,
 service retirement, or lost attribution fails the current check without
 storing mismatched records. Stale review or policy change stops the source

@@ -97,9 +97,20 @@ describe("mock Tauri command facade", () => {
         "prepare_packet_builder",
         "execute_packet_builder",
         "cancel_reviewed_pack_task",
+        "discard_native_file_drop",
+        "import_dropped_resume",
+        "preview_dropped_job",
+        "stage_dropped_pack",
+        "stage_dropped_portable_restore",
         "record_linkedin_workbench_event",
       ]),
     );
+  });
+
+  it("keeps native file access unavailable in browser development", async () => {
+    await expect(
+      mockInvoke("preview_dropped_job", { dropId: "opaque" }),
+    ).rejects.toThrow("Native file drop is unavailable in browser development.");
   });
 
   it("mirrors pack lifecycle response generations", async () => {

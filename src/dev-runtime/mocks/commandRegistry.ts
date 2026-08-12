@@ -22,6 +22,7 @@ import {
   applyMockSettingsCommand,
   applyMockSourceHealthCommand,
   applyMockSupportCommand,
+  applyMockUnavailableNativeFileDropCommand,
 } from "./runtimeCommandAdapters";
 import type { MockCommandAdapter } from "./runtimeCommandAdapters";
 
@@ -183,6 +184,16 @@ const commandGroups: readonly MockCommandGroup[] = [
   {
     commands: ["open_opportunity_case"],
     adapter: applyMockOpportunityCaseCommand,
+  },
+  {
+    commands: [
+      "discard_native_file_drop",
+      "import_dropped_resume",
+      "preview_dropped_job",
+      "stage_dropped_pack",
+      "stage_dropped_portable_restore",
+    ],
+    adapter: applyMockUnavailableNativeFileDropCommand,
   },
   {
     commands: [

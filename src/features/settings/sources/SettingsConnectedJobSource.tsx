@@ -1,3 +1,5 @@
+/** Renders review and local history for the disabled JobsWithGPT source. */
+
 import type { Dispatch, SetStateAction } from "react";
 import { Badge } from "../../../ui/Badge";
 import { Button } from "../../../ui/Button";
@@ -124,7 +126,7 @@ export function SettingsConnectedJobSource({
       {jobsWithGptPayload && (
         <div className="mt-3 rounded-lg border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-800/50 p-3">
           <p className="text-xs font-semibold text-surface-700 dark:text-surface-200 mb-2">
-            Review before JobSentinel contacts this source
+            Approve these exact details before JobSentinel contacts this source
           </p>
           <dl className="grid grid-cols-1 gap-2 text-xs text-surface-600 dark:text-surface-300 sm:grid-cols-[8rem_1fr]">
             <dt className="font-medium">Job-source site</dt>
@@ -162,7 +164,7 @@ export function SettingsConnectedJobSource({
           {(jobsWithGptLastRequest || jobsWithGptPayloadApproved) && (
             <div className="mt-3 rounded-md border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-900 p-2 text-xs text-surface-600 dark:text-surface-300">
               <p className="font-semibold text-surface-700 dark:text-surface-200">
-                Last contact attempt:{" "}
+                Last contacted or attempted:{" "}
                 {jobsWithGptLastRequest
                   ? formatSourceRequestTime(jobsWithGptLastRequest.sentAt)
                   : "Not yet"}

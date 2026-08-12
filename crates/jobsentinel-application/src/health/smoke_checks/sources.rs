@@ -1,3 +1,5 @@
+//! Runs bounded source health checks behind each source's authorization contract.
+
 use crate::{
     credentials::{CredentialKey, CredentialService},
     Config,
@@ -191,10 +193,16 @@ pub(super) async fn test_hn_hiring(request_limit_per_hour: u32) -> Result<serde_
     }))
 }
 
-pub(super) async fn test_jobswithgpt(_config: &Config) -> Result<serde_json::Value> {
+pub(super) async fn test_jobswithgpt(config: &Config) -> Result<serde_json::Value> {
+    let reason = if config.jobswithgpt_payload_approved() {
+        "JobsWithGPT provider endpoint and usage policy require review"
+    } else {
+        "JobsWithGPT exact request details are not approved"
+    };
+
     Ok(serde_json::json!({
         "status": "skipped",
-        "reason": "JobsWithGPT provider endpoint and usage policy require review"
+        "reason": reason
     }))
 }
 
@@ -258,4 +266,31 @@ pub(super) async fn test_usajobs(
         "jobs_found": job_count,
         "api": "usajobs"
     }))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::test_jobswithgpt;
+    use crate::Config;
+
+    #[tokio::test]
+    async fn jobswithgpt_smoke_check_requires_exact_payload_approval() {
+        let mut config = Config::first_run();
+        config.jobswithgpt_endpoint = "https://jobs.example.test/mcp".to_string();
+        config.title_allowlist = vec!["Case Manager".to_string()];
+
+        let result = test_jobswithgpt(&config).await.unwrap();
+        assert_eq!(
+            result["reason"],
+            "JobsWithGPT exact request details are not approved"
+        );
+
+        config.jobswithgpt_approval.enabled = true;
+        config.jobswithgpt_approval.payload = config.jobswithgpt_payload_preview();
+        let approved = test_jobswithgpt(&config).await.unwrap();
+        assert_eq!(
+            approved["reason"],
+            "JobsWithGPT provider endpoint and usage policy require review"
+        );
+    }
 }

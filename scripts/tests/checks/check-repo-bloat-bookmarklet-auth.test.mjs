@@ -1,3 +1,5 @@
+/** Verifies bookmarklet authorization rules in the repository bloat check. */
+
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
@@ -113,6 +115,44 @@ test("checkRepoBloat rejects non-atomic active pairing consumption", () => {
     assert.ok(
       violations.includes(
         "make bookmarklet pairing atomic and one-use: crates/jobsentinel-assistance/src/bookmarklet/server/pairing_state.rs",
+      ),
+      violations.join("\n"),
+    );
+  });
+});
+
+test("checkRepoBloat accepts the repository-owned bookmarklet authorization boundary", () => {
+  withGitFixture((root) => {
+    writeFixtureFile(root, "package.json", "{}\n");
+    writeFixtureFile(
+      root,
+      "crates/jobsentinel-assistance/src/bookmarklet/server/imports.rs",
+      [
+        "#[serde(deny_unknown_fields)]",
+        "struct BookmarkletImportEnvelope {}",
+        "async fn handle_import_request(repository: &Repository, grant: &Grant) {",
+        "  consume_active_pairing();",
+        "  repository.authorize_browser_action(grant).await;",
+        "}",
+        "",
+      ].join("\n"),
+    );
+
+    execFileSync(
+      "git",
+      [
+        "add",
+        "package.json",
+        "crates/jobsentinel-assistance/src/bookmarklet/server/imports.rs",
+      ],
+      { cwd: root },
+    );
+
+    const violations = checkRepoBloat(root);
+
+    assert.ok(
+      !violations.includes(
+        "require structured bookmarklet pairing authorization: crates/jobsentinel-assistance/src/bookmarklet/server/imports.rs",
       ),
       violations.join("\n"),
     );

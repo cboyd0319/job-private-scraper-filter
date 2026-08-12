@@ -1,3 +1,5 @@
+<!-- Defines user-visible job-source availability and safe recovery guidance. -->
+
 # Job Source Status
 
 Job source status helps users see whether job sources are working, having
@@ -79,7 +81,7 @@ rejected, interview, follow-up, reminder, notes, or not interested. It does not
 collect LinkedIn login details, read page content, inspect network traffic,
 save browser storage, or run scheduled LinkedIn checks.
 
-Built In, Dice HTML, SimplyHired, and Glassdoor scheduled adapters are retired.
+Built In, Dice HTML, SimplyHired, and Glassdoor scheduled checks are retired.
 Their health rows stay absent, direct legacy check identifiers stop locally,
 and stale config flags cannot restore transport. The status surface should
 point to a user-opened search link, employer career page, Browser Import, or

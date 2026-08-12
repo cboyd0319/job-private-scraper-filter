@@ -1,3 +1,5 @@
+/** Verifies Settings save flows, source boundaries, and user-visible state. */
+
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import {
   fireEvent,
@@ -256,7 +258,9 @@ describe("Settings — handleSave flow", () => {
       screen.queryByText("Optional source address"),
     ).not.toBeInTheDocument();
     expect(
-      screen.getByText("Review before JobSentinel contacts this source"),
+      screen.getByText(
+        "Approve these exact details before JobSentinel contacts this source",
+      ),
     ).toBeInTheDocument();
     expect(screen.getByText("api.jobswithgpt.example")).toBeInTheDocument();
     expect(
@@ -273,7 +277,9 @@ describe("Settings — handleSave flow", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("Case Manager")).toBeInTheDocument();
     const approvalSummary = screen
-      .getByText("Review before JobSentinel contacts this source")
+      .getByText(
+        "Approve these exact details before JobSentinel contacts this source",
+      )
       .closest("div");
     expect(approvalSummary).not.toBeNull();
     expect(within(approvalSummary!).getByText("Location")).toBeInTheDocument();
@@ -366,7 +372,7 @@ describe("Settings — handleSave flow", () => {
     await user.click(screen.getByText("More Job Boards"));
 
     const contactSummary = screen
-      .getByText(/Last contact attempt:/i)
+      .getByText(/Last contacted or attempted:/i)
       .closest("div");
     expect(contactSummary).not.toBeNull();
     expect(
