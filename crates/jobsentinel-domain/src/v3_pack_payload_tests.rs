@@ -24,7 +24,7 @@ const LIST_FIXTURE: &str = include_str!("fixtures/source_simulator/synthetic_off
 const DETAIL_FIXTURE: &str =
     include_str!("fixtures/source_simulator/synthetic_official_detail.json");
 const POLICY_FIXTURE: &str = include_str!("fixtures/source_reviews/synthetic_official_v1.json");
-const EVALUATION_SET: &str = include_str!("fixtures/v3_evaluation_set_v1.json");
+pub(crate) const EVALUATION_SET: &str = include_str!("fixtures/v3_evaluation_set_v1.json");
 
 fn source_payload() -> String {
     serde_json::to_string(&json!({
@@ -90,7 +90,7 @@ fn evidence_payload() -> serde_json::Value {
     })
 }
 
-fn release(payload: String, pack_type: PackType) -> VerifiedPackRelease {
+pub(crate) fn release(payload: String, pack_type: PackType) -> VerifiedPackRelease {
     let manifest = PackManifest {
         schema: SchemaId::PackManifestV1,
         pack_id: "jobsentinel.test.synthetic-source".to_string(),

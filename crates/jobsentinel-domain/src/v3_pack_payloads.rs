@@ -10,6 +10,7 @@ use crate::{
     v3_evaluations::{
         parse_ats_resume_requirement_evaluation_set, parse_v3_evaluation_set,
         AtsResumeRequirementEvaluationScorer, EvaluationScorer,
+        EvidenceReviewerResumeRequirementEvaluationScorer,
     },
     v3_foundation::{SourceAccess, SourcePolicy},
     v3_manifests::{
@@ -72,6 +73,9 @@ pub enum SelfTestedPackPayload {
     },
     AtsResumeRequirementEvaluation {
         scorer: AtsResumeRequirementEvaluationScorer,
+    },
+    EvidenceReviewerResumeRequirementEvaluation {
+        scorer: EvidenceReviewerResumeRequirementEvaluationScorer,
     },
 }
 
@@ -139,6 +143,7 @@ struct EvaluationPayloadV1 {
 #[serde(rename_all = "snake_case")]
 enum EvaluationTargetV1 {
     AtsPlainTextResumeRequirementV1,
+    EvidenceReviewerResumeRequirementV1,
 }
 
 #[derive(Debug, Deserialize)]
@@ -242,6 +247,16 @@ fn self_test_evaluation(
             Ok(SelfTestedPackPayload::AtsResumeRequirementEvaluation {
                 scorer: AtsResumeRequirementEvaluationScorer::new(evaluation),
             })
+        }
+        Some(EvaluationTargetV1::EvidenceReviewerResumeRequirementV1) => {
+            let evaluation =
+                parse_ats_resume_requirement_evaluation_set(&payload.evaluation_set_json)
+                    .map_err(|_| "evaluation pack self-test failed".to_string())?;
+            Ok(
+                SelfTestedPackPayload::EvidenceReviewerResumeRequirementEvaluation {
+                    scorer: EvidenceReviewerResumeRequirementEvaluationScorer::new(evaluation),
+                },
+            )
         }
     }
 }

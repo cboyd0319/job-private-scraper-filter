@@ -21,6 +21,11 @@ pub use crate::v3_evaluation_assertions::{EvaluationAssertion, EvaluationOracle}
 pub use crate::v3_evaluation_inputs::EvaluationCategory;
 use crate::v3_evaluation_inputs::EvaluationInput;
 
+mod resume_requirement;
+pub use resume_requirement::{
+    AtsResumeRequirementEvaluationScorer, EvidenceReviewerResumeRequirementEvaluationScorer,
+};
+
 const SCHEMA: &str = "jobsentinel.v3.evaluation-set";
 const SCHEMA_VERSION: u32 = 1;
 const MAX_CASE_ID_BYTES: usize = 128;
@@ -116,24 +121,10 @@ pub struct EvaluationScorer {
     evaluation: V3EvaluationSet,
 }
 
-pub struct AtsResumeRequirementEvaluationScorer {
-    evaluation: V3EvaluationSet,
-}
-
 impl fmt::Debug for EvaluationScorer {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         formatter
             .debug_struct("EvaluationScorer")
-            .field("revision", &self.evaluation.revision)
-            .field("case_count", &self.evaluation.cases.len())
-            .finish()
-    }
-}
-
-impl fmt::Debug for AtsResumeRequirementEvaluationScorer {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        formatter
-            .debug_struct("AtsResumeRequirementEvaluationScorer")
             .field("revision", &self.evaluation.revision)
             .field("case_count", &self.evaluation.cases.len())
             .finish()
@@ -268,40 +259,6 @@ impl EvaluationScorer {
             .iter()
             .map(|case| (case.id.clone(), case.evaluate(&observations[&case.id])))
             .collect())
-    }
-}
-
-impl AtsResumeRequirementEvaluationScorer {
-    pub(crate) fn new(evaluation: V3EvaluationSet) -> Self {
-        Self { evaluation }
-    }
-
-    pub fn revision(&self) -> &str {
-        &self.evaluation.revision
-    }
-
-    /// Run the fixed ATS component while keeping its one synthetic fixture inside the scorer.
-    pub fn score_target(
-        &self,
-        target: impl FnOnce(&str, &[String], &[String]) -> Result<Vec<EvaluationAssertion>, String>,
-    ) -> Result<bool, String> {
-        self.evaluation.validate_common()?;
-        let case = self
-            .evaluation
-            .cases
-            .first()
-            .filter(|_| self.evaluation.cases.len() == 1)
-            .ok_or_else(|| "resume evidence evaluation case is unavailable".to_string())?;
-        let EvaluationInput::ResumeEvidence {
-            requirement,
-            evidence,
-            shared_keywords,
-        } = &case.input
-        else {
-            return Err("resume evidence evaluation input is invalid".to_string());
-        };
-        let observed = target(requirement, evidence, shared_keywords)?;
-        Ok(case.evaluate(&observed))
     }
 }
 

@@ -15,6 +15,8 @@ pub mod v3_evaluation_inputs;
 mod v3_evaluation_tests;
 pub mod v3_evaluations;
 pub mod v3_evidence;
+#[cfg(test)]
+mod v3_evidence_reviewer_evaluation_tests;
 pub mod v3_foundation;
 pub mod v3_manifests;
 #[cfg(test)]
