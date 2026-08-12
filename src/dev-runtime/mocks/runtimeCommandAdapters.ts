@@ -20,6 +20,7 @@ import { handleMockSearchLinksCommand } from "../features/search-links/commands"
 import { handleMockSettingsCommand } from "../features/settings/commands";
 import { handleMockExternalAiCommand } from "../features/settings/externalAiCommands";
 import { handleMockNotificationCommand } from "../features/settings/notificationCommands";
+import { handleMockPackCommand } from "../features/settings/packCommands";
 import { handleMockSourceHealthCommand } from "../features/settings/sources/commands";
 import { handleMockSupportCommand } from "../features/settings/support/commands";
 import { handleMockRecoveryCommand } from "../features/settings/support/recoveryCommands";
@@ -71,8 +72,9 @@ export const applyMockSettingsCommand: MockCommandAdapter = (command, args) => {
   return result.value;
 };
 
-export const applyMockPackCommand: MockCommandAdapter = (command) =>
-  command === "list_pack_management" ? [] : undefined;
+export const applyMockPackCommand: MockCommandAdapter = (command, args) => {
+  return handleMockPackCommand(command, args);
+};
 
 export const applyMockSupportCommand: MockCommandAdapter = (command, args) => {
   const result = handleMockSupportCommand(

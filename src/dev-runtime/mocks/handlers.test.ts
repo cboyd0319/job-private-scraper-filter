@@ -82,9 +82,61 @@ describe("mock Tauri command facade", () => {
         "get_active_resume",
         "fill_application_form",
         "list_pack_management",
+        "disable_pack",
+        "uninstall_pack",
+        "retry_pack_cleanup",
         "record_linkedin_workbench_event",
       ]),
     );
+  });
+
+  it("mirrors pack lifecycle response generations", async () => {
+    const identity = {
+      publisherKeyId: "jobsentinel-release-v1",
+      packId: "jobsentinel.sources.us",
+      expectedGeneration: 4,
+    };
+
+    await expect(mockInvoke("list_pack_management")).resolves.toEqual([
+      expect.objectContaining({
+        publisherKeyId: identity.publisherKeyId,
+        packId: identity.packId,
+        state: "ready",
+        generation: 4,
+      }),
+    ]);
+    await expect(mockInvoke("disable_pack", identity)).resolves.toEqual({
+      state: "disabled",
+      generation: 5,
+    });
+    await expect(mockInvoke("list_pack_management")).resolves.toEqual([
+      expect.objectContaining({ state: "disabled", generation: 5 }),
+    ]);
+    await expect(mockInvoke("disable_pack", identity)).rejects.toThrow(
+      "pack changed",
+    );
+    await expect(mockInvoke("retry_pack_cleanup", {
+      ...identity,
+      expectedGeneration: 5,
+    })).resolves.toEqual({
+      generation: 5,
+      cleanupPending: false,
+    });
+    await expect(mockInvoke("uninstall_pack", {
+      ...identity,
+      expectedGeneration: 5,
+    })).resolves.toEqual({
+      generation: 6,
+      cleanupPending: false,
+    });
+    await expect(mockInvoke("list_pack_management")).resolves.toEqual([
+      expect.objectContaining({ state: "removed", generation: 6 }),
+    ]);
+
+    resetMockData();
+    await expect(mockInvoke("list_pack_management")).resolves.toEqual([
+      expect.objectContaining({ state: "ready", generation: 4 }),
+    ]);
   });
 
   it("supports forced command failures", async () => {

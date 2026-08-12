@@ -1,9 +1,4 @@
-/**
- * Development-only Tauri command facade.
- *
- * Feature mock modules own command behavior. This facade applies optional
- * test controls before dispatching through the explicit command registry.
- */
+/** Dispatches development-only Tauri commands and resets deterministic mock state. */
 
 import { invokeRegisteredMockCommand } from "./commandRegistry";
 import {
@@ -12,6 +7,7 @@ import {
   waitForMockDelay,
 } from "./invokeControls";
 import { resetMockState } from "./runtimeState";
+import { resetMockPackManagement } from "../features/settings/packCommands";
 
 export async function mockInvoke<T>(
   command: string,
@@ -29,4 +25,5 @@ export async function mockInvoke<T>(
 export function resetMockData(): void {
   clearMockInvokeControls();
   resetMockState();
+  resetMockPackManagement();
 }

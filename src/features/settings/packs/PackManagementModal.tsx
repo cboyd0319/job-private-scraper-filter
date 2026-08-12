@@ -1,9 +1,10 @@
-/** Displays durable signed-pack review facts and safe lifecycle failures. */
+/** Displays signed-pack review facts and safe generation-bound removal controls. */
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { invoke } from "../../../platform/tauri";
 import { Button } from "../../../ui/Button";
 import { Modal } from "../../../ui/Modal";
+import { PackLifecycleControls } from "./PackLifecycleControls";
 import {
   parsePackManagementReviews,
   type PackManagementReview,
@@ -89,15 +90,18 @@ interface PackManagementModalProps {
 export function PackManagementModal({ onClose }: PackManagementModalProps) {
   const [packs, setPacks] = useState<PackManagementReview[] | null>(null);
   const [error, setError] = useState(false);
+  const latestLoad = useRef(0);
   const load = useCallback(async () => {
+    const loadId = ++latestLoad.current;
     setError(false);
     try {
-      setPacks(
-        parsePackManagementReviews(
-          await invoke<unknown>("list_pack_management"),
-        ),
+      const loaded = parsePackManagementReviews(
+        await invoke<unknown>("list_pack_management"),
       );
+      if (loadId !== latestLoad.current) return;
+      setPacks(loaded);
     } catch {
+      if (loadId !== latestLoad.current) return;
       setPacks(null);
       setError(true);
     }
@@ -118,8 +122,9 @@ export function PackManagementModal({ onClose }: PackManagementModalProps) {
     >
       <div className="mb-4 flex items-start justify-between gap-4">
         <p className="text-sm text-surface-600 dark:text-surface-300">
-          This view is read-only. Pack files stay local, signed permissions
-          cannot expand, and packs cannot submit applications.
+          Pack files stay local. You can disable a ready pack or remove its
+          local files. Signed permissions cannot expand, and packs cannot
+          submit applications.
         </p>
         <Button variant="secondary" onClick={() => void load()}>
           Refresh
@@ -159,6 +164,7 @@ export function PackManagementModal({ onClose }: PackManagementModalProps) {
             <PackCard
               key={`${pack.publisherKeyId}:${pack.packId}`}
               pack={pack}
+              onChanged={load}
             />
           ))}
         </div>
@@ -167,7 +173,13 @@ export function PackManagementModal({ onClose }: PackManagementModalProps) {
   );
 }
 
-function PackCard({ pack }: { pack: PackManagementReview }) {
+function PackCard({
+  pack,
+  onChanged,
+}: {
+  pack: PackManagementReview;
+  onChanged: () => Promise<void>;
+}) {
   const release = pack.currentRelease;
   return (
     <article
@@ -216,6 +228,12 @@ function PackCard({ pack }: { pack: PackManagementReview }) {
           release={release}
         />
       </section>
+
+      <PackLifecycleControls
+        key={`${pack.generation}:${pack.state}:${pack.cleanupPending}`}
+        pack={pack}
+        onChanged={onChanged}
+      />
 
       <details className="mt-4">
         <summary className="cursor-pointer text-sm font-medium text-sentinel-700 dark:text-sentinel-300">

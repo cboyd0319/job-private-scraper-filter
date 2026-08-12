@@ -79,17 +79,16 @@ fn signed_evaluation_pack(
     (publisher, envelope)
 }
 
-async fn evaluate(
+async fn activated_evaluation_pack(
+    database: &Database,
     has_direct_evidence: bool,
     requirement: &str,
-) -> anyhow::Result<crate::pack_runtime::AtsResumeRequirementEvaluation> {
-    let database = Database::connect_memory().await.unwrap();
-    database.migrate().await.unwrap();
+) -> (tempfile::TempDir, TrustedPublisherKey, u64) {
     let artifact_root = tempfile::tempdir().unwrap();
     let (publisher, envelope) = signed_evaluation_pack(has_direct_evidence, requirement);
     let today = NaiveDate::from_ymd_opt(2026, 7, 20).unwrap();
     let staged = stage_pack_artifact(
-        &database,
+        database,
         artifact_root.path(),
         &envelope,
         std::slice::from_ref(&publisher),
@@ -98,7 +97,7 @@ async fn evaluate(
     .await
     .unwrap();
     let active = activate_pack_artifact(
-        &database,
+        database,
         artifact_root.path(),
         EVALUATION_PUBLISHER_ID,
         EVALUATION_PACK_ID,
@@ -109,15 +108,26 @@ async fn evaluate(
     )
     .await
     .unwrap();
+    (artifact_root, publisher, active.generation)
+}
+
+async fn evaluate(
+    has_direct_evidence: bool,
+    requirement: &str,
+) -> anyhow::Result<crate::pack_runtime::AtsResumeRequirementEvaluation> {
+    let database = Database::connect_memory().await.unwrap();
+    database.migrate().await.unwrap();
+    let (artifact_root, publisher, generation) =
+        activated_evaluation_pack(&database, has_direct_evidence, requirement).await;
 
     evaluate_active_ats_resume_requirement_pack(
         &database,
         artifact_root.path(),
         EVALUATION_PUBLISHER_ID,
         EVALUATION_PACK_ID,
-        active.generation,
+        generation,
         std::slice::from_ref(&publisher),
-        today,
+        NaiveDate::from_ymd_opt(2026, 7, 20).unwrap(),
     )
     .await
 }
@@ -144,4 +154,44 @@ async fn active_evaluation_pack_runs_the_plain_text_ats_target_opaquely() {
 #[tokio::test]
 async fn active_evaluation_pack_rejects_ambiguous_ats_requirements() {
     assert!(evaluate(false, "Rust, Python").await.is_err());
+}
+
+#[tokio::test]
+async fn altered_active_evaluation_is_quarantined_without_exposing_fixture_data() {
+    let database = Database::connect_memory().await.unwrap();
+    database.migrate().await.unwrap();
+    let (artifact_root, publisher, generation) =
+        activated_evaluation_pack(&database, false, "production Rust experience").await;
+    std::fs::write(walk_files(artifact_root.path()).pop().unwrap(), b"altered").unwrap();
+
+    let error = evaluate_active_ats_resume_requirement_pack(
+        &database,
+        artifact_root.path(),
+        EVALUATION_PUBLISHER_ID,
+        EVALUATION_PACK_ID,
+        generation,
+        std::slice::from_ref(&publisher),
+        NaiveDate::from_ymd_opt(2026, 7, 20).unwrap(),
+    )
+    .await
+    .unwrap_err();
+
+    assert_eq!(error.to_string(), "pack artifact verification failed");
+    assert!(!error.to_string().contains("production Rust experience"));
+    assert!(!error.to_string().contains(EVALUATION_CASE_ID));
+    assert!(!error.to_string().contains("fixture-secret-id"));
+    let stream = database
+        .get_pack_stream(EVALUATION_PUBLISHER_ID, EVALUATION_PACK_ID)
+        .await
+        .unwrap();
+    assert_eq!(stream.availability, PackAvailability::Quarantined);
+    assert_eq!(stream.active_release_sequence, None);
+    let release = database
+        .get_stored_pack_release(EVALUATION_PUBLISHER_ID, EVALUATION_PACK_ID, 1)
+        .await
+        .unwrap();
+    assert_eq!(
+        release.quarantine_reason,
+        Some(PackQuarantineReason::IntegrityFailed)
+    );
 }

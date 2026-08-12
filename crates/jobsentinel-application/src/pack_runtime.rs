@@ -316,7 +316,12 @@ pub async fn retry_pack_artifact_cleanup(
     artifact_root: &Path,
     publisher_key_id: &str,
     pack_id: &str,
+    expected_generation: u64,
 ) -> Result<PackArtifactRemoval> {
+    let stream = database.get_pack_stream(publisher_key_id, pack_id).await?;
+    if stream.generation != expected_generation {
+        return Err(anyhow!("pack changed; refresh before retrying cleanup"));
+    }
     let releases = database
         .list_stored_pack_releases(publisher_key_id, pack_id)
         .await?;
@@ -329,10 +334,7 @@ pub async fn retry_pack_artifact_cleanup(
     )
     .await?;
     Ok(PackArtifactRemoval {
-        generation: database
-            .get_pack_stream(publisher_key_id, pack_id)
-            .await?
-            .generation,
+        generation: stream.generation,
         cleanup_pending,
     })
 }

@@ -1,11 +1,12 @@
 /** Verifies pack management loading, lifecycle review, and safe failure states. */
 
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { invoke } from "../../../platform/tauri";
 import { SettingsHelpStatusSection } from "../support/SettingsSupportSections";
 import { PackManagementModal } from "./PackManagementModal";
+import { pack, release } from "./packManagementTestData";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 vi.mock("../support/ErrorLogPanel", () => ({
@@ -13,56 +14,6 @@ vi.mock("../support/ErrorLogPanel", () => ({
 }));
 
 const mockInvoke = vi.mocked(invoke);
-
-function release(overrides: Record<string, unknown> = {}) {
-  return {
-    releaseSequence: 2,
-    packVersion: "3.0.2",
-    packType: "source",
-    executionClass: "static_content",
-    state: "ready",
-    quarantineReason: null,
-    artifactCleanupPending: false,
-    isActive: true,
-    isRollback: false,
-    isHighWater: true,
-    publisherName: "JobSentinel",
-    license: "MIT",
-    minimumAppVersion: "3.0.0",
-    maximumAppVersion: "3.2.0",
-    payloadBytes: 2048,
-    fixtureSummary: "Three reviewed source fixtures",
-    purpose: "source_support",
-    modelDownloadRequired: false,
-    lastSelfTestedAt: "2026-08-11T18:30:00Z",
-    privacyLabels: ["local_only"],
-    allowedDataCategories: [],
-    allowedTaskKinds: [],
-    allowedActions: [],
-    approvalGates: [],
-    gatewayPolicyId: null,
-    externalDestinations: [],
-    usesExternalAi: false,
-    ...overrides,
-  };
-}
-
-function pack(overrides: Record<string, unknown> = {}) {
-  const currentRelease = overrides.currentRelease ?? release();
-  return {
-    publisherKeyId: "jobsentinel-release-v1",
-    publisherPublicKeySha256:
-      "a3b1c9d7e5f40123456789abcdef0123456789abcdef0123456789abcdef0123",
-    packId: "jobsentinel.sources.us",
-    state: "ready",
-    updateAvailable: false,
-    cleanupPending: false,
-    generation: 4,
-    currentRelease,
-    releases: overrides.releases ?? [currentRelease],
-    ...overrides,
-  };
-}
 
 describe("PackManagementModal", () => {
   beforeEach(() => {
@@ -80,7 +31,36 @@ describe("PackManagementModal", () => {
     expect(mockInvoke).toHaveBeenCalledWith("list_pack_management");
   });
 
-  it("loads only after the user opens the read-only pack view from settings", async () => {
+  it("discards an older refresh result after newer pack truth arrives", async () => {
+    const user = userEvent.setup();
+    let resolveOlder!: (value: unknown) => void;
+    const older = new Promise<unknown>((resolve) => {
+      resolveOlder = resolve;
+    });
+    mockInvoke
+      .mockResolvedValueOnce([pack()])
+      .mockImplementationOnce(() => older)
+      .mockResolvedValueOnce([
+        pack({ state: "disabled", generation: 5 }),
+      ]);
+
+    render(<PackManagementModal onClose={vi.fn()} />);
+    expect(await screen.findByLabelText("Pack status: Ready")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Refresh" }));
+    await user.click(screen.getByRole("button", { name: "Refresh" }));
+    expect(
+      await screen.findByLabelText("Pack status: Disabled"),
+    ).toBeInTheDocument();
+
+    await act(async () => {
+      resolveOlder([pack()]);
+      await older;
+    });
+    expect(screen.getByLabelText("Pack status: Disabled")).toBeInTheDocument();
+  });
+
+  it("loads only after the user opens the pack view from settings", async () => {
     const user = userEvent.setup();
     mockInvoke.mockResolvedValueOnce([]);
 
@@ -90,7 +70,7 @@ describe("PackManagementModal", () => {
     await user.click(screen.getByRole("button", { name: "View Packs" }));
 
     expect(await screen.findByRole("dialog", { name: "Packs" })).toBeInTheDocument();
-    expect(screen.getByText(/This view is read-only/)).toBeInTheDocument();
+    expect(screen.getByText(/Pack files stay local/)).toBeInTheDocument();
     expect(mockInvoke).toHaveBeenCalledWith("list_pack_management");
   });
 

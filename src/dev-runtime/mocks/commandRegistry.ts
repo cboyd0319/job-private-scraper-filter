@@ -185,7 +185,12 @@ const commandGroups: readonly MockCommandGroup[] = [
     adapter: applyMockOpportunityCaseCommand,
   },
   {
-    commands: ["list_pack_management"],
+    commands: [
+      "list_pack_management",
+      "disable_pack",
+      "uninstall_pack",
+      "retry_pack_cleanup",
+    ],
     adapter: applyMockPackCommand,
   },
   {

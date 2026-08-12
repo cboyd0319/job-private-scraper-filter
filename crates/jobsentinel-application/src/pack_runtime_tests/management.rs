@@ -234,7 +234,7 @@ async fn cleanup_attempts_every_removed_release_and_survives_restage() {
     );
 
     let (_, envelope) = signed_source_pack(4);
-    stage_pack_artifact(
+    let restaged = stage_pack_artifact(
         &database,
         artifact_root.path(),
         &envelope,
@@ -254,6 +254,16 @@ async fn cleanup_attempts_every_removed_release_and_survives_restage() {
                 .contains(&new_release.signed_release_sha256)
         })
         .unwrap();
+    assert!(crate::pack_runtime::retry_pack_artifact_cleanup(
+        &database,
+        artifact_root.path(),
+        PUBLISHER_ID,
+        PACK_ID,
+        999,
+    )
+    .await
+    .is_err());
+    assert!(first_path.exists());
     std::fs::remove_dir(&first_path).unwrap();
 
     let retried = crate::pack_runtime::retry_pack_artifact_cleanup(
@@ -261,6 +271,7 @@ async fn cleanup_attempts_every_removed_release_and_survives_restage() {
         artifact_root.path(),
         PUBLISHER_ID,
         PACK_ID,
+        restaged.generation,
     )
     .await
     .unwrap();
