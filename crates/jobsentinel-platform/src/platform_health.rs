@@ -1,3 +1,10 @@
+// Reports and repairs bounded platform permission health for JobSentinel-owned storage roots.
+
+#[cfg(unix)]
+use crate::private_files::{
+    inspect_private_dir_tree_unix, repair_private_dir_tree_unix, ChildSymlinkBehavior,
+    PrivateTreeState,
+};
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
@@ -211,60 +218,11 @@ fn repair_platform_permissions_at(
 
 #[cfg(unix)]
 fn inspect_unix_permission_tree(path: &Path) -> PlatformPermissionState {
-    use std::os::unix::fs::{MetadataExt, PermissionsExt};
-
-    let metadata = match std::fs::symlink_metadata(path) {
-        Ok(metadata) => metadata,
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-            return PlatformPermissionState::Missing;
-        }
-        Err(_) => return PlatformPermissionState::ManualReview,
-    };
-    if !metadata.file_type().is_dir() {
-        return PlatformPermissionState::ManualReview;
-    }
-
-    let mut needs_repair = metadata.permissions().mode() & 0o777 != 0o700;
-    let entries = match std::fs::read_dir(path) {
-        Ok(entries) => entries,
-        Err(_) => return PlatformPermissionState::ManualReview,
-    };
-    for entry in entries {
-        let entry = match entry {
-            Ok(entry) => entry,
-            Err(_) => return PlatformPermissionState::ManualReview,
-        };
-        let file_type = match entry.file_type() {
-            Ok(file_type) => file_type,
-            Err(_) => return PlatformPermissionState::ManualReview,
-        };
-        if file_type.is_symlink() {
-            return PlatformPermissionState::ManualReview;
-        }
-        if file_type.is_dir() {
-            match inspect_unix_permission_tree(&entry.path()) {
-                PlatformPermissionState::Private => {}
-                PlatformPermissionState::NeedsRepair => needs_repair = true,
-                _ => return PlatformPermissionState::ManualReview,
-            }
-        } else if file_type.is_file() {
-            let metadata = match std::fs::symlink_metadata(entry.path()) {
-                Ok(metadata) => metadata,
-                Err(_) => return PlatformPermissionState::ManualReview,
-            };
-            if !metadata.file_type().is_file() || metadata.nlink() != 1 {
-                return PlatformPermissionState::ManualReview;
-            }
-            needs_repair |= metadata.permissions().mode() & 0o777 != 0o600;
-        } else {
-            return PlatformPermissionState::ManualReview;
-        }
-    }
-
-    if needs_repair {
-        PlatformPermissionState::NeedsRepair
-    } else {
-        PlatformPermissionState::Private
+    match inspect_private_dir_tree_unix(path, ChildSymlinkBehavior::Reject) {
+        PrivateTreeState::Private => PlatformPermissionState::Private,
+        PrivateTreeState::Missing => PlatformPermissionState::Missing,
+        PrivateTreeState::NeedsRepair => PlatformPermissionState::NeedsRepair,
+        PrivateTreeState::ManualReview => PlatformPermissionState::ManualReview,
     }
 }
 
@@ -279,15 +237,11 @@ fn repair_unix_permissions(path: &Path) -> PlatformPermissionRepairOutcome {
         PlatformPermissionState::ManualReview | PlatformPermissionState::Unchecked => {
             return PlatformPermissionRepairOutcome::ManualGuidanceRequired;
         }
-        PlatformPermissionState::Missing => {
-            if std::fs::create_dir_all(path).is_err() {
-                return PlatformPermissionRepairOutcome::Failed;
-            }
-        }
+        PlatformPermissionState::Missing => {}
         PlatformPermissionState::Private | PlatformPermissionState::NeedsRepair => {}
     }
 
-    if repair_unix_permission_tree(path).is_err() {
+    if repair_private_dir_tree_unix(path).is_err() {
         return PlatformPermissionRepairOutcome::Failed;
     }
     match inspect_unix_permission_tree(path) {
@@ -297,55 +251,6 @@ fn repair_unix_permissions(path: &Path) -> PlatformPermissionRepairOutcome {
         }
         _ => PlatformPermissionRepairOutcome::Failed,
     }
-}
-
-#[cfg(unix)]
-fn repair_unix_permission_tree(path: &Path) -> std::io::Result<()> {
-    set_verified_unix_mode(path, true, 0o700)?;
-    for entry in std::fs::read_dir(path)? {
-        let entry = entry?;
-        let metadata = std::fs::symlink_metadata(entry.path())?;
-        if metadata.file_type().is_dir() {
-            repair_unix_permission_tree(&entry.path())?;
-        } else if metadata.file_type().is_file() {
-            set_verified_unix_mode(&entry.path(), false, 0o600)?;
-        } else {
-            return Err(std::io::Error::new(
-                std::io::ErrorKind::InvalidData,
-                "Platform permission repair requires ordinary local files",
-            ));
-        }
-    }
-    Ok(())
-}
-
-#[cfg(unix)]
-fn set_verified_unix_mode(path: &Path, directory: bool, mode: u32) -> std::io::Result<()> {
-    use std::os::unix::fs::{MetadataExt, PermissionsExt};
-
-    let before = std::fs::symlink_metadata(path)?;
-    if before.file_type().is_dir() != directory
-        || before.file_type().is_file() == directory
-        || (!directory && before.nlink() != 1)
-    {
-        return Err(std::io::Error::new(
-            std::io::ErrorKind::InvalidData,
-            "Platform permission repair requires ordinary local files",
-        ));
-    }
-    let file = std::fs::File::open(path)?;
-    let opened = file.metadata()?;
-    let after = std::fs::symlink_metadata(path)?;
-    if (opened.dev(), opened.ino()) != (after.dev(), after.ino())
-        || after.file_type().is_dir() != directory
-        || (!directory && opened.nlink() != 1)
-    {
-        return Err(std::io::Error::new(
-            std::io::ErrorKind::InvalidData,
-            "Platform permission repair changed while it was checked",
-        ));
-    }
-    file.set_permissions(std::fs::Permissions::from_mode(mode))
 }
 
 #[cfg(not(unix))]

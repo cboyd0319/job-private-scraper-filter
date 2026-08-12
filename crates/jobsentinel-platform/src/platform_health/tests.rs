@@ -1,14 +1,22 @@
+// Verifies bounded platform-health inspection and repair outcomes for owned storage roots.
+
 use super::*;
 #[cfg(unix)]
 use std::os::unix::fs::PermissionsExt;
 
 #[cfg(unix)]
+fn resolved_temp_root(temp_dir: &tempfile::TempDir) -> PathBuf {
+    temp_dir.path().canonicalize().unwrap()
+}
+
+#[cfg(unix)]
 #[test]
 fn unix_inspection_and_repair_are_local_and_bounded() {
     let temp_dir = tempfile::tempdir().unwrap();
-    let data = temp_dir.path().join("data");
-    let config = temp_dir.path().join("config");
-    let cache = temp_dir.path().join("cache");
+    let temp_root = resolved_temp_root(&temp_dir);
+    let data = temp_root.join("data");
+    let config = temp_root.join("config");
+    let cache = temp_root.join("cache");
     std::fs::create_dir_all(&data).unwrap();
     std::fs::create_dir_all(&config).unwrap();
     std::fs::create_dir_all(&cache).unwrap();
@@ -49,16 +57,13 @@ fn unix_repair_refuses_a_linked_storage_root() {
     use std::os::unix::fs::symlink;
 
     let temp_dir = tempfile::tempdir().unwrap();
-    let external = temp_dir.path().join("external");
-    let data = temp_dir.path().join("data");
+    let temp_root = resolved_temp_root(&temp_dir);
+    let external = temp_root.join("external");
+    let data = temp_root.join("data");
     std::fs::create_dir(&external).unwrap();
     std::fs::set_permissions(&external, std::fs::Permissions::from_mode(0o755)).unwrap();
     symlink(&external, &data).unwrap();
-    let paths = PlatformPaths::new(
-        &data,
-        temp_dir.path().join("config"),
-        temp_dir.path().join("cache"),
-    );
+    let paths = PlatformPaths::new(&data, temp_root.join("config"), temp_root.join("cache"));
 
     assert_eq!(
         repair_platform_permissions_at(PlatformStorageArea::ApplicationData, &paths, true).outcome,
@@ -74,17 +79,43 @@ fn unix_repair_refuses_a_linked_storage_root() {
 #[test]
 fn unix_repair_refuses_hard_linked_children_without_changing_external_modes() {
     let temp_dir = tempfile::tempdir().unwrap();
-    let data = temp_dir.path().join("data");
-    let external = temp_dir.path().join("external-tool");
+    let temp_root = resolved_temp_root(&temp_dir);
+    let data = temp_root.join("data");
+    let external = temp_root.join("external-tool");
     std::fs::create_dir(&data).unwrap();
     std::fs::write(&external, b"external").unwrap();
     std::fs::set_permissions(&external, std::fs::Permissions::from_mode(0o755)).unwrap();
     std::fs::hard_link(&external, data.join("linked-tool")).unwrap();
-    let paths = PlatformPaths::new(
-        &data,
-        temp_dir.path().join("config"),
-        temp_dir.path().join("cache"),
+    let paths = PlatformPaths::new(&data, temp_root.join("config"), temp_root.join("cache"));
+
+    assert_eq!(
+        inspect_platform_health_at(&paths, true).permissions[0].state,
+        PlatformPermissionState::ManualReview
     );
+    assert_eq!(
+        repair_platform_permissions_at(PlatformStorageArea::ApplicationData, &paths, true).outcome,
+        PlatformPermissionRepairOutcome::ManualGuidanceRequired
+    );
+    assert_eq!(
+        std::fs::metadata(external).unwrap().permissions().mode() & 0o777,
+        0o755
+    );
+}
+
+#[cfg(unix)]
+#[test]
+fn unix_health_requires_manual_review_for_symlinked_children() {
+    use std::os::unix::fs::{symlink, PermissionsExt};
+
+    let temp_dir = tempfile::tempdir().unwrap();
+    let temp_root = resolved_temp_root(&temp_dir);
+    let data = temp_root.join("data");
+    let external = temp_root.join("external");
+    std::fs::create_dir(&data).unwrap();
+    std::fs::write(&external, b"external").unwrap();
+    std::fs::set_permissions(&external, std::fs::Permissions::from_mode(0o755)).unwrap();
+    symlink(&external, data.join("linked-tool")).unwrap();
+    let paths = PlatformPaths::new(&data, temp_root.join("config"), temp_root.join("cache"));
 
     assert_eq!(
         inspect_platform_health_at(&paths, true).permissions[0].state,

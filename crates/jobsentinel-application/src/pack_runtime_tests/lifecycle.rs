@@ -47,6 +47,24 @@ async fn verified_artifact_is_privately_persisted_for_review_without_activation(
     let files = walk_files(artifact_root.path());
     assert_eq!(files.len(), 1);
     assert_eq!(std::fs::read(&files[0]).unwrap(), envelope);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+
+        let pack_dir = files[0].parent().unwrap();
+        let publisher_dir = pack_dir.parent().unwrap();
+        assert_eq!(publisher_dir.parent().unwrap(), artifact_root.path());
+        for directory in [artifact_root.path(), publisher_dir, pack_dir] {
+            assert_eq!(
+                std::fs::metadata(directory).unwrap().permissions().mode() & 0o777,
+                0o700
+            );
+        }
+        assert_eq!(
+            std::fs::metadata(&files[0]).unwrap().permissions().mode() & 0o777,
+            0o600
+        );
+    }
 }
 
 #[tokio::test]

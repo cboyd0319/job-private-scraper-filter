@@ -1,3 +1,5 @@
+// Verifies macOS path selection and initialization against isolated environment roots.
+
 use super::*;
 use std::env;
 use std::sync::{Mutex, MutexGuard, OnceLock};
@@ -243,14 +245,14 @@ fn test_initialize_creates_directories() {
 
     // Create temporary home directory
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
-    let temp_home = temp_dir.path();
+    let temp_home = temp_dir.path().canonicalize().unwrap();
 
     // Save original env vars
     let original_home = env::var("HOME").ok();
     let original_xdg = env::var("XDG_CONFIG_HOME").ok();
 
     // Set HOME to temp directory and clear XDG_CONFIG_HOME
-    env::set_var("HOME", temp_home);
+    env::set_var("HOME", &temp_home);
     env::remove_var("XDG_CONFIG_HOME");
 
     // Run initialize
@@ -291,14 +293,14 @@ fn test_initialize_existing_directories() {
 
     // Create temporary home directory
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
-    let temp_home = temp_dir.path();
+    let temp_home = temp_dir.path().canonicalize().unwrap();
 
     // Save original env vars
     let original_home = env::var("HOME").ok();
     let original_xdg = env::var("XDG_CONFIG_HOME").ok();
 
     // Set HOME to temp directory and clear XDG_CONFIG_HOME
-    env::set_var("HOME", temp_home);
+    env::set_var("HOME", &temp_home);
     env::remove_var("XDG_CONFIG_HOME");
 
     // Pre-create directories

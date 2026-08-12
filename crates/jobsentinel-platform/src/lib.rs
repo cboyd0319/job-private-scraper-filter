@@ -1,35 +1,12 @@
-//! Platform-Specific Code
-//!
-//! This module contains platform-specific implementations and utilities.
-//! Code is conditionally compiled based on the target OS using #[cfg(...)] attributes.
-//!
-//! ## Supported Platforms
-//!
-//! - **Windows** (`windows`): Windows 11+ specific features
-//!   - System tray integration
-//!   - Windows notifications
-//!   - Registry integration (if needed)
-//!   - Windows-specific paths (%LOCALAPPDATA%, %APPDATA%)
-//!
-//! - **macOS** (`macos`): macOS 13+ specific features (v2.0)
-//!   - Menu bar integration
-//!   - macOS notifications
-//!   - Keychain integration
-//!   - macOS-specific paths (~/.config, ~/Library)
-//!
-//! - **Linux** (`linux`): Linux-specific features (v2.0)
-//!   - Desktop notifications (libnotify)
-//!   - XDG directories
-//!   - Systemd integration
-//!
-//! ## Usage Example
-//!
-//! ```rust,ignore
-//! use jobsentinel_platform as platforms;
-//!
-//! // Get platform-specific data directory
-//! let data_dir = platforms::get_data_dir();
-//! ```
+//! Owns JobSentinel platform paths, private local storage, and native security adapters.
+/*
+This module contains platform-specific implementations and utilities.
+Code is conditionally compiled based on the target OS using #[cfg(...)] attributes.
+
+Supported platforms are Windows 11+, macOS, and Linux. This owner supplies
+native paths, credential storage adapters, permission enforcement, and health
+reporting used across the application.
+*/
 
 mod credential_vault_key;
 mod database_key;
@@ -182,28 +159,8 @@ pub fn ensure_private_dir_tree(path: &Path) -> std::io::Result<()> {
 
     #[cfg(unix)]
     {
-        ensure_private_dir(path)?;
-        tighten_existing_tree(path)
+        private_files::ensure_private_dir_tree_unix(path)
     }
-}
-
-#[cfg(unix)]
-fn tighten_existing_tree(path: &Path) -> std::io::Result<()> {
-    ensure_private_dir(path)?;
-    for entry in std::fs::read_dir(path)? {
-        let entry = entry?;
-        let file_type = entry.file_type()?;
-        let entry_path = entry.path();
-
-        if file_type.is_dir() {
-            set_private_dir_permissions(&entry_path)?;
-            tighten_existing_tree(&entry_path)?;
-        } else if file_type.is_file() {
-            set_private_file_permissions(&entry_path)?;
-        }
-    }
-
-    Ok(())
 }
 
 /// Keep an app-owned file private on Unix platforms.
@@ -254,12 +211,17 @@ mod tests {
     use super::*;
 
     #[cfg(unix)]
+    fn resolved_temp_root(temp_dir: &tempfile::TempDir) -> PathBuf {
+        temp_dir.path().canonicalize().unwrap()
+    }
+
+    #[cfg(unix)]
     #[test]
     fn ensure_private_dir_tree_tightens_existing_children() {
         use std::os::unix::fs::PermissionsExt;
 
         let temp_dir = tempfile::tempdir().unwrap();
-        let root = temp_dir.path().join("JobSentinel");
+        let root = resolved_temp_root(&temp_dir).join("JobSentinel");
         let nested = root.join("backups");
         let db_path = nested.join("backup.db");
         std::fs::create_dir_all(&nested).unwrap();
@@ -290,8 +252,9 @@ mod tests {
         use std::os::unix::fs::{symlink, PermissionsExt};
 
         let temp_dir = tempfile::tempdir().unwrap();
-        let root = temp_dir.path().join("JobSentinel");
-        let external = temp_dir.path().join("external.txt");
+        let temp_root = resolved_temp_root(&temp_dir);
+        let root = temp_root.join("JobSentinel");
+        let external = temp_root.join("external.txt");
         let link = root.join("linked.txt");
         std::fs::create_dir_all(&root).unwrap();
         std::fs::write(&external, b"external").unwrap();
@@ -308,5 +271,69 @@ mod tests {
             .unwrap()
             .file_type()
             .is_symlink());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn ensure_private_dir_tree_rejects_a_symlinked_root_without_changing_external_modes() {
+        use std::os::unix::fs::{symlink, PermissionsExt};
+
+        let temp_dir = tempfile::tempdir().unwrap();
+        let temp_root = resolved_temp_root(&temp_dir);
+        let external = temp_root.join("external");
+        let root = temp_root.join("JobSentinel");
+        std::fs::create_dir(&external).unwrap();
+        std::fs::set_permissions(&external, std::fs::Permissions::from_mode(0o755)).unwrap();
+        symlink(&external, &root).unwrap();
+
+        let error = ensure_private_dir_tree(&root).unwrap_err();
+
+        assert_eq!(error.kind(), std::io::ErrorKind::InvalidData);
+        assert_eq!(
+            std::fs::metadata(&external).unwrap().permissions().mode() & 0o777,
+            0o755
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn ensure_private_dir_tree_rejects_a_symlinked_ancestor_without_writing_outside() {
+        use std::os::unix::fs::symlink;
+
+        let temp_dir = tempfile::tempdir().unwrap();
+        let temp_root = resolved_temp_root(&temp_dir);
+        let external = temp_root.join("external");
+        let linked_parent = temp_root.join("linked-parent");
+        std::fs::create_dir(&external).unwrap();
+        symlink(&external, &linked_parent).unwrap();
+        let root = linked_parent.join("JobSentinel");
+
+        let error = ensure_private_dir_tree(&root).unwrap_err();
+
+        assert_eq!(error.kind(), std::io::ErrorKind::InvalidData);
+        assert!(!external.join("JobSentinel").exists());
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn ensure_private_dir_tree_rejects_hard_linked_children_without_changing_external_modes() {
+        use std::os::unix::fs::PermissionsExt;
+
+        let temp_dir = tempfile::tempdir().unwrap();
+        let temp_root = resolved_temp_root(&temp_dir);
+        let root = temp_root.join("JobSentinel");
+        let external = temp_root.join("shared-tool");
+        std::fs::create_dir(&root).unwrap();
+        std::fs::write(&external, b"shared").unwrap();
+        std::fs::set_permissions(&external, std::fs::Permissions::from_mode(0o755)).unwrap();
+        std::fs::hard_link(&external, root.join("linked-tool")).unwrap();
+
+        let error = ensure_private_dir_tree(&root).unwrap_err();
+
+        assert_eq!(error.kind(), std::io::ErrorKind::InvalidData);
+        assert_eq!(
+            std::fs::metadata(&external).unwrap().permissions().mode() & 0o777,
+            0o755
+        );
     }
 }
