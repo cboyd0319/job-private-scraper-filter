@@ -1,5 +1,8 @@
+//! Defines and validates synthetic v3 evaluation inputs.
+
 use std::collections::BTreeSet;
 
+use chrono::NaiveDate;
 use serde::Deserialize;
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd)]
@@ -47,6 +50,22 @@ pub enum EmployerSourceClass {
     OfficialDomain,
     PublicRegistry,
     UserOwnedLocalObservation,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd)]
+#[serde(rename_all = "snake_case")]
+pub enum EmployerEvidenceState {
+    Current,
+    Stale,
+    Conflicting,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct EmployerEvidence {
+    pub source_class: EmployerSourceClass,
+    pub observed_on: String,
+    pub state: EmployerEvidenceState,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq)]
@@ -117,7 +136,7 @@ pub enum EvaluationInput {
         pre_interview_payment_requested: bool,
     },
     EmployerContext {
-        source_classes: Vec<EmployerSourceClass>,
+        evidence: Vec<EmployerEvidence>,
     },
     Accessibility {
         keyboard_only: bool,
@@ -185,12 +204,19 @@ impl EvaluationInput {
             } if currency.len() != 3 || maximum < minimum || *maximum == 0 => {
                 Err("pay fixtures require a currency and valid range".to_string())
             }
-            Self::EmployerContext { source_classes }
-                if source_classes.is_empty()
-                    || source_classes.iter().collect::<BTreeSet<_>>().len()
-                        != source_classes.len() =>
+            Self::EmployerContext { evidence }
+                if evidence.is_empty()
+                    || evidence
+                        .iter()
+                        .map(|item| item.source_class)
+                        .collect::<BTreeSet<_>>()
+                        .len()
+                        != evidence.len()
+                    || evidence.iter().any(|item| {
+                        NaiveDate::parse_from_str(&item.observed_on, "%Y-%m-%d").is_err()
+                    }) =>
             {
-                Err("employer fixtures require unique source classes".to_string())
+                Err("employer fixtures require uniquely dated source evidence".to_string())
             }
             Self::Accessibility { zoom_percent, .. } if !(100..=400).contains(zoom_percent) => {
                 Err("accessibility zoom must be between 100 and 400 percent".to_string())

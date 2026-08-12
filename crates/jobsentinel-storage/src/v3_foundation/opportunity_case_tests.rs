@@ -1,3 +1,5 @@
+//! Proves opportunity-case reads aggregate only bounded, privacy-safe local facts.
+
 use crate::test_support::{insert_test_job, migrated_database};
 
 #[tokio::test]
@@ -195,6 +197,108 @@ async fn read_aggregates_safe_case_state_without_private_payloads() {
         "private-reviewed-claim-marker",
         "private-source-marker",
         "private-event-payload-marker",
+    ] {
+        assert!(
+            !safe_read.contains(private_marker),
+            "leaked {private_marker}"
+        );
+    }
+}
+
+#[tokio::test]
+async fn read_includes_dossier_pay_posting_and_exact_name_history_without_private_text() {
+    let database = migrated_database().await;
+    let pool = database.pool();
+    let at = "2026-07-19T00:00:00Z";
+    for (hash, company) in [
+        ("dossier-anchor", "Example"),
+        ("dossier-history", "Example"),
+        ("dossier-unmerged", "example"),
+    ] {
+        insert_test_job(pool, hash, "Analyst", Some(company), None, at).await;
+    }
+    sqlx::query(
+        "UPDATE jobs SET source = 'greenhouse', url = 'https://job-boards.greenhouse.io/example/jobs/1',
+                first_seen = '2026-07-01T00:00:00Z', last_seen = '2026-07-20T00:00:00Z',
+                times_seen = 4, repost_count = 2, salary_min = 100000,
+                salary_max = 140000, currency = 'USD', notes = 'private-job-note-marker'
+         WHERE hash = 'dossier-anchor'",
+    )
+    .execute(pool)
+    .await
+    .unwrap();
+    database.ensure_case_file("dossier-anchor").await.unwrap();
+
+    for (job_hash, status) in [
+        ("dossier-anchor", "offer_accepted"),
+        ("dossier-history", "applied"),
+        ("dossier-unmerged", "rejected"),
+    ] {
+        let application_id = sqlx::query_scalar::<_, i64>(
+            "INSERT INTO applications
+                 (job_hash, status, notes, recruiter_email, created_at, updated_at)
+             VALUES (?, ?, 'private-application-note-marker',
+                     'private-contact@example.test', ?, ?)
+             RETURNING id",
+        )
+        .bind(job_hash)
+        .bind(status)
+        .bind(at)
+        .bind(at)
+        .fetch_one(pool)
+        .await
+        .unwrap();
+        sqlx::query(
+            "INSERT INTO interviews
+                 (application_id, scheduled_at, completed, notes)
+             VALUES (?, ?, 1, 'private-interview-note-marker')",
+        )
+        .bind(application_id)
+        .bind(at)
+        .execute(pool)
+        .await
+        .unwrap();
+        if job_hash == "dossier-anchor" {
+            sqlx::query(
+                "INSERT INTO offers
+                     (application_id, base_salary, benefits_summary, accepted)
+                 VALUES (?, 150000, 'private-offer-marker', 1)",
+            )
+            .bind(application_id)
+            .execute(pool)
+            .await
+            .unwrap();
+        }
+    }
+
+    let read = database
+        .read_opportunity_case("dossier-anchor")
+        .await
+        .unwrap();
+
+    assert_eq!(
+        read.job_url,
+        "https://job-boards.greenhouse.io/example/jobs/1"
+    );
+    assert_eq!(read.first_seen_at.to_rfc3339(), "2026-07-01T00:00:00+00:00");
+    assert_eq!(read.repost_count, 2);
+    assert_eq!(read.salary_min, Some(100_000));
+    assert_eq!(read.salary_max, Some(140_000));
+    assert_eq!(read.currency.as_deref(), Some("USD"));
+    assert_eq!(read.employer_history.saved_job_count, 2);
+    assert_eq!(read.employer_history.application_count, 2);
+    assert_eq!(read.employer_history.interview_count, 2);
+    assert_eq!(read.employer_history.offer_count, 1);
+    assert_eq!(read.employer_history.terminal_outcome_count, 1);
+
+    let safe_read = format!("{read:?}");
+    for private_marker in [
+        "private-job-note-marker",
+        "private-application-note-marker",
+        "private-contact@example.test",
+        "private-interview-note-marker",
+        "private-offer-marker",
+        "150000",
     ] {
         assert!(
             !safe_read.contains(private_marker),

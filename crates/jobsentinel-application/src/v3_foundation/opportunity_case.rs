@@ -9,6 +9,9 @@ use jobsentinel_storage::{
 };
 use serde::Serialize;
 
+#[path = "opportunity_case/dossier.rs"]
+pub mod dossier;
+use dossier::EmployerDossier;
 #[path = "opportunity_case/evidence.rs"]
 mod evidence;
 use evidence::{
@@ -27,6 +30,7 @@ pub struct OpportunityCaseSnapshot {
     pub outcome: Option<OpportunityCaseOutcome>,
     pub evidence: OpportunityCaseEvidence,
     pub decision: OpportunityCaseDecision,
+    pub employer_dossier: EmployerDossier,
     pub timeline: Vec<OpportunityCaseTimelineItem>,
 }
 
@@ -167,6 +171,21 @@ pub async fn open_opportunity_case(
     job_hash: &str,
     stale_threshold_days: i64,
 ) -> Result<OpportunityCaseSnapshot, FoundationError> {
+    open_opportunity_case_at(
+        database,
+        job_hash,
+        stale_threshold_days,
+        Utc::now().date_naive(),
+    )
+    .await
+}
+
+async fn open_opportunity_case_at(
+    database: &Database,
+    job_hash: &str,
+    stale_threshold_days: i64,
+    today: chrono::NaiveDate,
+) -> Result<OpportunityCaseSnapshot, FoundationError> {
     if !valid_job_hash(job_hash) || stale_threshold_days < 1 {
         return Err(FoundationError::InvalidInput);
     }
@@ -175,14 +194,21 @@ pub async fn open_opportunity_case(
         .read_opportunity_case(job_hash)
         .await
         .map_err(super::map_error)?;
+    let employer_dossier = dossier::build_employer_dossier(database, &read, today).await?;
     let evidence_review = load_opportunity_case_evidence(database, job_hash).await?;
-    renderer_snapshot(read, stale_threshold_days, evidence_review)
+    renderer_snapshot(
+        read,
+        stale_threshold_days,
+        evidence_review,
+        employer_dossier,
+    )
 }
 
 fn renderer_snapshot(
     read: OpportunityCaseRead,
     stale_threshold_days: i64,
     evidence_review: evidence::OpportunityCaseEvidenceReview,
+    employer_dossier: EmployerDossier,
 ) -> Result<OpportunityCaseSnapshot, FoundationError> {
     let application = read
         .application_status
@@ -245,6 +271,7 @@ fn renderer_snapshot(
             requirements: evidence_review.requirements,
         },
         decision,
+        employer_dossier,
         timeline,
     })
 }
@@ -316,6 +343,10 @@ fn outcome_status(status: &str) -> Result<OpportunityCaseOutcomeStatus, Foundati
 fn valid_job_hash(job_hash: &str) -> bool {
     !job_hash.is_empty() && job_hash.len() <= 128 && !job_hash.chars().any(char::is_control)
 }
+
+#[cfg(test)]
+#[path = "opportunity_case/dossier_tests.rs"]
+mod dossier_tests;
 
 #[cfg(test)]
 mod tests {

@@ -1,9 +1,4 @@
-/**
- * JobImportModal - Universal Job Importer
- *
- * Lets users save a job from one job-posting page and review details first.
- * User-initiated, single-page fetching for legal compliance.
- */
+/** Reviews and imports one user-selected public job page through the governed source boundary. */
 
 import { useState, useCallback, useEffect } from "react";
 import { Modal, ModalFooter } from "../../../ui/Modal";

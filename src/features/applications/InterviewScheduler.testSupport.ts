@@ -1,3 +1,5 @@
+/** Provides deterministic Interview Scheduler fixtures and platform mocks. */
+
 import { vi } from "vitest";
 
 export const mockInvoke = vi.fn();
@@ -56,6 +58,7 @@ export const mockUpcomingInterviews = [
     completed: false,
     outcome: null,
     post_interview_notes: null,
+    job_hash: "job-carebridge",
     job_title: "Customer Support Coordinator",
     company: "CareBridge Services",
   },
@@ -72,6 +75,7 @@ export const mockUpcomingInterviews = [
     completed: false,
     outcome: null,
     post_interview_notes: null,
+    job_hash: "job-neighborhood",
     job_title: "Program Assistant",
     company: "Neighborhood Works",
   },
@@ -91,6 +95,7 @@ export const mockPastInterviews = [
     completed: true,
     outcome: "passed",
     post_interview_notes: "Went well, moving to next round",
+    job_hash: "job-carebridge",
     job_title: "Customer Support Coordinator",
     company: "CareBridge Services",
   },

@@ -1,3 +1,5 @@
+/** Verifies Job Card formatting and user action routing. */
+
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -391,7 +393,7 @@ describe("JobCard", () => {
     it("renders research button when onResearchCompany is provided", () => {
       const onResearchCompany = vi.fn();
       renderWithToast(
-        <JobCard job={mockJob} onResearchCompany={onResearchCompany} />,
+        <JobCard job={{ ...mockJob, hash: "job-carebridge" }} onResearchCompany={onResearchCompany} />,
       );
       expect(screen.getByTestId("btn-research")).toBeInTheDocument();
     });
@@ -405,13 +407,19 @@ describe("JobCard", () => {
       const user = userEvent.setup();
       const onResearchCompany = vi.fn();
       renderWithToast(
-        <JobCard job={mockJob} onResearchCompany={onResearchCompany} />,
+        <JobCard
+          job={{ ...mockJob, hash: "job-carebridge" }}
+          onResearchCompany={onResearchCompany}
+        />,
       );
 
       const researchBtn = screen.getByTestId("btn-research");
       await user.click(researchBtn);
 
-      expect(onResearchCompany).toHaveBeenCalledWith("CareBridge Services");
+      expect(onResearchCompany).toHaveBeenCalledWith(
+        "CareBridge Services",
+        "job-carebridge",
+      );
     });
   });
 

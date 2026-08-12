@@ -9,6 +9,8 @@ mod scoring_config;
 #[cfg(test)]
 mod v3_contract_tests;
 pub mod v3_contracts;
+#[cfg(test)]
+mod v3_employer_evaluation_tests;
 pub mod v3_evaluation_assertions;
 pub mod v3_evaluation_inputs;
 #[cfg(test)]
@@ -31,6 +33,8 @@ mod v3_signed_pack_tests;
 pub mod v3_signed_packs;
 pub mod v3_source_authorization;
 pub mod v3_source_consent;
+#[cfg(test)]
+mod v3_source_freshness_tests;
 pub mod v3_source_manifest;
 #[cfg(test)]
 mod v3_source_manifest_linkedin_tests;

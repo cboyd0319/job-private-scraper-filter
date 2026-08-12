@@ -1,3 +1,5 @@
+//! Defines closed assertions and category-specific evaluation safety requirements.
+
 use std::collections::BTreeSet;
 
 use serde::Deserialize;
@@ -14,7 +16,16 @@ pub enum EvaluationAssertion {
     PostingRiskSignals,
     DefinitiveScamVerdict,
     EmployerProvenance,
+    EmployerEvidenceDateVisible,
+    EmployerUncertaintyVisible,
+    EmployerSafeNextAction,
+    StaleEvidenceSeparatelyAttributed,
+    ConflictingEvidenceSeparatelyAttributed,
     PublishedUserObservation,
+    CentralizedUserObservation,
+    EmployerVerdict,
+    LegalComplianceVerdict,
+    CompositeEmployerVerdict,
     AccessibleWorkflow,
     MotionRequiredForMeaning,
     RecoveryOptions,
@@ -123,6 +134,10 @@ impl EvaluationAssertion {
                 | Self::BenefitsAbsentClaim
                 | Self::DefinitiveScamVerdict
                 | Self::PublishedUserObservation
+                | Self::CentralizedUserObservation
+                | Self::EmployerVerdict
+                | Self::LegalComplianceVerdict
+                | Self::CompositeEmployerVerdict
                 | Self::MotionRequiredForMeaning
                 | Self::SilentDataLoss
                 | Self::RequiredRemoteDependency
@@ -156,10 +171,28 @@ pub(crate) const POSTING_RISK_REQUIRED: &[EvaluationAssertion] =
     &[EvaluationAssertion::PostingRiskSignals];
 pub(crate) const POSTING_RISK_FORBIDDEN: &[EvaluationAssertion] =
     &[EvaluationAssertion::DefinitiveScamVerdict];
-pub(crate) const EMPLOYER_CONTEXT_REQUIRED: &[EvaluationAssertion] =
-    &[EvaluationAssertion::EmployerProvenance];
-pub(crate) const EMPLOYER_CONTEXT_FORBIDDEN: &[EvaluationAssertion] =
-    &[EvaluationAssertion::PublishedUserObservation];
+pub(crate) const EMPLOYER_CONTEXT_REQUIRED: &[EvaluationAssertion] = &[
+    EvaluationAssertion::EmployerProvenance,
+    EvaluationAssertion::EmployerEvidenceDateVisible,
+    EvaluationAssertion::EmployerUncertaintyVisible,
+    EvaluationAssertion::EmployerSafeNextAction,
+];
+pub(crate) const EMPLOYER_CONTEXT_STALE_CONFLICT_REQUIRED: &[EvaluationAssertion] = &[
+    EvaluationAssertion::EmployerProvenance,
+    EvaluationAssertion::EmployerEvidenceDateVisible,
+    EvaluationAssertion::EmployerUncertaintyVisible,
+    EvaluationAssertion::EmployerSafeNextAction,
+    EvaluationAssertion::StaleEvidenceSeparatelyAttributed,
+    EvaluationAssertion::ConflictingEvidenceSeparatelyAttributed,
+];
+pub(crate) const EMPLOYER_CONTEXT_FORBIDDEN: &[EvaluationAssertion] = &[
+    EvaluationAssertion::PublishedUserObservation,
+    EvaluationAssertion::CentralizedUserObservation,
+    EvaluationAssertion::EmployerVerdict,
+    EvaluationAssertion::DefinitiveScamVerdict,
+    EvaluationAssertion::LegalComplianceVerdict,
+    EvaluationAssertion::CompositeEmployerVerdict,
+];
 pub(crate) const ACCESSIBILITY_REQUIRED: &[EvaluationAssertion] =
     &[EvaluationAssertion::AccessibleWorkflow];
 pub(crate) const ACCESSIBILITY_FORBIDDEN: &[EvaluationAssertion] =

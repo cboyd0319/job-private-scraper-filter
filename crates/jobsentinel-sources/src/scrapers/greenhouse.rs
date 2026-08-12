@@ -1,7 +1,4 @@
-//! Greenhouse ATS Scraper
-//!
-//! Scrapes jobs from Greenhouse-powered career pages.
-//! Greenhouse is used by companies and organizations across many industries.
+//! Fetches and normalizes public job listings from configured Greenhouse boards.
 
 use super::error::ScraperError;
 use super::rate_limiter::RateLimiter;
@@ -15,7 +12,6 @@ use crate::{is_safe_company_board_id, parse_greenhouse_company_url};
 use async_trait::async_trait;
 use chrono::Utc;
 use jobsentinel_domain::{
-    canonicalize_job_url,
     v3_source_manifest::{GREENHOUSE_API_ENDPOINT_PREFIX, GREENHOUSE_REQUEST_LIMIT_PER_HOUR},
     Job,
 };
@@ -149,17 +145,8 @@ impl GreenhouseScraper {
             .collect())
     }
 
-    fn api_job_url(company_id: &str, job_id: i64, job_data: &serde_json::Value) -> String {
-        job_data["absolute_url"]
-            .as_str()
-            .filter(|value| !value.is_empty())
-            .and_then(|value| canonicalize_job_url(value).ok())
-            .unwrap_or_else(|| {
-                format!(
-                    "https://job-boards.greenhouse.io/{}/jobs/{}",
-                    company_id, job_id
-                )
-            })
+    fn api_job_url(company_id: &str, job_id: i64, _job_data: &serde_json::Value) -> String {
+        format!("https://job-boards.greenhouse.io/{company_id}/jobs/{job_id}")
     }
 }
 

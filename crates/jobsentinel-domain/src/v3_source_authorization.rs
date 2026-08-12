@@ -1,3 +1,5 @@
+//! Enforces source policy, permission, freshness, and restricted-route boundaries.
+
 use chrono::{Days, NaiveDate};
 use sha2::{Digest, Sha256};
 use url::Url;
@@ -35,6 +37,21 @@ pub enum SourceActionDecision {
     Stale,
     Revoked,
     Unsupported,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SourceFreshnessStatus {
+    Current,
+    Stale,
+    ReviewRequired,
+    Blocked(SourceStopCondition),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SourceFreshnessReport {
+    pub status: SourceFreshnessStatus,
+    pub verified_on: NaiveDate,
+    pub expires_on: NaiveDate,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -82,6 +99,44 @@ fn url_matches_source_domain(value: &str, domains: &[&str]) -> bool {
 }
 
 impl SourceManifest {
+    pub fn freshness(
+        &self,
+        policy: &SourcePolicy,
+        today: NaiveDate,
+    ) -> Result<SourceFreshnessReport, String> {
+        policy.validate()?;
+        if self.source_id != policy.source_id || self.source_class != policy.source_class {
+            return Err("source manifest does not match the current policy".to_string());
+        }
+        let mut report = self.validated_freshness(today)?;
+        let policy_changed =
+            (&self.policy_ref, self.policy_revision) != (&policy.policy_ref, policy.revision);
+        if policy_changed {
+            report.status = SourceFreshnessStatus::Blocked(SourceStopCondition::PolicyChanged);
+            return Ok(report);
+        }
+        if matches!(policy.access, SourceAccess::Disabled) {
+            report.status = SourceFreshnessStatus::Blocked(SourceStopCondition::PolicyDisabled);
+            return Ok(report);
+        }
+        self.validate(policy)?;
+        if report.status == SourceFreshnessStatus::Stale {
+            return Ok(report);
+        }
+        for review in [&self.terms_review, &self.robots_review] {
+            report.status = match review.action_decision(today, self.max_age_days)? {
+                Some(SourceActionDecision::ReviewRequired) => SourceFreshnessStatus::ReviewRequired,
+                Some(SourceActionDecision::Blocked(reason)) => {
+                    SourceFreshnessStatus::Blocked(reason)
+                }
+                Some(_) => return Err("source review state is invalid".to_string()),
+                None => continue,
+            };
+            return Ok(report);
+        }
+        Ok(report)
+    }
+
     pub fn authorize(
         &self,
         policy: &SourcePolicy,
@@ -104,9 +159,6 @@ impl SourceManifest {
             ));
         }
         self.validate(policy)?;
-        if today < self.verified_on {
-            return Err("source verification date cannot be in the future".to_string());
-        }
         if matches!(policy.access, SourceAccess::Disabled) {
             return Ok(SourceActionDecision::Blocked(
                 SourceStopCondition::PolicyDisabled,
@@ -115,8 +167,7 @@ impl SourceManifest {
         let Some(rule) = self.actions.iter().find(|rule| rule.operation == operation) else {
             return Ok(SourceActionDecision::Unsupported);
         };
-        let expires_on = checked_expiry(self.verified_on, self.max_age_days)?;
-        if today > expires_on {
+        if self.validated_freshness(today)?.status == SourceFreshnessStatus::Stale {
             return Ok(SourceActionDecision::Stale);
         }
         for review in [&self.terms_review, &self.robots_review] {
@@ -208,6 +259,22 @@ impl SourceManifest {
                     .count()
                     == 1
             })
+    }
+
+    fn validated_freshness(&self, today: NaiveDate) -> Result<SourceFreshnessReport, String> {
+        if today < self.verified_on {
+            return Err("source verification date cannot be in the future".to_string());
+        }
+        let expires_on = checked_expiry(self.verified_on, self.max_age_days)?;
+        Ok(SourceFreshnessReport {
+            status: if today > expires_on {
+                SourceFreshnessStatus::Stale
+            } else {
+                SourceFreshnessStatus::Current
+            },
+            verified_on: self.verified_on,
+            expires_on,
+        })
     }
 }
 

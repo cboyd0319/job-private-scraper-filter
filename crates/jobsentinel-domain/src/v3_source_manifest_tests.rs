@@ -1,3 +1,5 @@
+//! Proves source manifests remain policy-bound, fresh, and fail closed.
+
 use chrono::{NaiveDate, TimeZone, Utc};
 use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
@@ -73,27 +75,6 @@ fn user_import_policy() -> SourcePolicy {
         restriction_reason_code: None,
         reviewed_at: Utc.with_ymd_and_hms(2026, 7, 19, 0, 0, 0).unwrap(),
     }
-}
-
-#[test]
-fn source_manifest_binds_exact_actions_to_existing_policy() {
-    let manifest = parse_source_manifest(BASELINE, &scheduled_policy()).unwrap();
-    let decision = manifest
-        .authorize(
-            &scheduled_policy(),
-            SourceOperation::ScheduledCheck,
-            NaiveDate::from_ymd_opt(2026, 7, 20).unwrap(),
-            SourceGrantState::NotRequired,
-        )
-        .unwrap();
-
-    assert_eq!(
-        decision,
-        SourceActionDecision::Allowed {
-            request_limit_per_hour: 60,
-            connectivity_required: true,
-        }
-    );
 }
 
 #[test]

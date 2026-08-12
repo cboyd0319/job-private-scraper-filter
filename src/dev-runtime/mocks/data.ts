@@ -1,7 +1,4 @@
-/**
- * Mock data for development without backend
- * Shows diverse job types across different career paths
- */
+/** Provides diverse browser-development fixtures without a native backend. */
 
 import type { MockInterview } from "./handlers/types";
 
@@ -275,6 +272,7 @@ export const mockUpcomingInterviews: MockInterview[] = [
   {
     id: 1,
     application_id: 3,
+    job_hash: "job-hash-8",
     interview_type: "phone",
     scheduled_at: new Date(Date.now() + 86400000).toISOString(),
     duration_minutes: 30,
@@ -291,6 +289,7 @@ export const mockUpcomingInterviews: MockInterview[] = [
   {
     id: 2,
     application_id: 2,
+    job_hash: "job-hash-5",
     interview_type: "technical",
     scheduled_at: new Date(Date.now() + 259200000).toISOString(),
     duration_minutes: 60,

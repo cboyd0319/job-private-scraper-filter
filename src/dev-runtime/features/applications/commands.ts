@@ -1,3 +1,5 @@
+/** Implements browser-development application and interview commands. */
+
 import {
   mockApplicationStats,
   mockStatistics,
@@ -285,9 +287,14 @@ function scheduleInterview(
   state: MockApplicationsCommandState,
 ): MockApplicationsCommandResult {
   const id = Math.max(...state.interviews.map((interview) => interview.id), 0) + 1;
+  const applicationId = getArg(args, "applicationId") as number;
+  const application = Object.values(state.applications)
+    .flat()
+    .find((candidate) => candidate.id === applicationId);
   const interview: MockInterview = {
     id,
-    application_id: getArg(args, "applicationId") as number,
+    application_id: applicationId,
+    job_hash: application?.job_hash ?? `mock-${applicationId}`,
     interview_type: getArg(args, "interviewType") as string,
     scheduled_at: getArg(args, "scheduledAt") as string,
     duration_minutes: getArg(args, "durationMinutes") as number,
@@ -298,8 +305,8 @@ function scheduleInterview(
     completed: false,
     outcome: null,
     post_interview_notes: null,
-    job_title: "Mock Job",
-    company: "Mock Company",
+    job_title: application?.job_title ?? "Mock Job",
+    company: application?.company ?? "Mock Company",
   };
 
   return {

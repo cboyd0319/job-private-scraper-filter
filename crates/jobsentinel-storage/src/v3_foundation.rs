@@ -1,3 +1,5 @@
+// Owns durable v3 foundation persistence and storage-safe read models.
+
 use anyhow::{anyhow, Result};
 use chrono::Utc;
 use jobsentinel_domain::{
@@ -405,7 +407,9 @@ pub use evidence_packets::{
     NewEvidenceBoundPacketClaim,
 };
 mod opportunity_case;
-pub use opportunity_case::{OpportunityCaseRead, OpportunityCaseTimelineRecord};
+pub use opportunity_case::{
+    EmployerHistoryRead, OpportunityCaseRead, OpportunityCaseTimelineRecord,
+};
 
 #[cfg(test)]
 #[path = "v3_foundation/case_evidence_tests.rs"]

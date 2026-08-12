@@ -69,6 +69,69 @@ const caseFile = {
     kind: "research_more",
     reasons: ["Verify this required qualification before deciding: Active license.", "The saved source snapshot may be stale."],
   },
+  employer_dossier: {
+    employer: {
+      name: "CareBridge",
+      identity_status: "unverified_saved_name",
+      official_domain: null,
+      posting_domain: "job-boards.greenhouse.io",
+    },
+    role: {
+      title: "Office Assistant",
+      status: "last_observed",
+      posting_url: "https://job-boards.greenhouse.io/carebridge/jobs/1",
+      first_observed_at: "2026-07-01T12:00:00Z",
+      last_observed_at: "2026-07-21T12:00:00Z",
+      times_seen: 2,
+      repost_count: 1,
+    },
+    source: {
+      source_id: "greenhouse",
+      display_name: "Greenhouse",
+      source_class: "public_ats",
+      status: "current",
+      documentation_url: "https://developers.greenhouse.io/job-board",
+      observed_at: "2026-07-21T12:00:00Z",
+      retrieved_at: null,
+      verified_on: "2026-08-12",
+      expires_on: "2026-09-11",
+      jurisdiction: null,
+      confidence_percent: 95,
+      policy_ref: "jobsentinel.source-policy.greenhouse.public-job-board-api",
+      policy_revision: 1,
+      terms_review_ref: "source-review.greenhouse.public-get-api",
+      robots_review_ref: "source-review.greenhouse.api-robots",
+      parser_version: "greenhouse-job-board-api-v1",
+      salary_coverage: "none",
+      incomplete_coverage: false,
+    },
+    pay: {
+      clarity: "range_listed",
+      minimum: 100000,
+      maximum: 140000,
+      currency: "USD",
+      observed_at: "2026-07-21T12:00:00Z",
+    },
+    local_history: {
+      basis: "exact_saved_name",
+      saved_job_count: 2,
+      application_count: 1,
+      interview_count: 1,
+      offer_count: 0,
+      terminal_outcome_count: 0,
+    },
+    application_channel: "public_ats",
+    uncertainty: [
+      "employer_identity_not_canonical",
+      "official_domain_unknown",
+      "role_not_live_checked",
+      "retrieval_date_unavailable",
+      "jurisdiction_unknown",
+      "exact_name_history_only",
+      "pay_provenance_incomplete",
+    ],
+    next_action: "open_saved_posting",
+  },
   timeline: [
     { at: "2026-07-20T12:00:00Z", kind: "source_checked_failed" },
     { at: "2026-07-21T12:00:00Z", kind: "recovery_restored" },
@@ -103,6 +166,19 @@ describe("OpportunityCaseAction", () => {
     expect(screen.getByText("Research more")).toBeVisible();
     expect(screen.getByText("Why not this job?")).toBeVisible();
     expect(screen.getByText("Evidence wall")).toBeVisible();
+    expect(screen.getByRole("heading", { name: "Employer dossier" })).toBeVisible();
+    expect(screen.getByText(/dated source evidence, not an employer rating/i)).toBeVisible();
+    expect(screen.getAllByText(/No official employer domain is recorded/i)).toHaveLength(2);
+    expect(screen.getAllByText(/Tue, Jul 21, 2026/i).length).toBeGreaterThan(0);
+    expect(screen.getByText(/100,000–140,000 USD.*Observed/i)).toBeVisible();
+    expect(screen.getByText(/2 saved jobs, 1 application, 1 interview/i)).toBeVisible();
+    expect(screen.getByText(/Current through Sep 11, 2026/i)).toBeVisible();
+    const postingLink = screen.getByRole("link", { name: "Open saved posting" });
+    expect(postingLink).toHaveAttribute(
+      "href",
+      "https://job-boards.greenhouse.io/carebridge/jobs/1",
+    );
+    expect(postingLink).toHaveAttribute("rel", "noopener noreferrer");
     expect(screen.getByText("Timeline")).toBeVisible();
     expect(screen.getByText(/The saved source snapshot may be stale/i)).toBeVisible();
     expect(screen.getByRole("heading", { name: "Scheduling" })).toBeVisible();
@@ -120,7 +196,7 @@ describe("OpportunityCaseAction", () => {
     expect(screen.getByText("Source check failed")).toBeVisible();
     expect(screen.getByText("Data restored")).toBeVisible();
     expect(screen.getByText("Source check failed").closest("li")?.querySelector("time")).toHaveAttribute("datetime", "2026-07-20T12:00:00Z");
-    expect(screen.getByText(/Tue, Jul 21, 2026/i)).toBeVisible();
+    expect(screen.getAllByText(/Tue, Jul 21, 2026/i).length).toBeGreaterThan(0);
     expect(screen.queryByText("job-1")).not.toBeInTheDocument();
   });
 

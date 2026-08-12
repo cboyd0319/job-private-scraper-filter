@@ -1,16 +1,28 @@
+//! Reads one bounded, privacy-safe local opportunity case and employer-history summary.
+
 use super::*;
 use chrono::{DateTime, Utc};
+
+#[path = "opportunity_case/employer_history.rs"]
+mod employer_history;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct OpportunityCaseRead {
     pub job_hash: String,
     pub title: String,
     pub company: String,
+    pub job_url: String,
     pub location: Option<String>,
     pub remote: Option<bool>,
     pub times_seen: i64,
+    pub first_seen_at: DateTime<Utc>,
     pub source_name: String,
     pub last_seen_at: DateTime<Utc>,
+    pub repost_count: i64,
+    pub salary_min: Option<i64>,
+    pub salary_max: Option<i64>,
+    pub currency: Option<String>,
+    pub employer_history: EmployerHistoryRead,
     pub posting_risk_score: Option<f64>,
     pub posting_risk_reasons: Vec<String>,
     pub application_status: Option<String>,
@@ -26,6 +38,15 @@ pub struct OpportunityCaseRead {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EmployerHistoryRead {
+    pub saved_job_count: u32,
+    pub application_count: u32,
+    pub interview_count: u32,
+    pub offer_count: u32,
+    pub terminal_outcome_count: u32,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct OpportunityCaseTimelineRecord {
     pub at: DateTime<Utc>,
     pub kind: String,
@@ -38,11 +59,17 @@ struct CaseRow {
     case_created_at: String,
     title: String,
     company: String,
+    job_url: String,
     location: Option<String>,
     remote: Option<bool>,
     times_seen: i64,
+    first_seen_at: String,
     source_name: String,
     last_seen_at: String,
+    repost_count: i64,
+    salary_min: Option<i64>,
+    salary_max: Option<i64>,
+    currency: Option<String>,
     posting_risk_score: Option<f64>,
     posting_risk_reasons: Option<String>,
     job_revision: String,
@@ -94,8 +121,10 @@ impl Database {
         let mut transaction = self.pool().begin().await?;
         let case = sqlx::query_as::<_, CaseRow>(
             "SELECT c.case_file_id, c.job_hash, c.created_at AS case_created_at,
-                    j.title, j.company, j.location, j.remote, j.times_seen,
-                    j.source AS source_name, j.last_seen AS last_seen_at,
+                    j.title, j.company, j.url AS job_url, j.location, j.remote, j.times_seen,
+                    COALESCE(j.first_seen, j.created_at) AS first_seen_at,
+                    j.source AS source_name, j.last_seen AS last_seen_at, j.repost_count,
+                    j.salary_min, j.salary_max, j.currency,
                     j.ghost_score AS posting_risk_score,
                     j.ghost_reasons AS posting_risk_reasons, j.updated_at AS job_revision
              FROM opportunity_case_files AS c
@@ -159,6 +188,8 @@ impl Database {
             count_case_evidence(&mut transaction, &case.case_file_id).await?;
         let (current_packet_count, stale_packet_count) =
             packet_counts(&mut transaction, &case.case_file_id, &case.job_revision).await?;
+        let employer_history =
+            employer_history::read_employer_history(&mut transaction, &case.company).await?;
         let mut timeline = vec![OpportunityCaseTimelineRecord {
             at: parse_sqlite_datetime(&case.case_created_at)?,
             kind: "case_created".to_string(),
@@ -174,11 +205,18 @@ impl Database {
             job_hash: case.job_hash,
             title: case.title,
             company: case.company,
+            job_url: case.job_url,
             location: case.location,
             remote: case.remote,
             times_seen: case.times_seen,
+            first_seen_at: parse_sqlite_datetime(&case.first_seen_at)?,
             source_name: case.source_name,
             last_seen_at: parse_sqlite_datetime(&case.last_seen_at)?,
+            repost_count: case.repost_count,
+            salary_min: case.salary_min,
+            salary_max: case.salary_max,
+            currency: case.currency,
+            employer_history,
             posting_risk_score: case.posting_risk_score,
             posting_risk_reasons: sanitized_risk_reasons(case.posting_risk_reasons.as_deref()),
             application_status: application

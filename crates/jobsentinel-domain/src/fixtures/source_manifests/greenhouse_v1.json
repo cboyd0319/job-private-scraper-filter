@@ -21,12 +21,12 @@
   "terms_review": {
     "status": "reviewed",
     "reference": "source-review.greenhouse.public-get-api",
-    "reviewed_on": "2026-07-19"
+    "reviewed_on": "2026-08-12"
   },
   "robots_review": {
     "status": "reviewed",
     "reference": "source-review.greenhouse.api-robots",
-    "reviewed_on": "2026-07-19"
+    "reviewed_on": "2026-08-12"
   },
   "parser_id": "greenhouse-job-board-api-v1",
   "fixtures": [
@@ -40,7 +40,7 @@
       "fixture_id": "greenhouse-policy-review-v1",
       "kind": "policy",
       "path": "crates/jobsentinel-domain/src/fixtures/source_reviews/greenhouse_v1.json",
-      "payload_sha256": "d16b2c345adf8dcbfc10add867b0221b42a3349018f1ea94ea9f93720c72c5fc"
+      "payload_sha256": "0e1ce506f875e0aea1559ad6d7acbb20d0bdce42f3aaa1eee9cc21d3077ccbc8"
     }
   ],
   "supported_fields": [
@@ -50,7 +50,7 @@
     "application_url"
   ],
   "salary_coverage": "none",
-  "verified_on": "2026-07-19",
+  "verified_on": "2026-08-12",
   "max_age_days": 30,
   "confidence_percent": 95,
   "lineage": [

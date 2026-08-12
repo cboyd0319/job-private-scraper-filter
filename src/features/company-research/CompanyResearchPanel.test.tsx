@@ -1,151 +1,86 @@
+/** Proves Company Research reads only the selected job's local opportunity-case dossier. */
+
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { invoke } from "@tauri-apps/api/core";
 import { CompanyResearchPanel } from "./CompanyResearchPanel";
 
-const localStorageMock = (() => {
-  let store: Record<string, string> = {};
-  return {
-    getItem: vi.fn((key: string) => store[key] ?? null),
-    setItem: vi.fn((key: string, value: string) => {
-      store[key] = value;
-    }),
-    removeItem: vi.fn((key: string) => {
-      delete store[key];
-    }),
-    clear: vi.fn(() => {
-      store = {};
-    }),
-  };
-})();
+vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn() }));
 
-Object.defineProperty(window, "localStorage", { value: localStorageMock });
+const mockInvoke = vi.mocked(invoke);
+
+function caseFile(jobHash: string, company = "CareBridge Services") {
+  return {
+    job: { job_hash: jobHash },
+    employer_dossier: {
+      employer: { name: company, identity_status: "unverified_saved_name", official_domain: null, posting_domain: "job-boards.greenhouse.io" },
+      role: { title: "Coordinator", status: "last_observed", posting_url: "https://job-boards.greenhouse.io/carebridge/jobs/1", first_observed_at: "2026-08-01T00:00:00Z", last_observed_at: "2026-08-02T00:00:00Z", times_seen: 1, repost_count: 0 },
+      source: { source_id: "greenhouse", display_name: "Greenhouse", source_class: "public_ats", status: "current", documentation_url: "https://developers.greenhouse.io/job-board", observed_at: "2026-08-02T00:00:00Z", retrieved_at: null, verified_on: "2026-08-01", expires_on: "2026-08-31", jurisdiction: null, confidence_percent: 95, policy_ref: "policy", policy_revision: 1, terms_review_ref: "terms", robots_review_ref: "robots", parser_version: "v1", salary_coverage: "none", incomplete_coverage: false },
+      pay: { clarity: "not_listed", minimum: null, maximum: null, currency: null, observed_at: "2026-08-02T00:00:00Z" },
+      local_history: { basis: "exact_saved_name", saved_job_count: 1, application_count: 0, interview_count: 0, offer_count: 0, terminal_outcome_count: 0 },
+      application_channel: "public_ats",
+      uncertainty: ["employer_identity_not_canonical", "official_domain_unknown", "role_not_live_checked", "retrieval_date_unavailable", "jurisdiction_unknown", "exact_name_history_only", "pay_not_listed"],
+      next_action: "open_saved_posting",
+    },
+  };
+}
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((next) => { resolve = next; });
+  return { promise, resolve };
+}
 
 describe("CompanyResearchPanel", () => {
-  beforeEach(() => {
-    localStorageMock.clear();
-    vi.clearAllMocks();
+  beforeEach(() => vi.clearAllMocks());
+
+  it("removes the obsolete static company cache", () => {
+    window.localStorage.setItem("jobsentinel_company_cache", "private legacy data");
+
+    render(<CompanyResearchPanel companyName="CareBridge Services" />);
+
+    expect(window.localStorage.getItem("jobsentinel_company_cache")).toBeNull();
   });
 
-  describe("rendering", () => {
-    it("renders the company name and section label", () => {
-      render(<CompanyResearchPanel companyName="Google" />);
+  it("requires a saved job and makes no local projection request without its hash", () => {
+    render(<CompanyResearchPanel companyName="CareBridge Services" />);
 
-      expect(screen.getByText("Google")).toBeInTheDocument();
-      expect(screen.getByText("Company Research")).toBeInTheDocument();
-    });
-
-    it("shows the close button only when a close action is provided", () => {
-      const { rerender } = render(
-        <CompanyResearchPanel companyName="Example Services" />,
-      );
-      expect(screen.queryByLabelText("Close")).not.toBeInTheDocument();
-
-      rerender(
-        <CompanyResearchPanel
-          companyName="Example Services"
-          onClose={() => undefined}
-        />,
-      );
-      expect(screen.getByLabelText("Close")).toBeInTheDocument();
-    });
-
-    it("calls the close action", () => {
-      const onClose = vi.fn();
-      render(
-        <CompanyResearchPanel
-          companyName="Example Services"
-          onClose={onClose}
-        />,
-      );
-
-      fireEvent.click(screen.getByLabelText("Close"));
-      expect(onClose).toHaveBeenCalledOnce();
-    });
+    expect(screen.getByText("Choose a saved job to view its local employer dossier.")).toBeInTheDocument();
+    expect(mockInvoke).not.toHaveBeenCalled();
   });
 
-  describe("local company directory", () => {
-    it.each([
-      ["Kaiser", "Healthcare / Care Delivery", "Patient scheduling"],
-      ["Target", "Retail", "Guest service"],
-      ["City of Phoenix", "Government / Public Service", "Public service"],
-      ["UPS", "Logistics", "Route planning"],
-      ["State Farm", "Insurance", "Claims support"],
-      ["Marriott", "Hospitality", "Reservations"],
-      ["Google", "Technology", "Program coordination"],
-    ])("shows broad local guidance for %s", (company, industry, workArea) => {
-      render(<CompanyResearchPanel companyName={company} />);
+  it("loads the selected job's local dossier without a network request", async () => {
+    mockInvoke.mockResolvedValue(caseFile("job-carebridge"));
+    const fetchSpy = vi.spyOn(globalThis, "fetch");
 
-      expect(screen.getByText(industry)).toBeInTheDocument();
-      expect(screen.getByText(workArea)).toBeInTheDocument();
-    });
+    render(<CompanyResearchPanel companyName="CareBridge Services" jobHash="job-carebridge" />);
 
-    it("matches partial company names without case sensitivity", () => {
-      render(<CompanyResearchPanel companyName="KAISER PERMANENTE" />);
-
-      expect(
-        screen.getByText("Healthcare / Care Delivery"),
-      ).toBeInTheDocument();
-    });
-
-    it("shows stable directory details", () => {
-      render(<CompanyResearchPanel companyName="Google" />);
-
-      expect(screen.getByText("Founded")).toBeInTheDocument();
-      expect(screen.getByText("1998")).toBeInTheDocument();
-      expect(screen.getByText("Headquarters")).toBeInTheDocument();
-      expect(screen.getByText("Mountain View, CA")).toBeInTheDocument();
-      expect(screen.getByText("Employees")).toBeInTheDocument();
-    });
-
-    it("links to the company website without opener access", () => {
-      render(<CompanyResearchPanel companyName="Marriott" />);
-
-      expect(screen.getByRole("link", { name: /visit website/i })).toHaveAttribute(
-        "href",
-        "https://www.marriott.com",
-      );
-      expect(screen.getByRole("link", { name: /visit website/i })).toHaveAttribute(
-        "rel",
-        "noopener noreferrer",
-      );
-    });
+    expect(screen.getByRole("status")).toHaveTextContent("Loading local employer dossier…");
+    await waitFor(() => expect(screen.getByRole("heading", { name: "Employer dossier" })).toBeInTheDocument());
+    expect(mockInvoke).toHaveBeenCalledWith("open_opportunity_case", { jobHash: "job-carebridge" });
+    expect(fetchSpy).not.toHaveBeenCalled();
+    fetchSpy.mockRestore();
   });
 
-  describe("unknown companies", () => {
-    it("shows local limits and research guidance", () => {
-      render(<CompanyResearchPanel companyName="MyNewCompany" />);
+  it("shows a recoverable error when the local dossier projection is unavailable", async () => {
+    mockInvoke.mockRejectedValueOnce(new Error("storage unavailable")).mockResolvedValueOnce(caseFile("job-carebridge"));
+    render(<CompanyResearchPanel companyName="CareBridge Services" jobHash="job-carebridge" />);
 
-      expect(
-        screen.getByText("Limited information available for this company."),
-      ).toBeInTheDocument();
-      expect(
-        screen.getByText(
-          /Try the official careers page and public job or review pages for "MyNewCompany"/,
-        ),
-      ).toBeInTheDocument();
-      expect(
-        screen.getByText(
-          /JobSentinel does not have local company details for MyNewCompany yet/,
-        ),
-      ).toBeInTheDocument();
-    });
+    await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent("Could not load the local employer dossier."));
+    fireEvent.click(screen.getByRole("button", { name: "Retry" }));
+    await waitFor(() => expect(screen.getByRole("heading", { name: "Employer dossier" })).toBeInTheDocument());
   });
 
-  describe("privacy cleanup", () => {
-    it("removes the old persistent company cache without reading or writing it", () => {
-      localStorageMock.setItem(
-        "jobsentinel_company_cache",
-        JSON.stringify({ privateCompany: "Example" }),
-      );
-      vi.clearAllMocks();
+  it("does not replace a newly selected dossier with a late older response", async () => {
+    const first = deferred<ReturnType<typeof caseFile>>();
+    const second = deferred<ReturnType<typeof caseFile>>();
+    mockInvoke.mockReturnValueOnce(first.promise).mockReturnValueOnce(second.promise);
+    const { rerender } = render(<CompanyResearchPanel companyName="First" jobHash="job-first" />);
 
-      render(<CompanyResearchPanel companyName="Kaiser" />);
-
-      expect(localStorageMock.getItem).not.toHaveBeenCalled();
-      expect(localStorageMock.setItem).not.toHaveBeenCalled();
-      expect(localStorageMock.removeItem).toHaveBeenCalledWith(
-        "jobsentinel_company_cache",
-      );
-    });
+    rerender(<CompanyResearchPanel companyName="Second" jobHash="job-second" />);
+    second.resolve(caseFile("job-second", "Second"));
+    await waitFor(() => expect(screen.getByText("Second. No official employer domain is recorded.")).toBeInTheDocument());
+    first.resolve(caseFile("job-first", "First"));
+    await waitFor(() => expect(screen.queryByText("First. No official employer domain is recorded.")).not.toBeInTheDocument());
   });
 });

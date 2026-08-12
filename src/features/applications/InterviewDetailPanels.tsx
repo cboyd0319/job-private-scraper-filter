@@ -1,8 +1,13 @@
+/** Renders interview details, feedback, debrief, and job-scoped research actions. */
+
 import { useState } from "react";
 import { Button } from "../../ui/Button";
 import { Modal } from "../../ui/Modal";
 import { formatInterviewDate } from "../../shared/dateFormatting";
-import type { RenderCompanyResearch } from "../../shared/companyResearch";
+import type {
+  CompanyResearchTarget,
+  RenderCompanyResearch,
+} from "../../shared/companyResearch";
 import {
   INTERVIEW_TYPES,
   OUTCOME_COLORS,
@@ -63,10 +68,13 @@ export function InterviewDetailPanels({
 }: InterviewDetailPanelsProps) {
   const [debrief, setDebrief] = useState(EMPTY_DEBRIEF);
   const [feedbackOutcome, setFeedbackOutcome] = useState("");
-  const [researchCompany, setResearchCompany] = useState<string | null>(null);
+  const [researchTarget, setResearchTarget] = useState<CompanyResearchTarget | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showFeedbackForm, setShowFeedbackForm] = useState(false);
-  const handleOpenCompanyResearch = (company: string) => setResearchCompany(company);
+  const handleOpenCompanyResearch = () => setResearchTarget({
+    companyName: interview.company,
+    jobHash: interview.job_hash,
+  });
 
   return (
     <>
@@ -132,7 +140,7 @@ export function InterviewDetailPanels({
                         <button
                           onClick={(e) => {
                             e.preventDefault();
-                            handleOpenCompanyResearch(interview.company);
+                            handleOpenCompanyResearch();
                           }}
                           className="text-xs text-sentinel-600 dark:text-sentinel-400 hover:underline ml-auto opacity-0 group-hover:opacity-100 transition-opacity"
                         >
@@ -150,7 +158,7 @@ export function InterviewDetailPanels({
                   Add to Calendar
                 </Button>
                 {renderCompanyResearch && (
-                  <Button variant="secondary" onClick={() => handleOpenCompanyResearch(interview.company)} className="flex items-center gap-1">
+                  <Button variant="secondary" onClick={handleOpenCompanyResearch} className="flex items-center gap-1">
                     <SearchIcon />
                     Research
                   </Button>
@@ -285,10 +293,11 @@ export function InterviewDetailPanels({
           </div>
       </Modal>
 
-      {researchCompany &&
+      {researchTarget &&
         renderCompanyResearch?.({
-          companyName: researchCompany,
-          onClose: () => setResearchCompany(null),
+          companyName: researchTarget.companyName,
+          jobHash: researchTarget.jobHash,
+          onClose: () => setResearchTarget(null),
         })}
     </>
   );

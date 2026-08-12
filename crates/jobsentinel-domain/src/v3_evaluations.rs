@@ -10,11 +10,12 @@ use serde::Deserialize;
 use crate::v3_evaluation_assertions::{
     exact_assertions, ACCESSIBILITY_FORBIDDEN, ACCESSIBILITY_REQUIRED,
     COMMERCIAL_COMPARISON_FORBIDDEN, COMMERCIAL_COMPARISON_REQUIRED, EMPLOYER_CONTEXT_FORBIDDEN,
-    EMPLOYER_CONTEXT_REQUIRED, MILITARY_FORBIDDEN, MILITARY_REQUIRED, MODEST_HARDWARE_FORBIDDEN,
-    MODEST_HARDWARE_REQUIRED, PAY_CLARITY_FORBIDDEN, PAY_CLARITY_REQUIRED, POSTING_RISK_FORBIDDEN,
-    POSTING_RISK_REQUIRED, PROTECTED_SELECTED_FORBIDDEN, PROTECTED_SELECTED_REQUIRED,
-    PROTECTED_UNANSWERED_FORBIDDEN, PROTECTED_UNANSWERED_REQUIRED, RECOVERY_FORBIDDEN,
-    RECOVERY_REQUIRED, RESUME_EVIDENCE_FORBIDDEN, RESUME_EVIDENCE_REQUIRED, SOURCE_TRUTH_FORBIDDEN,
+    EMPLOYER_CONTEXT_REQUIRED, EMPLOYER_CONTEXT_STALE_CONFLICT_REQUIRED, MILITARY_FORBIDDEN,
+    MILITARY_REQUIRED, MODEST_HARDWARE_FORBIDDEN, MODEST_HARDWARE_REQUIRED, PAY_CLARITY_FORBIDDEN,
+    PAY_CLARITY_REQUIRED, POSTING_RISK_FORBIDDEN, POSTING_RISK_REQUIRED,
+    PROTECTED_SELECTED_FORBIDDEN, PROTECTED_SELECTED_REQUIRED, PROTECTED_UNANSWERED_FORBIDDEN,
+    PROTECTED_UNANSWERED_REQUIRED, RECOVERY_FORBIDDEN, RECOVERY_REQUIRED,
+    RESUME_EVIDENCE_FORBIDDEN, RESUME_EVIDENCE_REQUIRED, SOURCE_TRUTH_FORBIDDEN,
     SOURCE_TRUTH_REQUIRED,
 };
 pub use crate::v3_evaluation_assertions::{EvaluationAssertion, EvaluationOracle};
@@ -375,7 +376,29 @@ impl V3EvaluationCase {
             EvaluationCategory::PayClarity => (PAY_CLARITY_REQUIRED, PAY_CLARITY_FORBIDDEN),
             EvaluationCategory::PostingRisk => (POSTING_RISK_REQUIRED, POSTING_RISK_FORBIDDEN),
             EvaluationCategory::EmployerContext => {
-                (EMPLOYER_CONTEXT_REQUIRED, EMPLOYER_CONTEXT_FORBIDDEN)
+                let EvaluationInput::EmployerContext { evidence } = &self.input else {
+                    return Err("employer evaluation input is required".to_string());
+                };
+                let has_stale = evidence.iter().any(|item| {
+                    matches!(
+                        item.state,
+                        crate::v3_evaluation_inputs::EmployerEvidenceState::Stale
+                    )
+                });
+                let has_conflict = evidence.iter().any(|item| {
+                    matches!(
+                        item.state,
+                        crate::v3_evaluation_inputs::EmployerEvidenceState::Conflicting
+                    )
+                });
+                (
+                    if has_stale && has_conflict {
+                        EMPLOYER_CONTEXT_STALE_CONFLICT_REQUIRED
+                    } else {
+                        EMPLOYER_CONTEXT_REQUIRED
+                    },
+                    EMPLOYER_CONTEXT_FORBIDDEN,
+                )
             }
             EvaluationCategory::Accessibility => (ACCESSIBILITY_REQUIRED, ACCESSIBILITY_FORBIDDEN),
             EvaluationCategory::Recovery => (RECOVERY_REQUIRED, RECOVERY_FORBIDDEN),

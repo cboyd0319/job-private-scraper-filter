@@ -111,7 +111,7 @@
       "protected_veteran_answer_basis": "not_applicable"
     },
     {
-      "id": "employer-context-provenance-v1",
+      "id": "employer-dossier-mixed-evidence-v1",
       "category": "employer_context",
       "verification_target": "employer_intelligence",
       "privacy_boundary": {
@@ -125,11 +125,29 @@
       },
       "input": {
         "kind": "employer_context",
-        "source_classes": ["official_domain", "public_registry", "user_owned_local_observation"]
+        "evidence": [
+          {"source_class": "official_domain", "observed_on": "2026-08-11", "state": "current"},
+          {"source_class": "public_registry", "observed_on": "2025-12-15", "state": "stale"},
+          {"source_class": "user_owned_local_observation", "observed_on": "2026-08-09", "state": "conflicting"}
+        ]
       },
       "oracle": {
-        "required_assertions": ["employer_provenance"],
-        "forbidden_assertions": ["published_user_observation"]
+        "required_assertions": [
+          "employer_provenance",
+          "employer_evidence_date_visible",
+          "employer_uncertainty_visible",
+          "employer_safe_next_action",
+          "stale_evidence_separately_attributed",
+          "conflicting_evidence_separately_attributed"
+        ],
+        "forbidden_assertions": [
+          "published_user_observation",
+          "centralized_user_observation",
+          "employer_verdict",
+          "definitive_scam_verdict",
+          "legal_compliance_verdict",
+          "composite_employer_verdict"
+        ]
       },
       "military_service_basis": "not_applicable",
       "protected_veteran_answer_basis": "not_applicable"

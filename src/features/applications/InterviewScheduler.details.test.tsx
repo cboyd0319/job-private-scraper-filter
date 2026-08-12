@@ -1,3 +1,5 @@
+/** Verifies interview detail, debrief, feedback, and research behavior. */
+
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import {
@@ -211,7 +213,7 @@ describe("InterviewScheduler", () => {
 
       expect(screen.getByText("Research for CareBridge Services")).toBeInTheDocument();
       expect(renderCompanyResearch).toHaveBeenCalledWith(
-        expect.objectContaining({ companyName: "CareBridge Services" }),
+        expect.objectContaining({ companyName: "CareBridge Services", jobHash: "job-carebridge" }),
       );
     });
 

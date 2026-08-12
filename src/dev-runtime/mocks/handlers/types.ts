@@ -1,3 +1,5 @@
+/** Defines browser-development command state and fixture types. */
+
 import type {
   mockApplications,
   mockConfig,
@@ -193,6 +195,7 @@ export interface MockMatchResult {
 export interface MockInterview {
   id: number;
   application_id: number;
+  job_hash: string;
   interview_type: string;
   scheduled_at: string;
   duration_minutes: number;

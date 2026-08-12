@@ -1,3 +1,4 @@
+// Owns application-layer v3 foundation workflows and renderer-safe projections.
 use chrono::NaiveDate;
 use jobsentinel_domain::{
     v3_foundation::{
@@ -488,11 +489,11 @@ pub use military::{
 };
 mod opportunity_case;
 pub use opportunity_case::{
-    open_opportunity_case, OpportunityCaseApplication, OpportunityCaseEvidence,
-    OpportunityCaseInterviewSummary, OpportunityCaseJob, OpportunityCaseOffer,
-    OpportunityCaseOfferStatus, OpportunityCaseOutcome, OpportunityCasePostingRisk,
-    OpportunityCaseSnapshot, OpportunityCaseSource, OpportunityCaseTimelineItem,
-    OpportunityCaseTimelineKind,
+    dossier as employer_dossier, open_opportunity_case, OpportunityCaseApplication,
+    OpportunityCaseEvidence, OpportunityCaseInterviewSummary, OpportunityCaseJob,
+    OpportunityCaseOffer, OpportunityCaseOfferStatus, OpportunityCaseOutcome,
+    OpportunityCasePostingRisk, OpportunityCaseSnapshot, OpportunityCaseSource,
+    OpportunityCaseTimelineItem, OpportunityCaseTimelineKind,
 };
 #[cfg(test)]
 #[path = "v3_foundation/tests.rs"]

@@ -1,3 +1,5 @@
+//! Proves the versioned v3 evaluation set remains complete and fail closed.
+
 use std::collections::BTreeSet;
 
 use crate::{
@@ -5,20 +7,20 @@ use crate::{
     EvaluationVerificationTarget,
 };
 
-const V3_EVALUATIONS: &str = include_str!("fixtures/v3_evaluation_set_v1.json");
+pub(crate) const V3_EVALUATIONS: &str = include_str!("fixtures/v3_evaluation_set_v1.json");
 
-fn fixture() -> Result<serde_json::Value, String> {
+pub(crate) fn fixture() -> Result<serde_json::Value, String> {
     serde_json::from_str(V3_EVALUATIONS).map_err(|error| error.to_string())
 }
 
-fn case_index(value: &serde_json::Value, id: &str) -> Result<usize, String> {
+pub(crate) fn case_index(value: &serde_json::Value, id: &str) -> Result<usize, String> {
     value["cases"]
         .as_array()
         .and_then(|cases| cases.iter().position(|case| case["id"] == id))
         .ok_or_else(|| format!("missing evaluation case {id}"))
 }
 
-fn validation_error(value: &serde_json::Value) -> Result<String, String> {
+pub(crate) fn validation_error(value: &serde_json::Value) -> Result<String, String> {
     parse_v3_evaluation_set(&value.to_string())
         .err()
         .ok_or_else(|| "fixture unexpectedly validated".to_string())

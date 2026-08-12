@@ -1,3 +1,5 @@
+//! Proves Greenhouse API payloads normalize into bounded canonical job records.
+
 use super::*;
 
 #[test]
@@ -291,7 +293,7 @@ fn test_job_url_construction_from_api() {
 }
 
 #[test]
-fn test_api_absolute_url_takes_precedence() {
+fn test_api_uses_the_canonical_board_url_instead_of_an_unreviewed_employer_host() {
     let job_data: serde_json::Value = serde_json::json!({
         "id": 7687193003_i64,
         "title": "Account Executive, Commercial",
@@ -304,25 +306,6 @@ fn test_api_absolute_url_takes_precedence() {
     let company_id = "fivetran";
     let job_id = job_data["id"].as_i64().unwrap_or(0);
     let url = GreenhouseScraper::api_job_url(company_id, job_id, &job_data);
-
-    assert_eq!(
-        url,
-        "https://www.fivetran.com/careers/job?gh_jid=7687193003"
-    );
-}
-
-#[test]
-fn test_api_url_falls_back_when_absolute_url_is_unsafe() {
-    let job_data: serde_json::Value = serde_json::json!({
-        "id": 7687193003_i64,
-        "title": "Account Executive, Commercial",
-        "absolute_url": "file:///private/job",
-        "location": {
-            "name": "Denver, Colorado, United States"
-        }
-    });
-
-    let url = GreenhouseScraper::api_job_url("fivetran", 7687193003, &job_data);
 
     assert_eq!(
         url,

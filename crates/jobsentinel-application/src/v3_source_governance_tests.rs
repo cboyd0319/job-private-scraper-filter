@@ -1,3 +1,5 @@
+//! Proves reviewed source installation, authorization, and fixture binding fail closed.
+
 use chrono::NaiveDate;
 use jobsentinel_domain::{
     v3_source_authorization::{SourceActionDecision, SourceGrantState},
@@ -20,7 +22,7 @@ async fn reviewed_public_ats_manifests_authorize_only_their_policy_rates() {
     database.migrate().await.unwrap();
     install_greenhouse(&database).await.unwrap();
     install_lever(&database).await.unwrap();
-    let today = NaiveDate::from_ymd_opt(2026, 7, 19).unwrap();
+    let today = NaiveDate::from_ymd_opt(2026, 8, 12).unwrap();
 
     assert_eq!(
         authorize_greenhouse(&database, SourceOperation::ScheduledCheck, today)

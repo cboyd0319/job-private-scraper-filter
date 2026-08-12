@@ -13,6 +13,7 @@ macro_rules! interview_with_job_query {
                 SELECT
                     i.id,
                     i.application_id,
+                    a.job_hash,
                     i.interview_type,
                     i.scheduled_at,
                     i.duration_minutes,
@@ -38,6 +39,7 @@ fn interview_with_job_from_row(row: SqliteRow) -> Result<InterviewWithJob> {
     Ok(InterviewWithJob {
         id: row.try_get("id")?,
         application_id: row.try_get("application_id")?,
+        job_hash: row.try_get("job_hash")?,
         interview_type: row
             .try_get::<Option<String>, _>("interview_type")?
             .unwrap_or_else(|| "other".to_string()),
@@ -179,7 +181,8 @@ mod row_mapper_tests {
         let database = crate::Database::connect_memory().await.unwrap();
         let row = sqlx::query(
             r#"
-            SELECT 3 AS id, 9 AS application_id, NULL AS interview_type,
+            SELECT 3 AS id, 9 AS application_id, 'job-9' AS job_hash,
+                   NULL AS interview_type,
                    '2026-02-01 10:00:00' AS scheduled_at,
                    NULL AS duration_minutes, NULL AS location,
                    NULL AS interviewer_name, NULL AS interviewer_title,
@@ -194,6 +197,7 @@ mod row_mapper_tests {
 
         let interview = interview_with_job_from_row(row).unwrap();
 
+        assert_eq!(interview.job_hash, "job-9");
         assert_eq!(interview.interview_type, "other");
         assert_eq!(interview.duration_minutes, 60);
         assert!(!interview.completed);
@@ -277,6 +281,9 @@ mod row_mapper_tests {
                 .collect::<Vec<_>>(),
             vec![upcoming_id, interview_id]
         );
+        assert!(open_interviews
+            .iter()
+            .all(|interview| interview.job_hash == "debrief-job"));
 
         let debrief = "Questions asked: How would you prioritize urgent requests?\nFollow-up deadline: 2026-08-01";
         tracker

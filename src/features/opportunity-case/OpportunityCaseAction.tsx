@@ -5,6 +5,7 @@ import { invoke } from "../../platform/tauri";
 import { formatCompactDateTime, formatEventDate } from "../../shared/dateFormatting";
 import { Button } from "../../ui/Button";
 import { Modal } from "../../ui/Modal";
+import { decodeEmployerDossier, EmployerDossierSection, type EmployerDossier } from "../../shared/EmployerDossierSection";
 import { PackPacketBuilder } from "./PackPacketBuilder";
 
 type CaseFile = {
@@ -51,6 +52,7 @@ type CaseFile = {
     kind: "apply" | "maybe" | "skip" | "research_more";
     reasons: string[];
   };
+  employer_dossier: EmployerDossier;
   timeline: Array<{ at: string; kind: string }>;
 };
 
@@ -198,7 +200,9 @@ export function OpportunityCaseAction({ jobHash }: OpportunityCaseActionProps) {
       });
       if (request !== requestEpoch.current) return;
       if (opened.job.job_hash !== requestedHash) throw new Error("case identity changed");
-      setCaseFile(opened);
+      const employerDossier = decodeEmployerDossier(opened.employer_dossier);
+      if (!employerDossier) throw new Error("employer dossier is invalid");
+      setCaseFile({ ...opened, employer_dossier: employerDossier });
     } catch {
       if (request === requestEpoch.current) setHasError(true);
     } finally {
@@ -294,6 +298,8 @@ export function OpportunityCaseAction({ jobHash }: OpportunityCaseActionProps) {
                     </p>
                   )}
                 </section>
+
+                <EmployerDossierSection dossier={caseFile.employer_dossier} />
 
                 <section aria-labelledby="case-risk">
                   <h4 id="case-risk" className="font-semibold text-surface-900 dark:text-white">

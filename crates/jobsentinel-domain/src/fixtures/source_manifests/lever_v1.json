@@ -21,12 +21,12 @@
   "terms_review": {
     "status": "reviewed",
     "reference": "source-review.lever.public-postings-api",
-    "reviewed_on": "2026-07-19"
+    "reviewed_on": "2026-08-12"
   },
   "robots_review": {
     "status": "reviewed",
     "reference": "source-review.lever.api-robots",
-    "reviewed_on": "2026-07-19"
+    "reviewed_on": "2026-08-12"
   },
   "parser_id": "lever-postings-api-v0",
   "fixtures": [
@@ -40,7 +40,7 @@
       "fixture_id": "lever-policy-review-v1",
       "kind": "policy",
       "path": "crates/jobsentinel-domain/src/fixtures/source_reviews/lever_v1.json",
-      "payload_sha256": "afc48b3e867eabd15b0dd75cbeb959e41d45396b40551163f2d9f6dd3bda746c"
+      "payload_sha256": "4e3d9c2d5e3eba6a330b8d1fe7641969665cf918c8efad1546e641c5ee3f796c"
     }
   ],
   "supported_fields": [
@@ -51,7 +51,7 @@
     "application_url"
   ],
   "salary_coverage": "none",
-  "verified_on": "2026-07-19",
+  "verified_on": "2026-08-12",
   "max_age_days": 30,
   "confidence_percent": 95,
   "lineage": [

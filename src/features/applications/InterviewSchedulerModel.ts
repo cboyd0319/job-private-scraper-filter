@@ -1,3 +1,5 @@
+/** Defines Interview Scheduler renderer contracts and formatting helpers. */
+
 import type { RenderCompanyResearch } from "../../shared/companyResearch";
 
 export interface Interview {
@@ -13,6 +15,7 @@ export interface Interview {
   completed: boolean;
   outcome: string | null;
   post_interview_notes: string | null;
+  job_hash: string;
   job_title: string;
   company: string;
 }
