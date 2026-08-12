@@ -1,0 +1,32 @@
+{
+  "source_id": "linkedin-workbench",
+  "reviewed_on": "2026-07-19",
+  "reference_ids": [
+    "source-review.linkedin.user-agreement",
+    "source-review.linkedin.automated-activity"
+  ],
+  "evidence": [
+    {
+      "url": "https://www.linkedin.com/legal/user-agreement",
+      "observed": "The agreement effective November 3, 2025 prohibits unauthorized scraping, copying, browser plugins, automation, access-control bypass, and account or cookie sharing."
+    },
+    {
+      "url": "https://www.linkedin.com/help/linkedin/answer/a1340567",
+      "observed": "LinkedIn states that third-party software or browser extensions must not scrape, change, or automate activity on the service."
+    }
+  ],
+  "local_policy": {
+    "operation": "user-opened local workbench only",
+    "scheduled_access": false,
+    "visible_page_capture": false,
+    "automatic_activity": false,
+    "session_material_storage": false,
+    "durable_write_requires_review": true,
+    "data_use": "Only user-entered or user-selected job and application details are stored locally."
+  },
+  "change_triggers": [
+    "LinkedIn publishes a revised user agreement or automation policy.",
+    "LinkedIn grants express written permission for a broader integration.",
+    "The Workbench begins reading browser, session, hidden-page, or network state."
+  ]
+}

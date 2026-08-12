@@ -28,7 +28,29 @@ describe("LinkedIn workbench mock runtime commands", () => {
     resetMockData();
   });
 
+  it("requires a backend-style review before recording", async () => {
+    await expect(
+      mockInvoke("record_linkedin_workbench_event", {
+        input: { eventType: "saved" },
+      }),
+    ).rejects.toThrow("Review LinkedIn Workbench");
+    expect(
+      await mockInvoke<string>("get_linkedin_workbench_review_status"),
+    ).toBe("review_required");
+    expect(await mockInvoke<boolean>("review_linkedin_workbench")).toBe(true);
+    expect(
+      await mockInvoke<string>("get_linkedin_workbench_review_status"),
+    ).toBe("reviewed");
+    expect(await mockInvoke<boolean>("revoke_linkedin_workbench_review")).toBe(
+      true,
+    );
+    expect(
+      await mockInvoke<string>("get_linkedin_workbench_review_status"),
+    ).toBe("review_required");
+  });
+
   it("records an applied action without retaining sensitive URL details", async () => {
+    await mockInvoke("review_linkedin_workbench");
     const result = await mockInvoke<LinkedInWorkbenchEventResult>(
       "record_linkedin_workbench_event",
       {
@@ -74,6 +96,7 @@ describe("LinkedIn workbench mock runtime commands", () => {
   });
 
   it("records expanded ledger actions", async () => {
+    await mockInvoke("review_linkedin_workbench");
     for (const [eventType, expectedStatus] of [
       ["interview", "interview"],
       ["follow_up", "follow_up"],

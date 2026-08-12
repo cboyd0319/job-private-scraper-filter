@@ -1,0 +1,93 @@
+{
+  "schema": "jobsentinel.feature_evidence.v1",
+  "feature_id": "v3-milestone-3-recovery-portability-policy-repair",
+  "slice": "offline-recovery-and-platform-repair",
+  "behavior": "Recovery, portability, policy, consent, support, and repair paths fail closed and work offline.",
+  "result": "passing",
+  "verified_at": "2026-07-19T12:32:30Z",
+  "revision": "aaa9f28c45b019c93ab7a14a9fb41408daf9f9b2",
+  "revision_scope": "The committed platform-health contract, offline application recovery projection, fail-closed desktop startup fallback and IPC allowlist, Settings recovery controls, independent invalid-config preservation, encrypted restore publication and rollback, owner-lock ordering, opaque quarantine copies, bounded support report, and focused tests.",
+  "platform": "local macOS 27.0 arm64 host",
+  "commands": [
+    {
+      "command": "env -u JOBSENTINEL_LIVE_KEYRING_TESTS cargo test -p jobsentinel-storage portable_restore -- --test-threads=1",
+      "exit_status": 0,
+      "relevant_result": "All 27 serialized portable-restore tests passed. Coverage includes encrypted stage and cancel, compatible promotion and rollback, corrupt-primary quarantine, independent opaque copies, malformed markers, symlink and hard-link refusal, live-owner refusal, interrupted recovery, and lock-before-marker ordering.",
+      "caveat": "Tests were serialized because they exercise shared restore and credential-test fixtures. Live keyring tests were explicitly disabled."
+    },
+    {
+      "command": "env -u JOBSENTINEL_LIVE_KEYRING_TESTS cargo test -p jobsentinel-platform platform_health; env -u JOBSENTINEL_LIVE_KEYRING_TESTS cargo test -p jobsentinel-application recovery::tests --lib; env -u JOBSENTINEL_LIVE_KEYRING_TESTS cargo test -p jobsentinel-application pending::tests::queued_work_count_is_bounded_and_expires_without_exposing_jobs",
+      "exit_status": 0,
+      "relevant_result": "All 7 platform-health tests, 5 application recovery and invalid-config tests, and the queued-work bounds test passed. Unix repair refuses linked roots and hard-linked children, configuration preservation creates an independent private copy, and recovery reports remain bounded, offline, and Keychain-free.",
+      "caveat": "Windows permission state is deliberately reported as unchecked with manual guidance. Live Windows 11 behavior remains release-matrix evidence."
+    },
+    {
+      "command": "env -u JOBSENTINEL_LIVE_KEYRING_TESTS cargo test -p jobsentinel --lib ipc::recovery::tests; env -u JOBSENTINEL_LIVE_KEYRING_TESTS cargo test -p jobsentinel --lib ipc::feedback::report::tests; env -u JOBSENTINEL_LIVE_KEYRING_TESTS cargo test -p jobsentinel --lib bootstrap::tests; env -u JOBSENTINEL_LIVE_KEYRING_TESTS cargo test -p jobsentinel --lib tray_search_is_disabled_during_any_startup_recovery",
+      "exit_status": 0,
+      "relevant_result": "All 5 recovery IPC tests, 8 support-report tests, 3 bootstrap isolation tests, and the tray recovery test passed. Startup recovery exposes only its allowlisted local commands, skips primary storage initialization after platform failure, excludes arbitrary support details, and disables normal tray search.",
+      "caveat": "No Tauri application was launched. Installed-app keyboard, screen-reader, dialog, and platform behavior remain release-matrix work."
+    },
+    {
+      "command": "npm run test:run -- src/app/App.startup.test.tsx src/features/settings/sources/health/ScraperHealthDashboard.sourceChecks.test.tsx src/features/settings/support/LocalRecoveryPanel.SettingsPage.test.tsx src/features/settings/support/LocalRecoveryPanel.test.tsx src/features/settings/support/PortableRecoveryPanel.SettingsPage.test.tsx src/features/settings/support/PortableRecoveryPanel.incomplete.test.tsx src/features/settings/support/PortableRecoveryPanel.test.tsx; npm run lint; npm run typecheck; npm run lint:tauri-invokes",
+      "exit_status": 0,
+      "relevant_result": "All 35 focused recovery and Settings tests passed with ESLint, TypeScript, and the 218-command Tauri registry check. The renderer receives bounded status objects and native dialogs own private paths and passphrases.",
+      "caveat": "The full frontend suite was intentionally not run because the focused changed-behavior lane covered this slice."
+    },
+    {
+      "command": "env -u JOBSENTINEL_LIVE_KEYRING_TESTS cargo fmt --all; env -u JOBSENTINEL_LIVE_KEYRING_TESTS cargo clippy -p jobsentinel-platform -p jobsentinel-storage -p jobsentinel-application -p jobsentinel --lib -- -D warnings; npm run harness:check; npm run lint:file-size; npm run lint:architecture; npm run lint:security; npm run lint:deps; git diff --check",
+      "exit_status": 0,
+      "relevant_result": "Changed Rust production libraries passed formatting and Clippy with warnings denied. Harness state, hard file limits, repository architecture, security sensors, secret scanning, dependency pins, and patch whitespace passed.",
+      "caveat": "The broad all-targets Clippy lane contains pre-existing test-only unwrap and expect findings. Repository GitHub Actions remain temporarily disabled by user direction."
+    },
+    {
+      "command": "npm run harness:check",
+      "exit_status": 0,
+      "relevant_result": "Harness state, architecture, hosted-workflow policy, and maintained-file coverage passed after the Milestone 3 state transition.",
+      "caveat": "Repository GitHub Actions remain temporarily disabled by user direction."
+    },
+    {
+      "command": "npm run lint:security",
+      "exit_status": 0,
+      "relevant_result": "Security sensors and repository secret scanning passed.",
+      "caveat": "This static check does not replace installed-app or live platform verification."
+    },
+    {
+      "command": "Independent read-only product review followed by focused adversarial security reviews of startup isolation, credential boundaries, restore publication, owner locks, hard links, invalid configuration, opaque quarantine, support reports, and recovery UI",
+      "exit_status": 0,
+      "relevant_result": "The final product reviewer returned PASS. Security review findings were corrected with fail-first tests, and a fresh final reviewer returned PASS after confirming owner-lock acquisition precedes restore-marker reads and remains held through mutation.",
+      "caveat": "Reviewers used only focused offline checks with live keyring tests disabled. They did not edit files, launch Tauri, or access credentials."
+    }
+  ],
+  "source": "docs/plans/v3/master-exec-plan.md",
+  "measurements": {
+    "portable_restore_tests_passed": 27,
+    "platform_health_tests_passed": 7,
+    "application_recovery_tests_passed": 5,
+    "queued_work_tests_passed": 1,
+    "tauri_recovery_boundary_tests_passed": 17,
+    "frontend_tests_passed": 35,
+    "registered_tauri_commands": 218,
+    "final_adversarial_reviewers_passed": 2
+  },
+  "decisions": {
+    "startup_isolation": "A primary startup failure creates an in-memory recovery service with an ephemeral key. It does not initialize primary storage, the production credential service, scheduled work, normal IPC, or tray search.",
+    "offline_boundary": "Recovery reports, configuration preservation, storage inspection and cleanup, encrypted restore stage and cancel, reviewed export, safe support report, and app-owned permission repair require no connectivity. Every package action declares whether connectivity is required.",
+    "queued_work": "Recovery reports only the bounded count and capacity of pending URL imports. It never exposes queued content and expires stale entries locally.",
+    "restore_publication": "Static restore mutations acquire the verified database owner lock before reading shared restore state and retain it through mutation. Corrupt primary data and retained rollback data use independent private copies.",
+    "filesystem_safety": "Symlinks, hard links, identity changes, non-regular entries, and ambiguous I/O fail closed. Unix permissions are changed through verified open handles. Windows identity checks use native file identifiers, while permission repair remains manual.",
+    "invalid_configuration": "Malformed configuration is copied from a verified source handle into a new private recovery file before the canonical source is removed. A hard-linked external alias remains unchanged.",
+    "support_privacy": "Startup and normal safe support reports use fixed bounded projections and exclude credentials, raw errors, private paths, fallback configuration, payloads, and arbitrary renderer context.",
+    "package_repair": "Milestone 3 provides bounded diagnosis and plain repair guidance only. It does not add an updater, shell command, elevation path, download, or package installer.",
+    "credential_tests": "Keep live keyring tests opt-in. Every unattended Rust or composite Rust verification command must unset JOBSENTINEL_LIVE_KEYRING_TESTS."
+  },
+  "review": {
+    "adversarial_verdict": "PASS after startup isolation, publication, hard-link, support-report, and owner-lock ordering corrections",
+    "privacy_or_security_regression": false,
+    "open_slice_blockers": 0,
+    "remaining_findings": [
+      "Run live recovery, permission, native-dialog, and accessibility behavior on Windows 11, macOS 26, and Linux in the release matrix.",
+      "Milestone 10 owns verified package download, update, rollback, and distribution implementation. Milestone 3 intentionally provides guidance only.",
+      "Repository GitHub Actions must be re-enabled and verified before merge."
+    ]
+  }
+}

@@ -7,14 +7,13 @@
  * @version 2.5.5
  */
 
-import { memo, useState, useEffect, useCallback, useMemo } from "react";
+import { memo, useState, useEffect, useMemo } from "react";
 import { invoke } from "../../../platform/tauri";
 import { Badge } from "../../../ui/Badge";
 import { Button } from "../../../ui/Button";
 import { Tooltip } from "../../../ui/Tooltip";
 import { logError } from "../../../shared/errorReporting/logger";
 import { getUserFriendlyError } from "../../../shared/errorReporting/messages";
-import type { SkillProficiency } from "../shared/resumeSkillUiTaxonomy";
 import {
   getScoreBg,
   getScoreColor,
@@ -24,6 +23,8 @@ import {
 } from "../shared/resumeScore";
 import { takeStoredResumeJobContext } from "../shared/resumeJobContext";
 import { AtsLiveScoreDetailsModal } from "./AtsLiveScoreDetailsModal";
+import type { ResumeData } from "./resumeBuilderData";
+import { toResumeAnalysisInput } from "./resumeBuilderTransforms";
 import {
   formatHardConstraintRiskCategory,
   getHardConstraintRisks,
@@ -32,51 +33,6 @@ import {
 } from "./AtsLiveScorePanelModel";
 
 export type { AtsAnalysisResult } from "./AtsLiveScorePanelModel";
-
-// Resume data structure for analysis
-interface ContactInfo {
-  name: string;
-  email: string;
-  phone: string | null;
-  linkedin: string | null;
-  github: string | null;
-  location: string | null;
-  website: string | null;
-}
-
-interface Experience {
-  id: number;
-  title: string;
-  company: string;
-  location: string | null;
-  start_date: string;
-  end_date: string | null;
-  achievements: string[];
-}
-
-interface Education {
-  id: number;
-  degree: string;
-  institution: string;
-  location: string | null;
-  graduation_date: string | null;
-  gpa: string | null;
-  honors: string[];
-}
-
-interface SkillEntry {
-  name: string;
-  category: string;
-  proficiency: SkillProficiency | null;
-}
-
-interface ResumeData {
-  contact: ContactInfo;
-  summary: string;
-  experience: Experience[];
-  education: Education[];
-  skills: SkillEntry[];
-}
 
 interface AtsLiveScorePanelProps {
   resumeData: ResumeData | null;
@@ -97,6 +53,11 @@ export const AtsLiveScorePanel = memo(function AtsLiveScorePanel({
   const [jobDescription, setJobDescription] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [retryTrigger, setRetryTrigger] = useState(0);
+  const [evidenceRevision, setEvidenceRevision] = useState(() => crypto.randomUUID());
+
+  useEffect(() => {
+    setEvidenceRevision(crypto.randomUUID());
+  }, [resumeData]);
 
   // Load job context from sessionStorage (set by Resume Match)
   useEffect(() => {
@@ -104,47 +65,6 @@ export const AtsLiveScorePanel = memo(function AtsLiveScorePanel({
     if (stored) {
       setJobDescription(stored.description);
     }
-  }, []);
-
-  // Convert ResumeData to the format expected by backend
-  const convertToAtsFormat = useCallback((data: ResumeData) => {
-    return {
-      contact_info: {
-        name: data.contact.name,
-        email: data.contact.email,
-        phone: data.contact.phone || "",
-        location: data.contact.location || "",
-        linkedin: data.contact.linkedin,
-        github: data.contact.github,
-        website: data.contact.website,
-      },
-      summary: data.summary,
-      experience: data.experience.map((exp) => ({
-        title: exp.title,
-        company: exp.company,
-        location: exp.location || "",
-        start_date: exp.start_date,
-        end_date: exp.end_date || "Present",
-        achievements: exp.achievements,
-        current: !exp.end_date,
-      })),
-      education: data.education.map((edu) => ({
-        degree: edu.degree,
-        institution: edu.institution,
-        location: edu.location || "",
-        graduation_date: edu.graduation_date || "",
-        gpa: edu.gpa ? parseFloat(edu.gpa) : null,
-        honors: edu.honors,
-      })),
-      skills: data.skills.map((skill) => ({
-        name: skill.name,
-        category: skill.category,
-        proficiency: skill.proficiency,
-      })),
-      certifications: [],
-      projects: [],
-      custom_sections: {},
-    };
   }, []);
 
   // Analyze resume with debouncing
@@ -164,7 +84,7 @@ export const AtsLiveScorePanel = memo(function AtsLiveScorePanel({
         setAnalyzing(true);
         setError(null);
 
-        const atsData = convertToAtsFormat(resumeData);
+        const atsData = toResumeAnalysisInput(resumeData, evidenceRevision);
 
         let result: AtsAnalysisResult;
         if (jobDescription) {
@@ -191,7 +111,7 @@ export const AtsLiveScorePanel = memo(function AtsLiveScorePanel({
     }, debounceMs);
 
     return () => clearTimeout(timeoutId);
-  }, [resumeData, jobDescription, debounceMs, convertToAtsFormat, retryTrigger]);
+  }, [resumeData, jobDescription, debounceMs, evidenceRevision, retryTrigger]);
 
   // Memoize tips
   const tips = useMemo(() => getStepTips(currentStep, analysis), [currentStep, analysis]);

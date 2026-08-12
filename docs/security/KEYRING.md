@@ -188,9 +188,10 @@ a privacy reminder during long manual sessions without forcing the user to
 close the window.
 
 Consent-gated public sources are different. They can require a local
-acknowledgement before scheduled checks or Browser Import, but they do not
-create an authenticated session and must not write source cookies, tokens,
-browser storage, or account state into the vault.
+acknowledgement before scheduled checks. Browser Import instead requires a
+native per-site confirmation and one-use in-memory pairing. Neither path creates
+an authenticated session or writes source cookies, tokens, browser storage, or
+account state into the vault.
 
 The desktop registers no second secure-storage plugin. React credential flows
 use Tauri commands backed by `CredentialService`. `CredentialStore` remains

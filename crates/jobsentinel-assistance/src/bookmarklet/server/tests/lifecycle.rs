@@ -1,31 +1,37 @@
 use super::*;
 
 #[tokio::test]
-async fn test_bookmarklet_import_consumes_token_after_first_valid_use() {
+async fn test_bookmarklet_import_consumes_pairing_after_first_valid_use() {
     let database = bookmarklet_test_database().await;
-    let auth_state = bookmarklet_auth_state(TEST_AUTH_TOKEN, bookmarklet_auth_expiry());
+    let (active_pairing, code) = bookmarklet_pairing("https://example.com");
     let pending_imports = bookmarklet_pending_imports();
-    let first_body = bookmarklet_import_body(serde_json::json!({
-        "title": "Care Coordinator",
-        "company": "Community Care",
-        "url": "https://example.com/jobs/1"
-    }));
-    let second_body = bookmarklet_import_body(serde_json::json!({
-        "title": "Patient Scheduler",
-        "company": "Community Care",
-        "url": "https://example.com/jobs/2"
-    }));
+    let first_body = bookmarklet_import_body(
+        &code,
+        serde_json::json!({
+            "title": "Care Coordinator",
+            "company": "Community Care",
+            "url": "https://example.com/jobs/1"
+        }),
+    );
+    let second_body = bookmarklet_import_body(
+        &code,
+        serde_json::json!({
+            "title": "Patient Scheduler",
+            "company": "Community Care",
+            "url": "https://example.com/jobs/2"
+        }),
+    );
 
     let (first_response, _) = handle_import_request(
         &bookmarklet_import_request(&first_body),
-        &auth_state,
+        &active_pairing,
         pending_imports.clone(),
         database.clone(),
     )
     .await;
     let (second_response, _) = handle_import_request(
         &bookmarklet_import_request(&second_body),
-        &auth_state,
+        &active_pairing,
         pending_imports.clone(),
         database.clone(),
     )
@@ -45,30 +51,36 @@ async fn test_bookmarklet_import_consumes_token_after_first_valid_use() {
 }
 
 #[tokio::test]
-async fn test_bookmarklet_import_consumes_token_after_invalid_authenticated_payload() {
+async fn test_bookmarklet_import_consumes_pairing_after_invalid_authenticated_payload() {
     let database = bookmarklet_test_database().await;
-    let auth_state = bookmarklet_auth_state(TEST_AUTH_TOKEN, bookmarklet_auth_expiry());
-    let unsafe_body = bookmarklet_import_body(serde_json::json!({
-        "title": "Care Coordinator",
-        "company": "Community Care",
-        "url": "javascript:alert(1)"
-    }));
-    let valid_body = bookmarklet_import_body(serde_json::json!({
-        "title": "Patient Scheduler",
-        "company": "Community Care",
-        "url": "https://example.com/jobs/2"
-    }));
+    let (active_pairing, code) = bookmarklet_pairing("https://example.com");
+    let unsafe_body = bookmarklet_import_body(
+        &code,
+        serde_json::json!({
+            "title": "Care Coordinator",
+            "company": "Community Care",
+            "url": "javascript:alert(1)"
+        }),
+    );
+    let valid_body = bookmarklet_import_body(
+        &code,
+        serde_json::json!({
+            "title": "Patient Scheduler",
+            "company": "Community Care",
+            "url": "https://example.com/jobs/2"
+        }),
+    );
 
     let (first_response, _) = handle_import_request(
         &bookmarklet_import_request(&unsafe_body),
-        &auth_state,
+        &active_pairing,
         bookmarklet_pending_imports(),
         database.clone(),
     )
     .await;
     let (second_response, _) = handle_import_request(
         &bookmarklet_import_request(&valid_body),
-        &auth_state,
+        &active_pairing,
         bookmarklet_pending_imports(),
         database.clone(),
     )

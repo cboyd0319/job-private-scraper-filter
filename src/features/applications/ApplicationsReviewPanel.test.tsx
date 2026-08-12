@@ -8,34 +8,37 @@ const summary: ApplicationReviewSummary = {
   description: "Start with the highest priority work.",
   actions: [
     {
+      id: "reminder-1",
       kind: "reminders",
       priority: "high",
-      count: 2,
       title: "Finish reminders",
       description: "2 follow-ups, prep items, or deadlines are waiting.",
+      reminderId: 1,
     },
     {
+      id: "interview-3",
       kind: "interviews",
       priority: "medium",
-      count: 1,
       title: "Prepare for interviews",
       description: "1 conversation needs prep or follow-up.",
+      applicationId: 3,
     },
     {
+      id: "to-apply-4",
       kind: "to_apply",
       priority: "low",
-      count: 3,
-      title: "Apply or skip saved roles",
-      description: "3 saved roles need a decision.",
+      title: "Review this tracked role",
+      description: "Review its saved status and notes.",
+      applicationId: 4,
       handoff: {
-        label: "Posting review",
-        description: "Review source, pay, and must-haves, then tailor only if the role is worth applying to.",
+        label: "Application tracking",
+        description: "Confirm status and notes, then decide whether to apply, skip, or close the role.",
       },
     },
     {
+      id: "weekly-review",
       kind: "weekly_review",
       priority: "low",
-      count: 0,
       title: "Replan this week",
       description: "Compare sources and quiet roles before changing pace.",
       handoff: {
@@ -47,40 +50,43 @@ const summary: ApplicationReviewSummary = {
 };
 
 describe("ApplicationsReviewPanel", () => {
-  it("renders next actions and routes buttons to existing workflow surfaces", () => {
+  it("renders concrete mission actions and returns the selected target", () => {
+    const onSelectAction = vi.fn();
     const handlers = {
-      onReviewReminders: vi.fn(),
-      onReviewNoResponses: vi.fn(),
-      onOpenInterviews: vi.fn(),
+      onSelectAction,
       onOpenSummary: vi.fn(),
-      onReviewSavedRoles: vi.fn(),
       onGoToJobs: vi.fn(),
       onImportJob: vi.fn(),
     };
 
     render(<ApplicationsReviewPanel summary={summary} {...handlers} />);
 
-    expect(screen.getByText("Search review")).toBeInTheDocument();
+    expect(screen.getByText("Daily mission")).toBeInTheDocument();
     expect(screen.getByText("Finish reminders")).toBeInTheDocument();
     expect(screen.getByText("Prepare for interviews")).toBeInTheDocument();
-    expect(screen.getByText("Apply or skip saved roles")).toBeInTheDocument();
-    expect(screen.getByText("After this: Posting review")).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Review this tracked role" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("After this: Application tracking")).toBeInTheDocument();
     expect(screen.getByText("After this: Job-search plan")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Review reminders" }));
     fireEvent.click(screen.getByRole("button", { name: "Open interviews" }));
-    fireEvent.click(screen.getByRole("button", { name: "Review saved roles" }));
+    fireEvent.click(screen.getByRole("button", { name: "Review this tracked role" }));
     fireEvent.click(screen.getByRole("button", { name: "Review weekly plan" }));
     fireEvent.click(screen.getByRole("button", { name: "Open Summary" }));
 
-    expect(handlers.onReviewReminders).toHaveBeenCalledTimes(1);
-    expect(handlers.onOpenInterviews).toHaveBeenCalledTimes(1);
-    expect(handlers.onReviewSavedRoles).toHaveBeenCalledTimes(1);
-    expect(handlers.onOpenSummary).toHaveBeenCalledTimes(2);
+    expect(onSelectAction.mock.calls.map(([action]) => action.id)).toEqual([
+      "reminder-1",
+      "interview-3",
+      "to-apply-4",
+      "weekly-review",
+    ]);
+    expect(handlers.onOpenSummary).toHaveBeenCalledTimes(1);
   });
 
-  it("falls back to Jobs when import is not available", () => {
-    const onGoToJobs = vi.fn();
+  it("returns the empty-state import action without starting it", () => {
+    const onSelectAction = vi.fn();
 
     render(
       <ApplicationsReviewPanel
@@ -88,25 +94,24 @@ describe("ApplicationsReviewPanel", () => {
           ...summary,
           actions: [
             {
+              id: "add-job",
               kind: "to_apply",
               priority: "low",
-              count: 0,
               title: "Add a job to track",
               description: "Start with one saved, pasted, or imported job.",
             },
           ],
         }}
-        onReviewReminders={vi.fn()}
-        onReviewNoResponses={vi.fn()}
-        onOpenInterviews={vi.fn()}
+        onSelectAction={onSelectAction}
         onOpenSummary={vi.fn()}
-        onReviewSavedRoles={vi.fn()}
-        onGoToJobs={onGoToJobs}
+        onGoToJobs={vi.fn()}
       />,
     );
 
     fireEvent.click(screen.getByRole("button", { name: "Add or import job" }));
 
-    expect(onGoToJobs).toHaveBeenCalledTimes(1);
+    expect(onSelectAction).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "add-job", kind: "to_apply" }),
+    );
   });
 });

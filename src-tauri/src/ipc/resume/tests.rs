@@ -1,4 +1,95 @@
+use super::resume_match_debugger_commands::{
+    is_saved_match_debugger_opaque_id, validate_saved_match_debugger_args,
+    validate_saved_match_packet_args,
+};
 use super::*;
+use crate::application::resume::{
+    ProfessionMatchingProfile, RegionalMatchingProfile, ResumeMatchingProfile,
+};
+use crate::application::v3_foundation::SavedMatchDebugger;
+
+#[test]
+fn explicit_matching_profile_reaches_the_application_owner() {
+    let mut resume = ResumeAnalysisInput::default();
+    resume.resume.summary = Some("Led program evaluation.".to_string());
+    let profile = ResumeMatchingProfile {
+        profession: ProfessionMatchingProfile::Operations,
+        region: RegionalMatchingProfile::UnitedKingdom,
+    };
+
+    let result = analyze_resume_for_job(
+        resume,
+        "Required: programme evaluation".to_string(),
+        Some(profile),
+    )
+    .unwrap();
+
+    assert_eq!(result.matching_profile, Some(profile));
+    assert_eq!(result.keyword_matches[0].keyword, "program evaluation");
+}
+
+#[test]
+fn resume_match_feedback_is_closed_and_content_free() {
+    assert_eq!(
+        serde_json::from_str::<ResumeMatchFeedbackLabel>("\"not_relevant\"").unwrap(),
+        ResumeMatchFeedbackLabel::NotRelevant
+    );
+    assert!(serde_json::from_str::<ResumeMatchFeedbackLabel>("\"maybe\"").is_err());
+
+    let value = serde_json::to_value(ResumeMatchFeedback {
+        match_id: 42,
+        label: ResumeMatchFeedbackLabel::Useful,
+        recorded_at: Utc::now(),
+    })
+    .unwrap();
+    let mut keys = value
+        .as_object()
+        .unwrap()
+        .keys()
+        .cloned()
+        .collect::<Vec<_>>();
+    keys.sort();
+
+    assert_eq!(keys, ["label", "match_id", "recorded_at"]);
+}
+
+#[test]
+fn saved_match_debugger_arguments_require_a_saved_job_and_positive_resume() {
+    assert_eq!(validate_saved_match_debugger_args("saved-job", 7), Ok(()));
+    assert!(validate_saved_match_debugger_args("", 7).is_err());
+    assert!(validate_saved_match_debugger_args("saved-job", 0).is_err());
+    assert!(validate_saved_match_debugger_args(&"a".repeat(129), 7).is_err());
+    assert!(is_saved_match_debugger_opaque_id(&"a".repeat(64)));
+    assert!(!is_saved_match_debugger_opaque_id(&"a".repeat(63)));
+    assert!(!is_saved_match_debugger_opaque_id(&"g".repeat(64)));
+}
+
+#[test]
+fn saved_match_debugger_response_remains_renderer_serializable() {
+    fn assert_serializable<T: serde::Serialize>() {}
+
+    assert_serializable::<SavedMatchDebugger>();
+}
+
+#[test]
+fn saved_match_packet_arguments_require_reviewed_text_and_current_evidence() {
+    let evidence_id = "a".repeat(64);
+    assert_eq!(
+        validate_saved_match_packet_args("Reviewed scheduling claim", &[evidence_id.clone()]),
+        Ok(())
+    );
+    assert!(validate_saved_match_packet_args("", &[evidence_id.clone()]).is_err());
+    assert!(validate_saved_match_packet_args("Reviewed scheduling claim", &[]).is_err());
+    assert!(validate_saved_match_packet_args(
+        "Reviewed scheduling claim",
+        &[evidence_id.clone(), evidence_id.clone()],
+    )
+    .is_err());
+    assert!(
+        validate_saved_match_packet_args("Reviewed scheduling claim", &["g".repeat(64)]).is_err()
+    );
+    assert!(validate_saved_match_packet_args(&"x".repeat(8_193), &[evidence_id]).is_err());
+}
 
 #[test]
 fn resume_summary_serialization_omits_file_path_and_parsed_text() {
@@ -199,26 +290,11 @@ fn selected_resume_validation_rejects_oversized_file_without_path_leak() {
     let temp_dir = tempfile::tempdir().unwrap();
     let resume_path = temp_dir.path().join("Private Large Resume.pdf");
     let file = std::fs::File::create(&resume_path).unwrap();
-    file.set_len(MAX_SELECTED_RESUME_UPLOAD_BYTES + 1).unwrap();
+    file.set_len(MAX_RESUME_FILE_BYTES + 1).unwrap();
 
     let err = validate_selected_resume(&resume_path).unwrap_err();
 
     assert!(err.contains("too large"));
     assert!(!err.contains(temp_dir.path().to_string_lossy().as_ref()));
     assert!(!err.contains("Private Large Resume"));
-}
-
-#[test]
-fn html_resume_source_is_available_only_for_format_review() {
-    let temp_dir = tempfile::tempdir().unwrap();
-    let html_path = temp_dir.path().join("Private Resume.html");
-    let txt_path = temp_dir.path().join("Private Resume.txt");
-    std::fs::write(&html_path, "<html><body>Jordan Lee</body></html>").unwrap();
-    std::fs::write(&txt_path, "Jordan Lee").unwrap();
-
-    let source = read_html_resume_source_for_format_review(&html_path.to_string_lossy())
-        .expect("HTML source should be available for local format review");
-
-    assert!(source.contains("Jordan Lee"));
-    assert!(read_html_resume_source_for_format_review(&txt_path.to_string_lossy()).is_none());
 }

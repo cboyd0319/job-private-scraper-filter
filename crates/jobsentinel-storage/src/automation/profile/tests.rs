@@ -224,6 +224,42 @@ async fn test_screening_answers() {
 }
 
 #[tokio::test]
+async fn protected_screening_answers_remain_saved_but_are_not_found() {
+    let pool = migrated_pool().await;
+    let manager = ProfileManager::new(pool);
+
+    manager
+        .upsert_screening_answer("veteran status", "Yes", "yes_no", None)
+        .await
+        .unwrap();
+    manager
+        .upsert_screening_answer("pronouns", "they/them", "text", None)
+        .await
+        .unwrap();
+
+    assert!(manager
+        .get_screening_answers()
+        .await
+        .unwrap()
+        .iter()
+        .any(|answer| answer.question_pattern == "veteran status" && answer.answer == "Yes"));
+    assert_eq!(
+        manager
+            .find_answer_for_question("Do you identify as a protected veteran?")
+            .await
+            .unwrap(),
+        None
+    );
+    assert_eq!(
+        manager
+            .find_answer_for_question("What are your pronouns?")
+            .await
+            .unwrap(),
+        None
+    );
+}
+
+#[tokio::test]
 async fn test_screening_answer_legacy_boolean_type_is_normalized() {
     let pool = migrated_pool().await;
     let manager = ProfileManager::new(pool);

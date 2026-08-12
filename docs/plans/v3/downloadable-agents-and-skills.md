@@ -1,3 +1,5 @@
+<!-- Defines JobSentinel's signed downloadable agent, skill, pack, and evaluation product boundary. -->
+
 # Downloadable Agents And Skills
 
 V2.9 ships downloadable Agent Skills. V3 should turn that into a broader
@@ -35,7 +37,7 @@ The implementation must stay structured, signed, inspectable, and revocable.
 
 | Pack type | Purpose |
 | --- | --- |
-| Skill pack | Static Agent Skills, prompts, checklists, references, templates, and scripts that follow the skills spec. |
+| Skill pack | Static Agent Skills, prompts, checklists, references, and templates that follow the skills spec. |
 | Agent pack | A declared local workflow agent with inputs, outputs, privacy labels, approval gates, and allowed actions. |
 | Workflow pack | Multi-step guided flows such as weekly review, apply packet, interview prep, or offer review. |
 | Role pack | Role-specific titles, skills, rubrics, examples, source suggestions, interview questions, and resume guidance. |
@@ -159,6 +161,10 @@ New or updated packs should enter quarantine until local checks pass:
 - size budget checks
 - banned-file and executable-code checks
 - source policy and region metadata checks when relevant
+
+The Milestone 5 contract verifies the manifest SHA-256 against the exact payload
+bytes before a consumer can accept them. Matching bytes establish integrity
+only, not publisher identity, trust, safe content, or permission to execute.
 
 Users should see plain states:
 

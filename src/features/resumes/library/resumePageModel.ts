@@ -86,7 +86,16 @@ export interface MatchResult {
   matching_skills: string[];
   missing_skills: string[];
   gap_analysis: string | null;
+  feedback: ResumeMatchFeedback | null;
   created_at: string;
+}
+
+export type ResumeMatchFeedbackLabel = "useful" | "not_relevant";
+
+export interface ResumeMatchFeedback {
+  match_id: number;
+  label: ResumeMatchFeedbackLabel;
+  recorded_at: string;
 }
 
 export function normalizeSkillStrength(value: string | null | undefined) {

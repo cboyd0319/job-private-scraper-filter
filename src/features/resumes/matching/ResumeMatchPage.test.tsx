@@ -180,6 +180,85 @@ describe("ResumeMatch", () => {
     expect(screen.queryByRole("button", { name: /show comparison/i })).not.toBeInTheDocument();
   });
 
+  it("uses only an explicitly selected role and regional matching profile", async () => {
+    const user = userEvent.setup();
+    mockInvoke.mockImplementation((command) => {
+      if (command === "get_active_resume") return Promise.resolve(mockActiveResume);
+      if (command === "analyze_active_resume_for_job") {
+        return Promise.resolve({
+          ...mockJobAnalysis,
+          matching_profile: { profession: "operations", region: "uk" },
+        });
+      }
+      return Promise.resolve(mockAnalysis);
+    });
+    render(<ResumeMatch onBack={vi.fn()} />);
+
+    expect(await screen.findByText(/selected resume:/i)).toBeInTheDocument();
+    await user.selectOptions(
+      screen.getByRole("combobox", { name: /role evidence focus/i }),
+      "operations",
+    );
+    await user.selectOptions(
+      screen.getByRole("combobox", { name: /job market wording/i }),
+      "uk",
+    );
+    expect(
+      screen.getByText(/does not claim complete regional terminology or employer coverage/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /role evidence focus changes only same-priority review order.*regional spellings can change recognized matches and scores/i,
+      ),
+    ).toBeInTheDocument();
+
+    fireEvent.change(screen.getByLabelText(/^job post$/i), {
+      target: { value: "Required: programme evaluation" },
+    });
+    await user.click(screen.getByRole("button", { name: /review match/i }));
+
+    await waitFor(() => {
+      expect(mockInvoke).toHaveBeenCalledWith("analyze_active_resume_for_job", {
+        jobDescription: "Required: programme evaluation",
+        matchingProfile: { profession: "operations", region: "uk" },
+      });
+    });
+  });
+
+  it("locks the selected profile while its review is in flight", async () => {
+    const user = userEvent.setup();
+    let resolveAnalysis!: (result: typeof mockJobAnalysis) => void;
+    const pendingAnalysis = new Promise<typeof mockJobAnalysis>((resolve) => {
+      resolveAnalysis = resolve;
+    });
+    mockInvoke.mockImplementation((command) => {
+      if (command === "get_active_resume") return Promise.resolve(mockActiveResume);
+      if (command === "analyze_active_resume_for_job") return pendingAnalysis;
+      return Promise.resolve(mockAnalysis);
+    });
+    render(<ResumeMatch onBack={vi.fn()} />);
+
+    expect(await screen.findByText(/selected resume:/i)).toBeInTheDocument();
+    const role = screen.getByRole("combobox", { name: /role evidence focus/i });
+    const region = screen.getByRole("combobox", { name: /job market wording/i });
+    await user.selectOptions(role, "operations");
+    await user.selectOptions(region, "uk");
+    fireEvent.change(screen.getByLabelText(/^job post$/i), {
+      target: { value: "Required: programme evaluation" },
+    });
+    await user.click(screen.getByRole("button", { name: /review match/i }));
+
+    expect(role).toBeDisabled();
+    expect(region).toBeDisabled();
+    expect(region).toHaveValue("uk");
+
+    resolveAnalysis(mockJobAnalysis);
+    expect(await screen.findByText("Resume Fit")).toBeInTheDocument();
+    expect(role).toBeEnabled();
+    expect(region).toBeEnabled();
+    expect(region).toHaveValue("uk");
+  });
+
   it("shows selected resume readable-text status before match review", async () => {
     mockInvoke.mockImplementation((command) => {
       if (command === "get_active_resume") return Promise.resolve(mockActiveResume);

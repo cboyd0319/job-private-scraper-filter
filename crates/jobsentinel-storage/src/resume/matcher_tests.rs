@@ -209,6 +209,18 @@ async fn test_calculate_match_no_user_skills() {
     assert_eq!(match_result.skills_match_score, Some(0.0));
     assert_eq!(match_result.matching_skills.len(), 0);
     assert_eq!(match_result.missing_skills.len(), 1);
+    let analysis = match_result.gap_analysis.as_deref().unwrap();
+    assert!(analysis.contains("Scoring sources:"));
+    assert!(analysis.contains("skills") || analysis.contains("skill coverage"));
+    assert!(!analysis.contains("local semantic similarity"));
+    assert!(!analysis.contains("local reranker"));
+    if analysis.contains("skill coverage") {
+        assert!(analysis.contains(
+            "Why not: Score limited because skill evidence was not found: Case Management"
+        ));
+    } else {
+        assert!(!analysis.contains("Why not:"));
+    }
 }
 
 #[tokio::test]

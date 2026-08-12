@@ -40,6 +40,7 @@ export default function ResumeLibraryPage({ onBack }: ResumeLibraryPageProps) {
       handleSetActiveResume,
       handleSetResumeMatching,
       handleUploadResume,
+      handleMatchFeedback,
     },
     skillActions: {
       confirmDeleteSkill,
@@ -66,6 +67,7 @@ export default function ResumeLibraryPage({ onBack }: ResumeLibraryPageProps) {
       resume,
       resumeMatchingEnabled,
       resumeMatchingLoading,
+      savingFeedback,
       showResumeLibrary,
       uploading,
     },
@@ -295,7 +297,11 @@ export default function ResumeLibraryPage({ onBack }: ResumeLibraryPageProps) {
               onConfirmDeleteSkill={confirmDeleteSkill}
             />
 
-            <ResumeRecentMatches matches={recentMatches} />
+            <ResumeRecentMatches
+              matches={recentMatches}
+              savingFeedback={savingFeedback}
+              onFeedback={handleMatchFeedback}
+            />
           </div>
         )}
       </main>

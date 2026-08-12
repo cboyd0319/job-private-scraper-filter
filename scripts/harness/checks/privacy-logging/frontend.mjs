@@ -8,6 +8,7 @@ import {
   frontendDirectErrorLoggingPaths,
   frontendDesktopNotificationPrivacyPaths,
   bookmarkletGeneratorPaths,
+  stripRustTestModules,
   stripTypeScriptComments,
 } from "./shared.mjs";
 
@@ -164,13 +165,21 @@ export function hasHardcodedFrontendErrorExportVersion(root, path) {
   );
 }
 
-export function hasBookmarkletCodeWithoutTokenHeader(root, path) {
+export function hasBookmarkletCodeWithoutPairingBoundary(root, path) {
   if (!bookmarkletGeneratorPaths.has(path)) {
     return false;
   }
 
-  const text = readFileSync(join(root, path), "utf8");
-  return /api\/bookmarklet\/import/.test(text) && !/X-JobSentinel-Token/.test(text);
+  const text = stripRustTestModules(readFileSync(join(root, path), "utf8"));
+  const originCheck = text.indexOf("location.origin!==__ORIGIN__");
+  const pageAccess = text.indexOf("document.createElement");
+  return (
+    /api\/bookmarklet\/import/.test(text) &&
+    (!/payload=\{pairing:__PAIRING__,job:job\}/.test(text) ||
+      originCheck === -1 ||
+      pageAccess === -1 ||
+      originCheck > pageAccess)
+  );
 }
 
 export function hasFrontendDesktopNotificationPassthrough(root, path) {

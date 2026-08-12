@@ -101,6 +101,8 @@ pub(crate) async fn persist_and_notify(
         if scoring_engine.should_alert_immediately(score) {
             high_matches += 1;
 
+            // Claim before delivery to preserve at-most-once external alert attempts.
+            // Ambiguous or failed attempts are visible but never retried automatically.
             match database.claim_immediate_alert(&job.hash).await {
                 Ok(true) => {}
                 Ok(false) => continue,
@@ -161,5 +163,61 @@ pub(crate) async fn persist_and_notify(
         high_matches,
         alerts_sent,
         errors,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{
+        scoring::{JobScore, ScoreBreakdown},
+        test_support::{minimal_test_config, test_job},
+    };
+
+    #[tokio::test]
+    async fn failed_notification_is_not_retried_automatically() {
+        let mut config = minimal_test_config();
+        config.alerts.slack.enabled = true;
+        let config = Arc::new(config);
+        let database = Arc::new(Database::connect_memory().await.unwrap());
+        database.migrate().await.unwrap();
+        let credentials = Arc::new(CredentialService::with_fixed_master_key(
+            database.credentials(),
+            [7; 32],
+            false,
+        ));
+        let job = test_job("notification-failure", "Care Coordinator", "Community Care");
+        let score = JobScore {
+            total: 1.0,
+            breakdown: ScoreBreakdown {
+                skills: 0.4,
+                salary: 0.25,
+                location: 0.2,
+                company: 0.1,
+                recency: 0.05,
+            },
+            reasons: vec![],
+        };
+
+        let first = persist_and_notify(
+            &[(job.clone(), score.clone())],
+            &config,
+            &database,
+            &credentials,
+        )
+        .await;
+        let second = persist_and_notify(&[(job, score)], &config, &database, &credentials).await;
+
+        assert_eq!(first.alerts_sent, 0);
+        assert_eq!(first.errors, ["Notification delivery error for one job"]);
+        assert!(second.errors.is_empty());
+        assert!(
+            database
+                .get_job_by_hash("notification-failure")
+                .await
+                .unwrap()
+                .unwrap()
+                .immediate_alert_sent
+        );
     }
 }

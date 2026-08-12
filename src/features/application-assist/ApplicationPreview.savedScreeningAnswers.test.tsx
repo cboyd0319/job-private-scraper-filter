@@ -36,7 +36,7 @@ function mockProfileAndAnswers(answers: SavedAnswerFixture[]) {
       return Promise.resolve(mockProfile);
     }
 
-    if (command === "get_screening_answers") {
+    if (command === "get_application_screening_answer_previews") {
       return Promise.resolve(answers.map(savedAnswer));
     }
 
@@ -66,7 +66,7 @@ async function expectSavedGuidance(
 
   expect(await screen.findByText("Hard Question Review")).toBeInTheDocument();
   expect(screen.getByText(expectedGuidance)).toBeInTheDocument();
-  expect(mockInvoke).toHaveBeenCalledWith("get_screening_answers");
+  expect(mockInvoke).toHaveBeenCalledWith("get_application_screening_answer_previews");
 }
 
 describe("ApplicationPreview", () => {
@@ -82,7 +82,7 @@ describe("ApplicationPreview", () => {
           });
         }
 
-        if (command === "get_screening_answers") {
+        if (command === "get_application_screening_answer_previews") {
           return Promise.resolve([]);
         }
 
@@ -317,7 +317,7 @@ describe("ApplicationPreview", () => {
           return Promise.resolve(mockProfile);
         }
 
-        if (command === "get_screening_answers") {
+        if (command === "get_application_screening_answer_previews") {
           return Promise.reject(new Error("saved answers unavailable"));
         }
 

@@ -20,6 +20,11 @@ fn count_to_i32(value: usize) -> i32 {
     i32::try_from(value).unwrap_or(i32::MAX)
 }
 
+fn require_terminal_write(rows_affected: u64) -> Result<()> {
+    anyhow::ensure!(rows_affected == 1, "Scraper run audit row was unavailable");
+    Ok(())
+}
+
 /// Record a minimized optional external source request and return its row ID.
 ///
 /// The ledger stores metadata categories only. Callers must not pass raw job
@@ -63,11 +68,15 @@ pub async fn finish_source_request(
     request_id: i64,
     outcome: SourceRequestOutcome,
 ) -> Result<()> {
-    sqlx::query(
+    anyhow::ensure!(
+        outcome != SourceRequestOutcome::Started,
+        "Source request audit needs a terminal outcome"
+    );
+    let result = sqlx::query(
         r#"
         UPDATE source_request_log
         SET outcome = ?
-        WHERE id = ?
+        WHERE id = ? AND outcome = 'started'
         "#,
     )
     .bind(outcome.as_str())
@@ -75,7 +84,19 @@ pub async fn finish_source_request(
     .execute(db.pool())
     .await?;
 
-    Ok(())
+    require_terminal_write(result.rows_affected())
+}
+
+/// Mark request attempts left without a terminal audit as failed.
+pub async fn interrupt_started_source_requests(db: &Database) -> Result<u64> {
+    let result = sqlx::query(
+        "UPDATE source_request_log
+         SET outcome = 'failure'
+         WHERE outcome = 'started'",
+    )
+    .execute(db.pool())
+    .await?;
+    Ok(result.rows_affected())
 }
 
 /// Retrieve the latest minimized source request record.
@@ -184,7 +205,7 @@ pub async fn complete_run(
     let jobs_found = jobs_found as i32;
     let jobs_new = jobs_new as i32;
 
-    sqlx::query!(
+    let result = sqlx::query!(
         r#"
         UPDATE scraper_runs
         SET finished_at = ?,
@@ -192,7 +213,7 @@ pub async fn complete_run(
             status = 'success',
             jobs_found = ?,
             jobs_new = ?
-        WHERE id = ?
+        WHERE id = ? AND status = 'running'
         "#,
         now,
         duration_ms,
@@ -203,7 +224,7 @@ pub async fn complete_run(
     .execute(db.pool())
     .await?;
 
-    Ok(())
+    require_terminal_write(result.rows_affected())
 }
 
 /// Record a failed run with error details.
@@ -227,7 +248,7 @@ pub async fn fail_run(
 ) -> Result<()> {
     let now = Utc::now();
 
-    sqlx::query!(
+    let result = sqlx::query!(
         r#"
         UPDATE scraper_runs
         SET finished_at = ?,
@@ -235,7 +256,7 @@ pub async fn fail_run(
             status = 'failure',
             error_message = ?,
             error_code = ?
-        WHERE id = ?
+        WHERE id = ? AND status = 'running'
         "#,
         now,
         duration_ms,
@@ -246,7 +267,7 @@ pub async fn fail_run(
     .execute(db.pool())
     .await?;
 
-    Ok(())
+    require_terminal_write(result.rows_affected())
 }
 
 /// Record a timeout failure.
@@ -261,14 +282,14 @@ pub async fn fail_run(
 pub async fn timeout_run(db: &Database, run_id: i64, duration_ms: i64) -> Result<()> {
     let now = Utc::now();
 
-    sqlx::query!(
+    let result = sqlx::query!(
         r#"
         UPDATE scraper_runs
         SET finished_at = ?,
             duration_ms = ?,
             status = 'timeout',
             error_message = 'Request timed out'
-        WHERE id = ?
+        WHERE id = ? AND status = 'running'
         "#,
         now,
         duration_ms,
@@ -277,7 +298,29 @@ pub async fn timeout_run(db: &Database, run_id: i64, duration_ms: i64) -> Result
     .execute(db.pool())
     .await?;
 
-    Ok(())
+    require_terminal_write(result.rows_affected())
+}
+
+/// Mark every source run left active by an interrupted process as failed.
+pub async fn interrupt_running_runs(db: &Database) -> Result<u64> {
+    let now = Utc::now().naive_utc();
+    let result = sqlx::query!(
+        r#"
+        UPDATE scraper_runs
+        SET finished_at = ?,
+            duration_ms = MAX(0, CAST((julianday(?) - julianday(started_at)) * 86400000 AS INTEGER)),
+            status = 'failure',
+            error_message = 'Previous source check was interrupted',
+            error_code = 'interrupted'
+        WHERE status = 'running'
+        "#,
+        now,
+        now,
+    )
+    .execute(db.pool())
+    .await?;
+
+    Ok(result.rows_affected())
 }
 
 /// Retrieve recent execution history for a scraper.
@@ -331,4 +374,123 @@ pub async fn get_scraper_runs(
         .collect();
 
     Ok(runs)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn interrupt_started_source_requests_marks_only_unfinished_attempts() {
+        let database = crate::test_support::migrated_database().await;
+        record_source_request_started(&database, "interrupted", None, 1, false, true, 10)
+            .await
+            .unwrap();
+        let finished =
+            record_source_request_started(&database, "finished", None, 1, false, true, 10)
+                .await
+                .unwrap();
+        finish_source_request(&database, finished, SourceRequestOutcome::Success)
+            .await
+            .unwrap();
+
+        assert_eq!(
+            interrupt_started_source_requests(&database).await.unwrap(),
+            1
+        );
+        assert_eq!(
+            get_latest_source_request(&database, "interrupted")
+                .await
+                .unwrap()
+                .unwrap()
+                .outcome,
+            SourceRequestOutcome::Failure
+        );
+        assert_eq!(
+            get_latest_source_request(&database, "finished")
+                .await
+                .unwrap()
+                .unwrap()
+                .outcome,
+            SourceRequestOutcome::Success
+        );
+    }
+
+    #[tokio::test]
+    async fn interrupt_running_runs_reconciles_all_sources() {
+        let database = crate::test_support::migrated_database().await;
+        let first = start_run(&database, "disabled-source").await.unwrap();
+        let second = start_run(&database, "removed-source").await.unwrap();
+
+        assert_eq!(interrupt_running_runs(&database).await.unwrap(), 2);
+
+        for (source, id) in [("disabled-source", first), ("removed-source", second)] {
+            let run = get_scraper_runs(&database, source, 1)
+                .await
+                .unwrap()
+                .pop()
+                .unwrap();
+            assert_eq!(run.id, id);
+            assert_eq!(run.status, RunStatus::Failure);
+            assert_eq!(run.error_code.as_deref(), Some("interrupted"));
+            assert_eq!(
+                run.error_message.as_deref(),
+                Some("Previous source check was interrupted")
+            );
+            assert!(run.finished_at.is_some());
+        }
+    }
+
+    #[tokio::test]
+    async fn terminal_writes_reject_a_missing_audit_row() {
+        let database = crate::test_support::migrated_database().await;
+
+        assert!(complete_run(&database, i64::MAX, 1, 1, 1).await.is_err());
+        assert!(fail_run(
+            &database,
+            i64::MAX,
+            1,
+            "Source check failed",
+            Some("network")
+        )
+        .await
+        .is_err());
+        assert!(timeout_run(&database, i64::MAX, 1).await.is_err());
+        assert!(
+            finish_source_request(&database, i64::MAX, SourceRequestOutcome::Failure)
+                .await
+                .is_err()
+        );
+    }
+
+    #[tokio::test]
+    async fn terminal_writes_reject_an_already_finished_audit_row() {
+        let database = crate::test_support::migrated_database().await;
+        let run_id = start_run(&database, "finished-source").await.unwrap();
+        complete_run(&database, run_id, 1, 1, 1).await.unwrap();
+
+        assert!(
+            fail_run(&database, run_id, 2, "Late failure", Some("late_failure"))
+                .await
+                .is_err()
+        );
+
+        let request_id =
+            record_source_request_started(&database, "jobswithgpt", None, 1, false, true, 10)
+                .await
+                .unwrap();
+        assert!(
+            finish_source_request(&database, request_id, SourceRequestOutcome::Started)
+                .await
+                .is_err()
+        );
+        finish_source_request(&database, request_id, SourceRequestOutcome::Success)
+            .await
+            .unwrap();
+        assert!(
+            finish_source_request(&database, request_id, SourceRequestOutcome::Failure)
+                .await
+                .is_err()
+        );
+    }
 }

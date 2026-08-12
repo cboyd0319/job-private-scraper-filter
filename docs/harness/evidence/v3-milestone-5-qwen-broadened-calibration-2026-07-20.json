@@ -1,0 +1,90 @@
+{
+  "schema": "jobsentinel.feature_evidence.v1",
+  "feature_id": "v3-milestone-5-local-evidence-resume-matching",
+  "slice": "qwen3-requirement-calibration-broadening",
+  "behavior": "The exact pinned Qwen3 Candle pair distinguishes required licenses, credentials, and ownership scope from adjacent same-field experience across trades, transportation, education, and retail management, without changing the frozen 0.30 retrieval or 3.0 reranker thresholds and without devaluing the adjacent experience.",
+  "result": "pass",
+  "verified_at": "2026-07-20T17:18:04Z",
+  "revision": "c93ac51647be25e3ab7a475edbf3113ff7c3022a",
+  "revision_scope": "The ten-pair frozen requirement hard-negative fixture, its always-on contract and ordering tests covering all ten queries, the shared capture-then-assert calibration helper, and the three pinned model tests (original production-path baseline, expanded, broadened).",
+  "platform": {
+    "os": "macOS 27.0 build 26A5378j",
+    "architecture": "arm64",
+    "hardware": "Mac16,5, Apple M4 Max, 64 GiB",
+    "rust": "rustc 1.97.1 (8bab26f4f 2026-07-14)"
+  },
+  "dataset": {
+    "kind": "job_requirement_to_resume_evidence",
+    "source": "synthetic checked-in fixture",
+    "total_pairs": 10,
+    "broadened_cases": [
+      {
+        "query": "Current state journeyman electrician license required",
+        "positive": "Current Texas journeyman electrician license with commercial wiring experience.",
+        "hard_negative": "Apprentice helper work assisting licensed electricians.",
+        "boundary": "Helper experience can be relevant but is not a current journeyman license."
+      },
+      {
+        "query": "Valid Class A commercial driver's license (CDL-A) required",
+        "positive": "Current CDL-A with tanker endorsement and a clean five-year record.",
+        "hard_negative": "Certified forklift operator loading trailers.",
+        "boundary": "Forklift certification is related transport work but not a CDL-A."
+      },
+      {
+        "query": "Current state teaching credential for secondary mathematics required",
+        "positive": "Active California secondary mathematics teaching credential with classroom experience.",
+        "hard_negative": "Private algebra and SAT tutoring.",
+        "boundary": "Tutoring shows subject knowledge but is not a state teaching credential."
+      },
+      {
+        "query": "Experience owning full profit-and-loss responsibility for a retail store",
+        "positive": "Store general manager owning full profit-and-loss, staffing, inventory, and shrink.",
+        "hard_negative": "Shift lead handling register close-outs and schedules.",
+        "boundary": "Shift-lead leadership is real but is not store-level profit-and-loss ownership."
+      }
+    ]
+  },
+  "thresholds": {
+    "resume_requirement_retrieval": 0.3,
+    "resume_requirement_reranker_acceptance": 3.0,
+    "broadened_minimum_positive_retrieval_margin": 0.1,
+    "expanded_minimum_positive_retrieval_margin": 0.25,
+    "minimum_acceptance_margin_both_directions": 1.0
+  },
+  "frozen_scores": {
+    "broadened_dense": [
+      [0.7082397, 0.5824644],
+      [0.6609114, 0.4218411],
+      [0.7135949, 0.48457155],
+      [0.4284561, 0.34910786]
+    ],
+    "broadened_reranker": [
+      [5.251232, -1.1278063],
+      [5.107009, -3.9703546],
+      [6.063671, -3.2277465],
+      [6.387731, -6.2350197]
+    ]
+  },
+  "commands": [
+    {
+      "command": "env JOBSENTINEL_QWEN3_TEST_CACHE=<verified local cache> node scripts/dev/run-cargo.mjs test -p jobsentinel-local-ai --features embedded-ml calibration::pinned_qwen3 -- --ignored --test-threads=1",
+      "exit_status": 0,
+      "duration_seconds": 791.3,
+      "result": "All three pinned calibration tests passed at this exact revision: the original three-pair production-path baseline, the expanded three-pair direct-component set, and the broadened four-pair direct-component set."
+    },
+    {
+      "command": "node scripts/dev/run-cargo.mjs test -p jobsentinel-local-ai --features embedded-ml",
+      "exit_status": 0,
+      "result": "89 default tests passed with 13 explicit model tests ignored, including the ten-pair fixture contract and all-ten ordering and uniqueness guards."
+    }
+  ],
+  "findings": [
+    "The retail profit-and-loss positive retrieves at 0.4284561 dense, only 0.1285 above the retrieval threshold, while its reranker score separates decisively at 6.387731 against -6.2350197. The layered design, not dense retrieval alone, carries this boundary.",
+    "All four broadened hard negatives score below the reranker acceptance with at least the 1.0 margin, and every positive scores above it with at least the 1.0 margin."
+  ],
+  "caveats": [
+    "Ten synthetic pairs freeze targeted credential and scope boundaries; they are not production-wide, cross-platform, modest-hardware, employer, or regional evidence.",
+    "Scores are frozen on one macOS 27 arm64 host; cross-platform numeric reproduction is untested.",
+    "The adversarial reviewer noted that near-threshold negative retrieval membership is intentionally conditional on the observed score, so a negative may drift across the retrieval boundary without failing the calibration test; the frozen dense tolerance of 0.01 still bounds such drift."
+  ]
+}

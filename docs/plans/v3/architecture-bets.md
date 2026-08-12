@@ -325,8 +325,8 @@ rollback expectations.
 
 Required properties:
 
-- Pre-v3 data migrates forward with a backup but carries no durable rollback
-  promise.
+- Pre-v3 data, settings, APIs, packs, and artifacts are unsupported upgrade
+  sources and carry no forward-migration or rollback promise.
 - V3 data, settings, packs, model metadata, privacy receipts, and browser
   companion permissions get versioned contracts.
 - Compatible v3 patch and minor releases support documented rollback when
@@ -346,8 +346,9 @@ Implementation shape:
 
 - Add a compatibility manifest for database, settings, source packs, model
   packs, browser protocol, AI gateway settings, and export formats.
-- Add migration tests for fresh install, pre-v3 upgrade, compatible v3 rollback,
-  failed migration retry, backup restore, and unsupported-newer-data detection.
+- Add migration tests for fresh install, the v3.0.0 baseline, compatible v3
+  rollback, failed migration retry, backup restore, and unsupported-newer-data
+  detection.
 
 ## Bet 12: Native OS Adapter Layer
 

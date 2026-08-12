@@ -24,6 +24,7 @@ interface SetupWizardNotificationsStepProps {
   suggestedJobSources: SetupWizardSourceReviewOption[];
   onBack: () => void;
   onComplete: () => void;
+  isSaving: boolean;
   onDesktopAlertsChange: (enabled: boolean) => void;
   onFreshnessPreferenceChange: (preference: FreshnessPreference) => void;
   onQuietAlertModeChange: (enabled: boolean) => void;
@@ -40,6 +41,7 @@ export function SetupWizardNotificationsStep({
   suggestedJobSources,
   onBack,
   onComplete,
+  isSaving,
   onDesktopAlertsChange,
   onFreshnessPreferenceChange,
   onQuietAlertModeChange,
@@ -210,6 +212,8 @@ export function SetupWizardNotificationsStep({
           variant="success"
           className="flex-1"
           size="lg"
+          loading={isSaving}
+          loadingText="Saving setup"
         >
           Start Finding Jobs
         </Button>

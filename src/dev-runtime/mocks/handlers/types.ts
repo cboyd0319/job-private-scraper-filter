@@ -1,3 +1,5 @@
+/** Defines browser-development command state and fixture types. */
+
 import type {
   mockApplications,
   mockConfig,
@@ -182,12 +184,18 @@ export interface MockMatchResult {
   matching_skills: string[];
   missing_skills: string[];
   gap_analysis: string | null;
+  feedback: {
+    match_id: number;
+    label: "useful" | "not_relevant";
+    recorded_at: string;
+  } | null;
   created_at: string;
 }
 
 export interface MockInterview {
   id: number;
   application_id: number;
+  job_hash: string;
   interview_type: string;
   scheduled_at: string;
   duration_minutes: number;
@@ -197,6 +205,7 @@ export interface MockInterview {
   notes: string | null;
   completed: boolean;
   outcome: string | null;
+  post_interview_notes: string | null;
   job_title: string;
   company: string;
 }
@@ -210,6 +219,7 @@ export interface MockDashboardPreferences {
 export interface MockFillResultWithAttempt {
   filledFields: string[];
   unfilledFields: string[];
+  manualReviewTopics?: string[];
   captchaDetected: boolean;
   readyForReview: boolean;
   errorMessage: string | null;
@@ -237,12 +247,30 @@ export interface MockState {
   userSkills: MockUserSkill[];
   resumeDrafts: MockResumeDraft[];
   recentMatches: MockMatchResult[];
+  savedMatchEvidence: Record<string, MockSavedMatchEvidenceState>;
   marketAlerts: MockMarketAlert[];
   applicationProfile: MockApplicationProfile | null;
   screeningAnswers: MockScreeningAnswer[];
   scraperEnabledOverrides: MockScraperEnabledOverrides;
   interviewPrepChecklists: MockInterviewPrepState;
   interviewFollowups: MockInterviewFollowUpState;
+  linkedinWorkbenchReviewed: boolean;
+}
+
+export interface MockSavedMatchEvidenceState {
+  confirmedEvidenceIds: string[];
+  confirmedMilitaryEvidenceKinds: Array<
+    "military_service" | "current_clearance"
+  >;
+  packetClaims: Array<{
+    claim_id: string;
+    reviewed_text: string;
+    evidence_ids: string[];
+    boundaries: [
+      "clearance_currentness_unverified",
+      "military_civilian_equivalence_unverified",
+    ];
+  }>;
 }
 
 export type {

@@ -1,0 +1,82 @@
+{
+  "schema": "jobsentinel.feature_evidence.v1",
+  "feature_id": "v3-milestone-0-repository-truth",
+  "behavior": "Gate 0 records and deterministic plan checks keep release, debt, test, and pipeline claims accurate.",
+  "result": "passing",
+  "verified_at": "2026-07-18T23:08:31Z",
+  "revision": "469abb3f76a3e36d277996dcacd00310eda65d9b",
+  "revision_scope": "The clean committed Milestone 0 implementation before the evidence-only state transition.",
+  "platform": "local Darwin arm64 host",
+  "commands": [
+    {
+      "command": "npm run harness:check",
+      "exit_status": 0,
+      "relevant_result": "The active-plan routes, 230 canonical idea dispositions, release-truth markers, state, architecture, workflow policy, and file-size coverage passed.",
+      "caveat": "Repository GitHub Actions remains temporarily disabled by user direction."
+    },
+    {
+      "command": "npm run lint:docs",
+      "exit_status": 0,
+      "relevant_result": "Markdown, maintained links, and prose passed across 157 files.",
+      "caveat": "The release-pipeline decision is recorded for Milestone 11; disabled workflows cannot provide hosted rehearsal evidence now."
+    },
+    {
+      "command": "npm run lint:deps:why",
+      "exit_status": 0,
+      "relevant_result": "Every direct dependency has a current YAGNI rationale after direct scopeguard ownership was removed.",
+      "caveat": "scopeguard remains transitive through lock_api; this change removes direct ownership rather than the transitive package."
+    },
+    {
+      "command": "npm run lint:dup -- --list",
+      "exit_status": 0,
+      "relevant_result": "All six maintained production and test scopes reported zero exact duplicate lines and regions.",
+      "caveat": "The sensor detects exact runs of 14 significant lines, not semantic duplication."
+    },
+    {
+      "command": "npm run lint:file-size",
+      "exit_status": 0,
+      "relevant_result": "Every governed source and configuration file remained within hard limits with zero changed review-threshold files.",
+      "caveat": "None."
+    },
+    {
+      "command": "npm run test:scripts",
+      "exit_status": 0,
+      "relevant_result": "All 837 script and harness tests passed, including focused v3 disposition and release-marker cases.",
+      "caveat": "The host Node 26.5.0 and npm 11.17.0 differ from the repository pins; this is focused milestone evidence, not release evidence."
+    },
+    {
+      "command": "git diff --check",
+      "exit_status": 0,
+      "relevant_result": "The clean committed Milestone 0 implementation had no whitespace errors.",
+      "caveat": "The evidence and state transition are a following documentation-only commit."
+    }
+  ],
+  "source": "docs/plans/v3/master-exec-plan.md",
+  "measurements": {
+    "canonical_ideas": 230,
+    "now": 105,
+    "next": 82,
+    "later": 34,
+    "moonshot": 9,
+    "public_release": "v2.9.5",
+    "public_release_assets": 20,
+    "script_tests_passed": 837,
+    "ocr_document_tests_passed": 311,
+    "direct_crate_dependencies_removed": [
+      "scopeguard",
+      "uuid"
+    ],
+    "duplication_scopes_at_zero": 6
+  },
+  "decisions": {
+    "dependency_review": "Use existing tempfile ownership for OCR cleanup; retain hex, urlencoding, and basic-toml with evidence-backed rationales.",
+    "testing_backlog": "Remove implemented or generic future-work claims; retain only measured performance and risk-based mutation work in the master plan.",
+    "release_pipeline": "Make authenticated draft verification blocking before publication at Milestone 11, restore platform scoping, and keep unauthenticated public-download verification as a post-publication closure check.",
+    "a20": "Remain deferred unless Gate 1 evidence proves existing application and Tokio typed-job owners insufficient."
+  },
+  "review": {
+    "adversarial_verdict": "PASS after corrections",
+    "privacy_or_security_regression": false,
+    "open_milestone_0_findings": 0
+  }
+}

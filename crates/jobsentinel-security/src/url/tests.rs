@@ -13,6 +13,21 @@ fn https_validator_blocks_public_http_urls() {
 }
 
 #[test]
+fn credential_free_https_rejects_private_url_components() {
+    assert!(validate_credential_free_external_https_url("https://example.com/provider").is_ok());
+    for url in [
+        "https://user@example.com/provider",
+        "https://example.com/provider?candidate=private",
+        "https://example.com/provider#private",
+    ] {
+        assert!(
+            validate_credential_free_external_https_url(url).is_err(),
+            "{url}"
+        );
+    }
+}
+
+#[test]
 fn canonical_job_url_requires_https() {
     assert!(
         canonicalize_user_supplied_job_url("http://example.com/jobs/123").is_err(),

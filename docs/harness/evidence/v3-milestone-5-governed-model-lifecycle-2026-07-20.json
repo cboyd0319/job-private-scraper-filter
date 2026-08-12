@@ -1,0 +1,48 @@
+{
+  "schema": "jobsentinel.feature_evidence.v1",
+  "feature_id": "v3-milestone-5-local-evidence-resume-matching",
+  "slice": "governed-model-setup-and-removal",
+  "behavior": "Stronger local matching setup streams the complete pinned Qwen3 pair from the pinned anonymous Hugging Face endpoint into app-owned staged files, verifies every locked size and checksum before activation, reports bytes-only monotonic progress, clears the app-scoped transfer and staging caches, and full removal deletes all cached data under the two governed model identities without touching anything else.",
+  "result": "pass",
+  "verified_at": "2026-07-20T16:39:36Z",
+  "revision": "a2ec0549385468303ab85e0aa439e0f1d27788db",
+  "revision_scope": "The committed governed download, staging, verification, cancellation, and removal implementation at 8bd764c0 plus the opt-in live lifecycle test, fail-closed policy test, and opt-in test policy support added at a2ec0549.",
+  "platform": {
+    "os": "macOS 27.0 build 26A5378j",
+    "architecture": "arm64",
+    "hardware": "Mac16,5, Apple M4 Max, 64 GiB",
+    "rust": "rustc 1.97.1 (8bab26f4f 2026-07-14)"
+  },
+  "commands": [
+    {
+      "command": "node scripts/dev/run-cargo.mjs test -p jobsentinel-local-ai --features embedded-ml governed_download_sets_up_and_removes -- --ignored --test-threads=1",
+      "exit_status": 0,
+      "duration_seconds": 145.96,
+      "result": "The live opt-in lifecycle test downloaded both governed models from https://huggingface.co into a fresh temporary app-data directory, verified readiness, and removed every governed cache."
+    },
+    {
+      "command": "node scripts/dev/run-cargo.mjs test -p jobsentinel-local-ai --features embedded-ml",
+      "exit_status": 0,
+      "result": "89 default tests passed with 12 explicit model tests ignored, including the fail-closed anonymous-policy test."
+    }
+  ],
+  "measurements": {
+    "locked_required_bytes_embedding": 1203021431,
+    "locked_required_bytes_reranker": 1203022029,
+    "locked_required_bytes_total": 2406043460,
+    "live_download_verify_and_remove_seconds": 145.96,
+    "prior_uncommitted_tree_run_seconds": 166.13
+  },
+  "assertions": [
+    "Both governed caches reached Ready with every locked size and sha256 verified before activation.",
+    "Progress reports were monotonic and ended exactly at the locked total of 2406043460 bytes.",
+    "The app-scoped Xet transfer cache and per-model staging directories were removed after completion.",
+    "Removal deleted both governed model identity roots and reported the runtime as not downloaded.",
+    "Without the app-set anonymous policy environment, download fails closed before any network client is built."
+  ],
+  "caveats": [
+    "This exercises the production ModelManager path directly on one 64 GiB macOS 27 arm64 host; it is not an installed-app GUI proof, a modest-hardware download measurement, or Windows or Linux evidence.",
+    "Network throughput depends on the local connection; the duration is not a release threshold.",
+    "Cancellation and resume were verified by focused unit tests, not by interrupting this live transfer."
+  ]
+}

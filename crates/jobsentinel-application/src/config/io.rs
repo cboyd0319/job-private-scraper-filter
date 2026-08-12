@@ -10,15 +10,16 @@ pub(crate) fn write_file_atomic_private(path: &Path, content: &str) -> io::Resul
 }
 
 impl Config {
+    pub(crate) fn from_json(content: &str) -> Result<Self, Box<dyn std::error::Error>> {
+        let config: Config = serde_json::from_str(content)?;
+        validate_config(&config)?;
+        Ok(config)
+    }
+
     /// Load configuration from file
     pub fn load(path: &Path) -> Result<Self, Box<dyn std::error::Error>> {
         let content = std::fs::read_to_string(path)?;
-        let config: Config = serde_json::from_str(&content)?;
-
-        // Validate configuration
-        validate_config(&config)?;
-
-        Ok(config)
+        Self::from_json(&content)
     }
 
     /// Save configuration to file

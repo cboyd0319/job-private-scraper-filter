@@ -47,12 +47,24 @@ import {
 } from "../../mocks/handlers/commandHelpers";
 import { extractMockAtsKeywords } from "./resumeKeywordMatching";
 import { toMockResumeSummary } from "./resumeSummaryViews";
+import { parseMockMatchingProfile } from "./resumeMatchingProfile";
+import { handleMockMilitaryTransitionCommand } from "./resumeMilitaryTransitionCommands";
+
+const textEncoder = new TextEncoder();
 
 export function handleMockResumeCommand(
   command: string,
   args: Record<string, unknown> | undefined,
   state: MockResumeCommandState,
 ): MockResumeCommandResult {
+  const militaryTransitionResult = handleMockMilitaryTransitionCommand(
+    command,
+    args,
+    state,
+    () => getSavedMatchDebuggerMatch(args, state),
+  );
+  if (militaryTransitionResult) return militaryTransitionResult;
+
   switch (command) {
     case "get_active_resume": {
       const activeResume = getMockActiveResume(state.resumes);
@@ -129,6 +141,102 @@ export function handleMockResumeCommand(
       );
     }
 
+    case "set_resume_match_feedback": {
+      const matchId = getNumericArg(args, "matchId");
+      const payload = args?.payload as Record<string, unknown> | undefined;
+      const rawLabel = Object.prototype.hasOwnProperty.call(args ?? {}, "label")
+        ? args?.label
+        : payload?.label;
+      if (
+        typeof matchId !== "number" ||
+        (rawLabel !== null && rawLabel !== "useful" && rawLabel !== "not_relevant") ||
+        !state.recentMatches.some((match) => match.id === matchId)
+      ) {
+        throw new Error("Invalid saved resume match feedback");
+      }
+      const label: "useful" | "not_relevant" | null = rawLabel;
+      const feedback =
+        label === null
+          ? null
+          : { match_id: matchId, label, recorded_at: new Date().toISOString() };
+      return withSave(
+        {
+          ...state,
+          recentMatches: state.recentMatches.map((match) =>
+            match.id === matchId ? { ...match, feedback } : match,
+          ),
+        },
+        feedback,
+      );
+    }
+
+    case "get_saved_match_debugger": {
+      const match = getSavedMatchDebuggerMatch(args, state);
+      return withoutSave(state, mockSavedMatchDebugger(match, state.savedMatchEvidence));
+    }
+
+    case "confirm_saved_match_evidence": {
+      const match = getSavedMatchDebuggerMatch(args, state);
+      const debuggerView = mockSavedMatchDebugger(match, state.savedMatchEvidence);
+      const evidenceId = args?.evidenceId;
+      const evidence = debuggerView.requirements.flatMap((requirement) => requirement.evidence)
+        .find((value) => value.evidence_id === evidenceId);
+      if (args?.debuggerId !== debuggerView.debugger_id || !evidence) {
+        throw new Error("The selected evidence is no longer available. Refresh the debugger and try again.");
+      }
+      const identity = savedMatchEvidenceIdentity(match);
+      const savedEvidence = state.savedMatchEvidence[identity] ?? emptySavedMatchEvidence();
+      return withSave(
+        {
+          ...state,
+          savedMatchEvidence: {
+            ...state.savedMatchEvidence,
+            [identity]: {
+              ...savedEvidence,
+              confirmedEvidenceIds: [...new Set([...savedEvidence.confirmedEvidenceIds, evidence.evidence_id])],
+            },
+          },
+        },
+        true,
+      );
+    }
+
+    case "list_saved_match_evidence_packets": {
+      const match = getSavedMatchDebuggerMatch(args, state);
+      return withoutSave(state, state.savedMatchEvidence[savedMatchEvidenceIdentity(match)]?.packetClaims ?? []);
+    }
+
+    case "save_saved_match_evidence_packet": {
+      const match = getSavedMatchDebuggerMatch(args, state);
+      const reviewedText = getStringArg(args, "reviewedText") ?? "";
+      const evidenceIds = Array.isArray(args?.evidenceIds) ? args.evidenceIds : [];
+      if (!isMockPacketInputValid(reviewedText, evidenceIds, match, state.savedMatchEvidence)) {
+        throw new Error("Review a claim and choose current confirmed evidence before saving.");
+      }
+      const identity = savedMatchEvidenceIdentity(match);
+      const savedEvidence = state.savedMatchEvidence[identity] ?? emptySavedMatchEvidence();
+      const claims = savedEvidence.packetClaims;
+      const claim: (typeof savedEvidence.packetClaims)[number] = {
+        claim_id: `${claims.length + 1}`.padStart(64, "c"),
+        reviewed_text: reviewedText.trim(),
+        evidence_ids: [...evidenceIds],
+        boundaries: [
+          "clearance_currentness_unverified",
+          "military_civilian_equivalence_unverified",
+        ],
+      };
+      return withSave(
+        {
+          ...state,
+          savedMatchEvidence: {
+            ...state.savedMatchEvidence,
+            [identity]: { ...savedEvidence, packetClaims: [...claims, claim] },
+          },
+        },
+        claim,
+      );
+    }
+
     case "match_resume_to_job":
       return matchResumeToJob(args, state);
 
@@ -191,6 +299,7 @@ export function handleMockResumeCommand(
         analyzeMockResumeForJob(
           getArg(args, "resume"),
           getStringArg(args, "jobDescription") ?? "",
+          parseMockMatchingProfile(getArg(args, "matchingProfile")),
         ),
       );
 
@@ -223,4 +332,96 @@ export function handleMockResumeCommand(
         value: undefined,
       };
   }
+}
+
+function getSavedMatchDebuggerMatch(
+  args: Record<string, unknown> | undefined,
+  state: MockResumeCommandState,
+) {
+  const resumeId = getResumeIdArg(args);
+  const jobHash = getStringArg(args, "jobHash");
+  if (
+    !jobHash ||
+    textEncoder.encode(jobHash).byteLength > 128 ||
+    /\p{Cc}/u.test(jobHash) ||
+    typeof resumeId !== "number" ||
+    resumeId <= 0
+  ) {
+    throw new Error("Choose a saved job and resume before inspecting its evidence.");
+  }
+  const match = state.recentMatches.find(
+    (value) => value.resume_id === resumeId && value.job_hash === jobHash,
+  );
+  if (!match) throw new Error("Saved match evidence is unavailable.");
+  return match;
+}
+
+function mockSavedMatchDebugger(
+  match: MockResumeCommandState["recentMatches"][number],
+  savedMatchEvidence: MockResumeCommandState["savedMatchEvidence"],
+) {
+  const matchedRequirement = match.matching_skills[0];
+  const requirement = matchedRequirement ?? match.missing_skills[0] ?? "Saved match review";
+  const hasEvidence = matchedRequirement !== undefined;
+  const debuggerId = `${match.id}`.padStart(64, "a");
+  const evidenceId = `${match.id}`.padStart(64, "b");
+  const confirmedEvidence = new Set(
+    savedMatchEvidence[savedMatchEvidenceIdentity(match)]?.confirmedEvidenceIds ?? [],
+  );
+  return {
+    debugger_id: debuggerId,
+    requirements: [
+      {
+        requirement,
+        importance: "Required",
+        match_state: hasEvidence ? "Direct" : "Missing",
+        hard_constraint: !hasEvidence,
+        evidence: hasEvidence
+          ? [{ evidence_id: evidenceId, confirmed: confirmedEvidence.has(evidenceId) }]
+          : [],
+        why_not: hasEvidence ? null : "missing_evidence",
+        blocking: !hasEvidence,
+      },
+    ],
+  };
+}
+
+function isMockPacketInputValid(
+  reviewedText: string,
+  evidenceIds: unknown[],
+  match: MockResumeCommandState["recentMatches"][number],
+  savedMatchEvidence: MockResumeCommandState["savedMatchEvidence"],
+) {
+  if (
+    !reviewedText ||
+    !reviewedText.trim() ||
+    textEncoder.encode(reviewedText).byteLength > 8_192 ||
+    /\p{Cc}/u.test(reviewedText) ||
+    evidenceIds.length === 0 ||
+    evidenceIds.length > 32 ||
+    new Set(evidenceIds).size !== evidenceIds.length ||
+    evidenceIds.some((id) => typeof id !== "string" || !isMockOpaqueId(id))
+  ) {
+    return false;
+  }
+  const confirmedEvidence = new Set(
+    savedMatchEvidence[savedMatchEvidenceIdentity(match)]?.confirmedEvidenceIds ?? [],
+  );
+  return evidenceIds.every((id) => confirmedEvidence.has(id as string));
+}
+
+function savedMatchEvidenceIdentity(match: MockResumeCommandState["recentMatches"][number]) {
+  return `${match.id}:${match.resume_id}:${match.job_hash}`;
+}
+
+function emptySavedMatchEvidence() {
+  return {
+    confirmedEvidenceIds: [],
+    confirmedMilitaryEvidenceKinds: [],
+    packetClaims: [],
+  };
+}
+
+function isMockOpaqueId(value: string) {
+  return value.length === 64 && [...value].every((character) => /[a-f0-9]/.test(character));
 }

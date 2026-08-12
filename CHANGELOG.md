@@ -1,3 +1,5 @@
+<!-- Records notable JobSentinel changes by release. -->
+
 # Changelog
 
 All notable changes to JobSentinel will be documented in this file.
@@ -12,13 +14,16 @@ supported path is user-opened search links plus user-clicked Browser Import.
 
 ## [Unreleased]
 
-No changes recorded after the `2.9.5` source candidate.
+### Changed
 
-## [2.9.5] - 2026-07-13
+- Development source metadata and the compiled signed-pack runtime now identify
+  `3.0.0`. This source line is not published; `v2.9.5` remains the latest
+  public release.
 
-Source candidate for the full repository refactor. This version is not a
-published release until the release workflow and public asset verification
-finish.
+## [2.9.5] - 2026-07-18
+
+Published release for the full repository refactor. The release workflow and
+public asset verification completed successfully.
 
 ### Changed
 

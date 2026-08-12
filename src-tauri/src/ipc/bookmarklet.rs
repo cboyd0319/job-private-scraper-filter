@@ -9,16 +9,30 @@ use crate::bootstrap::AppState;
 use crate::desktop::path_label_for_logging;
 use crate::desktop::{
     discard_pending_bookmarklet_imports as discard_pending_bookmarklet_import_jobs,
-    BookmarkletConfig, BookmarkletImportConfirmResult, PendingBookmarkletImportPreview,
+    BookmarkletConfig, BookmarkletImportConfirmResult, CompanionRequest,
+    PendingBookmarkletImportPreview,
 };
 use crate::ipc::errors::user_friendly_error;
 use arboard::Clipboard;
-use jobsentinel_application::{bookmarklet_repository, confirm_bookmarklet_imports};
+use jobsentinel_application::{
+    bookmarklet_repository, confirm_bookmarklet_imports, issue_browser_applied_pairing,
+    issue_browser_import_pairing, prepare_browser_import_target,
+};
 use serde::{Deserialize, Serialize};
-use tauri::State;
+use tauri::{AppHandle, State};
+use tauri_plugin_dialog::{DialogExt, MessageDialogButtons, MessageDialogKind};
+use tokio::sync::oneshot;
+use uuid::Uuid;
+use zeroize::Zeroizing;
 
 const MIN_BOOKMARKLET_PORT: u16 = 1024;
 const MAX_BOOKMARKLET_PORT: u32 = u16::MAX as u32;
+
+#[derive(Clone, Copy)]
+enum BrowserButtonAction {
+    Import,
+    Applied,
+}
 
 /// Bookmarklet configuration returned to frontend
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -44,23 +58,80 @@ fn validate_bookmarklet_port(port: u32) -> Result<u16, String> {
     Ok(port as u16)
 }
 
-fn bookmarklet_code(port: u16, auth_token: &str) -> String {
-    let token = match serde_json::to_string(auth_token) {
-        Ok(value) => value,
-        Err(_) => "\"\"".to_string(),
+fn bookmarklet_code(
+    port: u16,
+    request: &CompanionRequest,
+    action: BrowserButtonAction,
+) -> Result<Zeroizing<String>, String> {
+    let pairing = Zeroizing::new(
+        serde_json::to_string(request)
+            .map_err(|_| "Browser Import could not create a safe page pairing.".to_string())?,
+    );
+    let origin = serde_json::to_string(&request.origin)
+        .map_err(|_| "Browser Import could not create a safe page pairing.".to_string())?;
+    let (description_capture, success_message) = match action {
+        BrowserButtonAction::Import => (
+            r#"var desc=first('[class*="description"],[class*="desc"]');"#,
+            "Request sent. Return to JobSentinel and check the review list. Copy a fresh button before retrying or importing another job.",
+        ),
+        BrowserButtonAction::Applied => (
+            "var desc=null;",
+            "Applied draft sent. Return to JobSentinel to review missing details.",
+        ),
     };
+    let success_message = serde_json::to_string(success_message)
+        .map_err(|_| "Browser Import could not create a safe page pairing.".to_string())?;
 
-    const TEMPLATE: &str = r#"javascript:(function(){var frame=null;function done(message){try{if(frame&&frame.parentNode){frame.parentNode.removeChild(frame);}}catch(e){}alert(message);}try{frame=document.createElement('iframe');frame.setAttribute('aria-hidden','true');frame.style.display='none';(document.documentElement||document.body).appendChild(frame);var cleanWindow=frame.contentWindow;var cleanFetch=cleanWindow.fetch.bind(cleanWindow);var cleanStringify=cleanWindow.JSON.stringify.bind(cleanWindow.JSON);var cleanParse=cleanWindow.JSON.parse.bind(cleanWindow.JSON);function norm(value){return String(value||'').replace(/\s+/g,' ').trim();}function text(el){return norm(el&&(el.innerText||el.textContent));}function visible(el){try{var rect=el.getBoundingClientRect();var style=window.getComputedStyle(el);return rect.width>0&&rect.height>0&&rect.bottom>=0&&rect.right>=0&&rect.top<=window.innerHeight&&rect.left<=window.innerWidth&&style.visibility!=='hidden'&&style.display!=='none';}catch(e){return false;}}function abs(href){try{return new cleanWindow.URL(href,window.location.href).toString();}catch(e){return '';}}function safeJobUrl(value){try{var parsed=new cleanWindow.URL(value,window.location.href);if(/(\.|^)linkedin\.com$/i.test(parsed.hostname)&&parsed.pathname.indexOf('/jobs/view/')>=0){parsed.search='';parsed.hash='';}return parsed.toString();}catch(e){return '';}}function cardFor(anchor){var node=anchor;var best=anchor;for(var i=0;i<7&&node&&node.parentElement;i++){node=node.parentElement;var value=text(node);if(value.length>text(anchor).length+10&&value.length<1400){best=node;}if(value.indexOf('\u00b7')>=0&&value.length>60){break;}}return best;}function cleanCardDetails(raw,title){var index=raw.indexOf(title);var value=index>=0?raw.slice(index+title.length):raw;value=value.replace(/^[\\s\u00b7-]+/,'');value=value.split(/You.?d be|Viewed|Saved|Promoted|Be an early applicant|Retry Premium|See the full list|1 company alumni|company alumni/i)[0];return norm(value);}function jobFromAnchor(anchor){var title=text(anchor);var url=safeJobUrl(anchor.getAttribute('href')||'');if(!title||url.indexOf('/jobs/view/')<0){return null;}var card=cardFor(anchor);var raw=text(card).slice(0,1200);var detail=cleanCardDetails(raw,title);var parts=detail.split('\u00b7').map(norm).filter(Boolean);var company=parts[0]||'';var location='';for(var i=1;i<parts.length;i++){if(/remote|hybrid|on-site|,\s*[A-Z]{2}\b|united states/i.test(parts[i])){location=parts[i];break;}}if(!company||company.length>200){return null;}return{title:title,company:company,location:location,description:raw,url:url};}function visibleLinkedInJobs(){if(!/(\.|^)linkedin\.com$/i.test(location.hostname)||location.pathname.indexOf('/jobs')!==0){return [];}var anchors=document.querySelectorAll('a[href*="/jobs/view/"]');var seen={};var visibleJobs=[];anchors.forEach(function(anchor){if(visibleJobs.length>=12||!visible(anchor)){return;}var job=jobFromAnchor(anchor);if(job&&!seen[job.url]){seen[job.url]=1;visibleJobs.push(job);}});return visibleJobs;}var visibleJobs=visibleLinkedInJobs();var payload=null;if(visibleJobs.length>0){payload={token:__TOKEN__,jobs:visibleJobs};}else{var scripts=document.querySelectorAll('script[type="application/ld+json"]');var job=null;scripts.forEach(function(s){try{var data=cleanParse(s.textContent);if(data['@type']==='JobPosting')job=data;}catch(e){}});if(!job){var title=document.querySelector('h1');var company=document.querySelector('[class*="company"]')||document.querySelector('[class*="employer"]');var desc=document.querySelector('[class*="description"]')||document.querySelector('[class*="desc"]');job={title:title?text(title):'',company:company?text(company):'',description:desc?text(desc):'',url:safeJobUrl(window.location.href)};}else{job.url=safeJobUrl(window.location.href);}payload={token:__TOKEN__,job:job};}cleanFetch('http://localhost:__PORT__/api/bookmarklet/import',{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain'},body:cleanStringify(payload)}).then(function(){done(visibleJobs.length>0?'Sent '+visibleJobs.length+' visible jobs to JobSentinel. Return to JobSentinel to review and save.':'Sent to JobSentinel. Return to JobSentinel to review and save. If missing, copy the browser button again.');}).catch(function(){done('Cannot connect to JobSentinel. Return to Settings and copy the browser button again.');});}catch(e){done('Cannot connect to JobSentinel. Return to Settings and copy the browser button again.');}})();"#;
+    const TEMPLATE: &str = r#"javascript:(function(){var frame=null;function done(message){try{if(frame&&frame.parentNode){frame.parentNode.removeChild(frame);}}catch(e){}alert(message);}try{if(/(\.|^)(linkedin|ycombinator)\.com\.?$/i.test(location.hostname)){done('Browser Import is unavailable for this source');return;}if(location.protocol!=='https:'||location.origin!==__ORIGIN__){done('This Browser Import button is paired with a different site. Copy a fresh button for this page.');return;}frame=document.createElement('iframe');frame.setAttribute('aria-hidden','true');frame.style.display='none';(document.documentElement||document.body).appendChild(frame);var cleanWindow=frame.contentWindow;var cleanFetch=cleanWindow.fetch.bind(cleanWindow);var cleanStringify=cleanWindow.JSON.stringify.bind(cleanWindow.JSON);var cleanRects=cleanWindow.Element.prototype.getClientRects;var cleanStyle=cleanWindow.getComputedStyle.bind(cleanWindow);var cleanQuery=cleanWindow.Document.prototype.querySelectorAll;var cleanInnerText=cleanWindow.Object.getOwnPropertyDescriptor(cleanWindow.HTMLElement.prototype,'innerText').get;function norm(value){return String(value||'').replace(/\s+/g,' ').trim();}function visible(el){try{var style=cleanStyle(el);if(style.display==='none'||style.visibility!=='visible'||style.opacity==='0'||style.contentVisibility==='hidden'){return false;}var rects=cleanRects.call(el);for(var i=0;i<rects.length;i++){if(rects[i].width>0&&rects[i].height>0){return true;}}return false;}catch(e){return false;}}function first(selector){try{var nodes=cleanQuery.call(document,selector);for(var i=0;i<nodes.length;i++){if(visible(nodes[i])){return nodes[i];}}}catch(e){}return null;}function text(el){try{return visible(el)?norm(cleanInnerText.call(el)):'';}catch(e){return '';}}function safeJobUrl(value){try{return new cleanWindow.URL(value,window.location.href).toString();}catch(e){return '';}}var title=first('h1');var company=first('[class*="company"],[class*="employer"]');__DESCRIPTION_CAPTURE__var job={title:text(title),company:text(company),description:text(desc),url:safeJobUrl(window.location.href)};var payload={pairing:__PAIRING__,job:job};cleanFetch('http://localhost:__PORT__/api/bookmarklet/import',{method:'POST',mode:'no-cors',targetAddressSpace:'loopback',headers:{'Content-Type':'text/plain'},body:cleanStringify(payload)}).then(function(){done(__SUCCESS_MESSAGE__);}).catch(function(){done('Cannot connect to JobSentinel. Return to Settings and copy the browser button again.');});}catch(e){done('Cannot connect to JobSentinel. Return to Settings and copy the browser button again.');}})();"#;
 
-    TEMPLATE
-        .replace("__PORT__", &port.to_string())
-        .replace("__TOKEN__", &token)
+    Ok(Zeroizing::new(
+        TEMPLATE
+            .replace("__PORT__", &port.to_string())
+            .replace("__ORIGIN__", &origin)
+            .replace("__PAIRING__", pairing.as_str())
+            .replace("__DESCRIPTION_CAPTURE__", description_capture)
+            .replace("__SUCCESS_MESSAGE__", &success_message),
+    ))
 }
 
-fn refreshed_bookmarklet_config_for_copy(current: &BookmarkletConfig) -> BookmarkletConfig {
-    let mut config = current.clone();
-    config.refresh_auth_token();
-    config
+async fn confirm_native_browser_import(
+    app: &AppHandle,
+    target_url: &str,
+    origin: &str,
+    action: BrowserButtonAction,
+) -> Result<bool, String> {
+    let (title, approve_label, purpose) = match action {
+        BrowserButtonAction::Import => (
+            "Confirm Browser Import Site",
+            "Copy One-Use Button",
+            "accept visible job details from this site only",
+        ),
+        BrowserButtonAction::Applied => (
+            "Confirm Applied Draft Site",
+            "Copy I Just Applied Button",
+            "create a local applied draft from the visible job title, company, and page address; missing details stay marked for your review",
+        ),
+    };
+    let message = format!(
+        "Copy a one-use browser button for this page?\n\nSite: {origin}\nPage: \
+         {target_url}\n\nJobSentinel will {purpose}. It will not read browser cookies, storage, \
+         hidden page state, screenshots, or network traffic."
+    );
+    let (decision, received) = oneshot::channel();
+    app.dialog()
+        .message(message)
+        .title(title)
+        .kind(MessageDialogKind::Warning)
+        .buttons(MessageDialogButtons::OkCancelCustom(
+            approve_label.to_string(),
+            "Cancel".to_string(),
+        ))
+        .show(move |approved| {
+            let _ = decision.send(approved);
+        });
+    received
+        .await
+        .map_err(|_| "Browser Import confirmation could not be completed.".to_string())
 }
 
 async fn persist_bookmarklet_port(state: &AppState, port: u16) -> Result<(), String> {
@@ -107,23 +178,72 @@ pub(crate) async fn get_bookmarklet_config(
     })
 }
 
-/// Copy browser import button code without exposing the import token to the renderer
+/// Copy an origin-bound browser button without exposing its pairing secret to the renderer.
 #[tauri::command]
-#[tracing::instrument(skip(state))]
-pub(crate) async fn copy_bookmarklet_code(state: State<'_, AppState>) -> Result<(), String> {
+#[tracing::instrument(skip(app, state, target_url))]
+pub(crate) async fn copy_bookmarklet_code(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    target_url: String,
+) -> Result<bool, String> {
     tracing::debug!("Copying browser import button");
+    copy_browser_button(app, state, target_url, BrowserButtonAction::Import).await
+}
+
+/// Copy an origin-bound applied draft button without exposing its pairing secret.
+#[tauri::command]
+#[tracing::instrument(skip(app, state, target_url))]
+pub(crate) async fn copy_applied_bookmarklet_code(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    target_url: String,
+) -> Result<bool, String> {
+    tracing::debug!("Copying applied draft button");
+    copy_browser_button(app, state, target_url, BrowserButtonAction::Applied).await
+}
+
+async fn copy_browser_button(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    target_url: String,
+    action: BrowserButtonAction,
+) -> Result<bool, String> {
+    let (target_url, origin) = prepare_browser_import_target(&target_url)?;
+    if !confirm_native_browser_import(&app, &target_url, &origin, action).await? {
+        return Ok(false);
+    }
 
     let mut server_guard = state.bookmarklet_server.write().await;
-    let config = refreshed_bookmarklet_config_for_copy(server_guard.config());
-    let code = bookmarklet_code(config.port, &config.auth_token);
+    if !server_guard.is_running() {
+        return Err("Turn on Browser Import before copying a browser button.".to_string());
+    }
+    let (pairing, pairing_code) = match action {
+        BrowserButtonAction::Import => issue_browser_import_pairing(&origin, chrono::Utc::now())?,
+        BrowserButtonAction::Applied => issue_browser_applied_pairing(&origin, chrono::Utc::now())?,
+    };
+    let request = CompanionRequest {
+        protocol_version: pairing_code.protocol_version,
+        pairing_id: pairing_code.pairing_id.clone(),
+        client_id: pairing_code.client_id.clone(),
+        source_id: pairing_code.source_id.clone(),
+        policy_ref: pairing_code.policy_ref.clone(),
+        policy_revision: pairing_code.policy_revision,
+        operation: pairing_code.operations[0],
+        origin: pairing_code.origin.clone(),
+        nonce: Uuid::new_v4().to_string(),
+        token: pairing_code.token.clone(),
+    };
+    let code = bookmarklet_code(server_guard.config().port, &request, action)?;
 
     Clipboard::new()
-        .and_then(|mut clipboard| clipboard.set_text(code))
+        .and_then(|mut clipboard| clipboard.set_text(code.as_str()))
         .map_err(|_| bookmarklet_copy_error())?;
 
-    server_guard.update_auth_token(config.auth_token, config.auth_token_expires_at);
+    server_guard
+        .replace_pairing(pairing)
+        .map_err(|error| user_friendly_error("Failed to activate Browser Import", error))?;
 
-    Ok(())
+    Ok(true)
 }
 
 /// List browser imports waiting for user review.
@@ -207,10 +327,7 @@ pub(crate) async fn start_bookmarklet_server(
 
     if selected_port != port {
         if let Err(error) = persist_bookmarklet_port(&state, selected_port).await {
-            let previous_config = BookmarkletConfig {
-                port,
-                ..server_guard.config().clone()
-            };
+            let previous_config = BookmarkletConfig { port };
             if let Err(stop_error) = server_guard.stop().await {
                 tracing::error!(
                     error = %user_friendly_error("Failed to stop Browser Import", &stop_error),
@@ -290,92 +407,5 @@ pub(crate) async fn set_bookmarklet_port(
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_bookmarklet_config_serialization() {
-        let config = BookmarkletConfigResponse {
-            port: 4321,
-            enabled: true,
-        };
-
-        let json = serde_json::to_string(&config).unwrap();
-        assert!(json.contains("4321"));
-        assert!(json.contains("true"));
-        assert!(!json.contains("authToken"));
-        assert!(!json.contains("test-token"));
-
-        let deserialized: BookmarkletConfigResponse = serde_json::from_str(&json).unwrap();
-        assert_eq!(deserialized.port, 4321);
-        assert!(deserialized.enabled);
-    }
-
-    #[test]
-    fn test_bookmarklet_code_includes_token_only_in_generated_button() {
-        let code = bookmarklet_code(4321, "test-token");
-
-        assert!(code.contains("http://localhost:4321/api/bookmarklet/import"));
-        assert!(code.contains("mode:'no-cors'"));
-        assert!(code.contains("cleanWindow.fetch.bind(cleanWindow)"));
-        assert!(code.contains("cleanWindow.JSON.stringify.bind(cleanWindow.JSON)"));
-        assert!(code.contains("cleanWindow.JSON.parse"));
-        assert!(code.contains("/jobs/view/"));
-        assert!(code.contains("visibleJobs"));
-        assert!(code.contains("parentNode.removeChild"));
-        assert!(!code.contains("fetch('http://localhost"));
-        assert!(!code.contains("JSON.stringify({token"));
-        assert!(code.contains("Return to Settings and copy the browser button again."));
-        let old_setup_label = ["import", "helper"].join(" ");
-        assert!(!code.contains(&old_setup_label));
-        assert!(!code.contains("X-JobSentinel-Token"));
-        assert!(code.contains("test-token"));
-    }
-
-    #[test]
-    fn test_bookmarklet_copy_error_has_safe_support_report_fallback() {
-        let message = bookmarklet_copy_error();
-
-        assert!(message.contains("safe support report"));
-        assert!(message.contains("Allow clipboard access and try again, or copy"));
-    }
-
-    #[test]
-    fn test_bookmarklet_port_validation_rejects_reserved_ports() {
-        let err = validate_bookmarklet_port(80).unwrap_err();
-
-        assert!(err.contains("1024"));
-        assert!(err.contains("65535"));
-    }
-
-    #[test]
-    fn test_bookmarklet_port_validation_rejects_out_of_range_ports() {
-        let err = validate_bookmarklet_port(65_536).unwrap_err();
-
-        assert!(err.contains("1024"));
-        assert!(err.contains("65535"));
-    }
-
-    #[test]
-    fn test_bookmarklet_port_validation_accepts_user_port_range() {
-        assert_eq!(validate_bookmarklet_port(1024), Ok(1024));
-        assert_eq!(validate_bookmarklet_port(4321), Ok(4321));
-        assert_eq!(validate_bookmarklet_port(65535), Ok(65535));
-    }
-
-    #[test]
-    fn test_refreshed_bookmarklet_config_for_copy_does_not_mutate_current() {
-        let current = BookmarkletConfig {
-            port: 4321,
-            auth_token: "old-token".to_string(),
-            auth_token_expires_at: chrono::Utc::now() + chrono::TimeDelta::minutes(5),
-        };
-
-        let refreshed = refreshed_bookmarklet_config_for_copy(&current);
-
-        assert_eq!(current.auth_token, "old-token");
-        assert_eq!(refreshed.port, current.port);
-        assert_ne!(refreshed.auth_token, current.auth_token);
-        assert!(refreshed.auth_token_is_current(chrono::Utc::now()));
-    }
-}
+#[path = "bookmarklet_tests.rs"]
+mod tests;

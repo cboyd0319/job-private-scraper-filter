@@ -1,11 +1,21 @@
 #!/usr/bin/env node
+// Validates official Agent Skills structure and the narrower JobSentinel package profile.
 
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { parseDocument } from "yaml";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
 const skillNamePattern = /^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$/;
+const allowedFrontmatterFields = new Set([
+  "name",
+  "description",
+  "license",
+  "compatibility",
+  "metadata",
+  "allowed-tools",
+]);
 const allowedSkillRootFiles = new Set([
   "SKILL.md",
   "README.md",
@@ -34,41 +44,91 @@ function parseFrontmatter(text) {
     return null;
   }
 
-  const fields = new Map();
-  const metadataFields = new Map();
-  let currentMap = null;
-  for (const rawLine of match[1].split(/\r?\n/)) {
-    if (rawLine.trim() === "" || rawLine.trim().startsWith("#")) {
-      continue;
-    }
-
-    if (/^\s/.test(rawLine)) {
-      if (currentMap === "metadata") {
-        const metadataMatch = rawLine.match(/^\s+([A-Za-z0-9_-]+):(?:\s*(.*))?$/);
-        if (metadataMatch) {
-          const [, key, rawValue = ""] = metadataMatch;
-          metadataFields.set(key, rawValue.trim().replace(/^["']|["']$/g, ""));
-        }
-      }
-      continue;
-    }
-
-    const fieldMatch = rawLine.match(/^([A-Za-z0-9_-]+):(?:\s*(.*))?$/);
-    if (!fieldMatch) {
-      currentMap = null;
-      continue;
-    }
-
-    const [, key, rawValue = ""] = fieldMatch;
-    fields.set(key, rawValue.trim().replace(/^["']|["']$/g, ""));
-    currentMap = key === "metadata" ? "metadata" : null;
+  let document;
+  let fields;
+  try {
+    document = parseDocument(match[1], {
+      maxAliasCount: 0,
+      prettyErrors: false,
+      strict: true,
+      uniqueKeys: true,
+    });
+    fields = document.toJS({ mapAsMap: true, maxAliasCount: 0 });
+  } catch {
+    return { error: "SKILL.md frontmatter must be valid YAML" };
   }
+  if (document.errors.length > 0) {
+    return { error: "SKILL.md frontmatter must be valid YAML" };
+  }
+  if (!(fields instanceof Map)) {
+    return { error: "SKILL.md frontmatter must be a YAML mapping" };
+  }
+  const metadata = fields.get("metadata");
 
   return {
     bodyStart: match[0].length,
     fields,
-    metadataFields,
+    metadataFields: metadata instanceof Map ? metadata : new Map(),
   };
+}
+
+export function validateAgentSkillSpecification(skillRoot) {
+  const skillDirName = skillRoot.split(/[\\/]/).pop();
+  const skillPath = join(skillRoot, "SKILL.md");
+  if (!existsSync(skillPath)) return [`${skillDirName}/ missing SKILL.md`];
+
+  const frontmatter = parseFrontmatter(readText(skillPath));
+  if (!frontmatter || frontmatter.error) {
+    return [
+      `${skillDirName}/SKILL.md ${frontmatter?.error ?? "must start with YAML frontmatter"}`,
+    ];
+  }
+
+  const errors = [];
+  const unexpectedFields = [...frontmatter.fields.keys()].filter(
+    (field) => typeof field !== "string" || !allowedFrontmatterFields.has(field),
+  );
+  if (unexpectedFields.length > 0) {
+    errors.push(`${skillDirName}/SKILL.md contains unexpected frontmatter fields`);
+  }
+  const name = frontmatter.fields.get("name");
+  const description = frontmatter.fields.get("description");
+  if (typeof name !== "string" || !skillNamePattern.test(name) || name.includes("--")) {
+    errors.push(`${skillDirName}/SKILL.md name must be lowercase alphanumeric hyphen format`);
+  }
+  if (name !== skillDirName) {
+    errors.push(`${skillDirName}/SKILL.md name must match parent directory`);
+  }
+  if (typeof description !== "string" || description.trim().length === 0 || description.length > 1024) {
+    errors.push(`${skillDirName}/SKILL.md description must be 1-1024 characters`);
+  }
+  const license = frontmatter.fields.get("license");
+  if (license !== undefined && (typeof license !== "string" || license.trim().length === 0)) {
+    errors.push(`${skillDirName}/SKILL.md license must be a non-empty string`);
+  }
+  const compatibility = frontmatter.fields.get("compatibility");
+  if (
+    compatibility !== undefined &&
+    (typeof compatibility !== "string" || compatibility.length === 0 || compatibility.length > 500)
+  ) {
+    errors.push(`${skillDirName}/SKILL.md compatibility must be 1-500 characters`);
+  }
+  const metadata = frontmatter.fields.get("metadata");
+  if (
+    metadata !== undefined &&
+    (!(metadata instanceof Map) ||
+      [...metadata].some(([key, value]) => typeof key !== "string" || typeof value !== "string"))
+  ) {
+    errors.push(`${skillDirName}/SKILL.md metadata must map strings to strings`);
+  }
+  const allowedTools = frontmatter.fields.get("allowed-tools");
+  if (
+    allowedTools !== undefined &&
+    (typeof allowedTools !== "string" || allowedTools.trim().length === 0 || /[\r\n]/.test(allowedTools))
+  ) {
+    errors.push(`${skillDirName}/SKILL.md allowed-tools must be a space-separated string`);
+  }
+  return errors;
 }
 
 function isAllowedNonScriptResourceFile(path) {
@@ -211,7 +271,7 @@ function validateOpenAiYaml(skillDirName, skillRoot) {
 }
 
 export function validateSkillPackage(skillRoot) {
-  const errors = [];
+  const errors = validateAgentSkillSpecification(skillRoot);
   const skillDirName = skillRoot.split(/[\\/]/).pop();
   const skillPath = join(skillRoot, "SKILL.md");
 
@@ -222,16 +282,23 @@ export function validateSkillPackage(skillRoot) {
   const text = readText(skillPath);
   const frontmatter = parseFrontmatter(text);
 
-  if (!frontmatter) {
-    errors.push(`${skillDirName}/SKILL.md must start with YAML frontmatter`);
+  if (!frontmatter || frontmatter.error) {
     return errors;
   }
 
-  const name = frontmatter.fields.get("name") ?? "";
-  const description = frontmatter.fields.get("description") ?? "";
-  const license = frontmatter.fields.get("license");
-  const compatibility = frontmatter.fields.get("compatibility");
-  const allowedTools = frontmatter.fields.get("allowed-tools");
+  const stringField = (field) => {
+    const value = frontmatter.fields.get(field);
+    return typeof value === "string" ? value : "";
+  };
+  const name = stringField("name");
+  const description = stringField("description");
+  const license = stringField("license");
+  const compatibility = frontmatter.fields.has("compatibility")
+    ? stringField("compatibility")
+    : undefined;
+  const allowedTools = frontmatter.fields.has("allowed-tools")
+    ? stringField("allowed-tools")
+    : undefined;
   const versionTarget = frontmatter.metadataFields.get("jobsentinel_version_target");
   const body = text.slice(frontmatter.bodyStart).trim();
   const coreBody = body.replace(/## Handoff\r?\n[\s\S]*?(?=\r?\n## |\s*$)/, "");
@@ -298,7 +365,17 @@ export function validateSkillPackage(skillRoot) {
   }
 
   for (const referencedFile of referencedSkillFiles(text)) {
-    if (!existsSync(join(skillRoot, referencedFile))) {
+    const resolvedReference = resolve(skillRoot, referencedFile);
+    const relativeReference = relative(skillRoot, resolvedReference);
+    if (
+      referencedFile.split("/").includes("..") ||
+      relativeReference.startsWith(`..${process.platform === "win32" ? "\\" : "/"}`) ||
+      relativeReference === ".."
+    ) {
+      errors.push(
+        `${skillDirName}/SKILL.md referenced files must stay inside the skill directory`,
+      );
+    } else if (!existsSync(resolvedReference)) {
       errors.push(`${skillDirName}/SKILL.md references missing file: ${referencedFile}`);
     }
   }
@@ -359,7 +436,8 @@ export function checkAgentSkills(root = repoRoot) {
     const path = join(skillsRoot, skillDir, "SKILL.md");
     if (!existsSync(path)) return total;
     const frontmatter = parseFrontmatter(readText(path));
-    return total + Buffer.byteLength(frontmatter?.fields.get("description") ?? "");
+    const description = frontmatter?.fields?.get("description");
+    return total + Buffer.byteLength(typeof description === "string" ? description : "");
   }, 0);
   if (!/^20\d{2}-\d{2}-\d{2}$/.test(String(discoveryBudget?.baseline_date ?? "")) || !Number.isInteger(discoveryBudget?.baseline_packages) || typeof discoveryBudget?.reason !== "string" || !discoveryBudget.reason.trim()) {
     errors.push("scripts/harness/contracts/harness.json skill discovery budget requires a measured baseline date, package count, and reason");

@@ -1,0 +1,41 @@
+{
+  "source_id": "usajobs",
+  "reviewed_on": "2026-07-19",
+  "reference_ids": [
+    "source-review.usajobs.terms"
+  ],
+  "evidence": [
+    {
+      "url": "https://developer.usajobs.gov/guides/authentication",
+      "observed": "Job Search GET requests require the user's registered email and API key headers."
+    },
+    {
+      "url": "https://developer.usajobs.gov/guides/terms-of-use",
+      "observed": "API data is limited to the registered consumer's approved use and may not be rented, leased, loaned, sold, traded, or made into derivative works."
+    },
+    {
+      "url": "https://developer.usajobs.gov/guides/rate-limiting",
+      "observed": "The Search API documents row and page-size ceilings but no hourly request allowance."
+    }
+  ],
+  "review_result": "Automation remains blocked until registration-specific approved use covers JobSentinel's normalized local records and the derivative-work boundary is resolved.",
+  "local_policy": {
+    "operation": "candidate authenticated GET job-search checks only",
+    "request_limit_per_hour": 60,
+    "basis": "Candidate JobSentinel ceiling only; it does not authorize automation or resolve the approved-use boundary.",
+    "burst": 1,
+    "automatic_retries": false,
+    "automation_authorized": false,
+    "approved_use_evidence_required": true,
+    "credential_storage": "managed local secret only",
+    "data_use": "unresolved pending registration-specific approval",
+    "redistribution": false,
+    "external_model_training": false
+  },
+  "change_triggers": [
+    "authentication or registration terms change",
+    "approved data-use terms change",
+    "rate-limit or access rejection",
+    "response schema drift"
+  ]
+}

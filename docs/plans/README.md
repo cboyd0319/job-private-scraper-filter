@@ -21,13 +21,14 @@ See [Exec Plans](../exec-plans.md) for required format.
 
 | Workstream | Document |
 | ---------- | -------- |
-| V3 workstream selection | [V3 planning](v3/README.md) |
+| V3 master planning | [V3 master execution plan](v3/master-exec-plan.md) |
 
 ## Major-Release Planning
 
 | Horizon | Document |
 | ------- | -------- |
-| v3.0.0 moonshot planning | [V3 Planning](v3/README.md) |
+| V3 major line | [V3 master execution plan](v3/master-exec-plan.md) |
+| V3 strategy and research | [V3 planning package](v3/README.md) |
 
 ## Plan Requirements
 
@@ -56,7 +57,7 @@ Each broad plan follows [the exec-plan template](templates/exec-plan-template.md
 | Frontend | Complete | [DRY remediation](completed/frontend-dry-remediation.md) |
 | Rust crates | Complete | [DRY remediation](completed/crates-dry-remediation.md) |
 | Repository | Complete | [Full refactor](completed/full-repository-refactor.md), [ownership blueprint](completed/repository-refactor-blueprint.md) |
-| v2.9.5 | Source readiness complete | [Full repository refactor and readiness](completed/repository-architecture-reorganization.md) |
+| v2.9.5 | Release complete | [Full repository refactor and readiness](completed/repository-architecture-reorganization.md) |
 | Feedback workflow | Complete on main | [Beta feedback system](completed/beta-feedback-system.md) |
 | v2.9.1 | Complete | [Maintenance and repo cleanup](completed/v2.9.1-maintenance-and-repo-cleanup.md) |
 | v2.9.0 | Complete | [Completion and full-feature roadmap](completed/v2.9.0-completion-and-full-feature-roadmap.md) |

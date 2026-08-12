@@ -1,9 +1,118 @@
 use super::*;
 
-async fn memory_db() -> Database {
+async fn unreviewed_db() -> Database {
     let db = Database::connect_memory().await.unwrap();
     db.migrate().await.unwrap();
+    crate::v3_source_governance::install_linkedin_workbench(&db)
+        .await
+        .unwrap();
     db
+}
+
+async fn memory_db() -> Database {
+    let db = unreviewed_db().await;
+    remember_workbench_review(&db).await.unwrap();
+    db
+}
+
+#[tokio::test]
+async fn direct_record_without_backend_review_makes_no_durable_changes() {
+    let db = unreviewed_db().await;
+
+    assert!(record_event(
+        &db,
+        LinkedInWorkbenchEventInput {
+            event_type: LinkedInWorkbenchEventType::Applied,
+            title: Some("Security Engineer".to_string()),
+            company: Some("Example Co".to_string()),
+            url: Some("https://www.linkedin.com/jobs/view/123".to_string()),
+            notes: Some("private note".to_string()),
+        },
+    )
+    .await
+    .is_err());
+    assert!(db.get_recent_jobs(10).await.unwrap().is_empty());
+    assert_eq!(
+        db.application_tracker()
+            .get_application_stats()
+            .await
+            .unwrap()
+            .total,
+        0
+    );
+}
+
+#[tokio::test]
+async fn revoked_or_drifted_workbench_review_fails_closed() {
+    let db = memory_db().await;
+    assert!(revoke_workbench_review(&db).await.unwrap());
+    assert!(!workbench_review_is_current(&db).await.unwrap());
+    assert!(record_event(
+        &db,
+        LinkedInWorkbenchEventInput {
+            event_type: LinkedInWorkbenchEventType::Saved,
+            title: None,
+            company: None,
+            url: None,
+            notes: None,
+        },
+    )
+    .await
+    .is_err());
+
+    remember_workbench_review(&db).await.unwrap();
+    let mut drifted = crate::v3_source_governance::linkedin_workbench_policy().unwrap();
+    drifted.revision += 1;
+    db.upsert_source_policy(&drifted).await.unwrap();
+    assert!(!workbench_review_is_current(&db).await.unwrap());
+    assert!(record_event(
+        &db,
+        LinkedInWorkbenchEventInput {
+            event_type: LinkedInWorkbenchEventType::Saved,
+            title: None,
+            company: None,
+            url: None,
+            notes: None,
+        },
+    )
+    .await
+    .is_err());
+}
+
+#[tokio::test]
+async fn review_status_distinguishes_consent_from_stale_policy_evidence() {
+    let reviewed = memory_db().await;
+    assert_eq!(
+        workbench_review_status_on(
+            &reviewed,
+            chrono::NaiveDate::from_ymd_opt(2026, 8, 18).unwrap()
+        )
+        .await
+        .unwrap(),
+        LinkedInWorkbenchReviewStatus::Reviewed
+    );
+    assert_eq!(
+        workbench_review_status_on(
+            &reviewed,
+            chrono::NaiveDate::from_ymd_opt(2026, 8, 19).unwrap()
+        )
+        .await
+        .unwrap(),
+        LinkedInWorkbenchReviewStatus::PolicyRefreshRequired
+    );
+
+    let unreviewed = unreviewed_db().await;
+    assert!(remember_workbench_review_on(
+        &unreviewed,
+        chrono::NaiveDate::from_ymd_opt(2026, 8, 19).unwrap()
+    )
+    .await
+    .is_err());
+    assert!(unreviewed
+        .source_consent_history("linkedin-workbench", 100)
+        .await
+        .unwrap()
+        .is_empty());
 }
 
 #[tokio::test]
@@ -187,7 +296,7 @@ async fn expanded_activity_events_use_local_application_ledger() {
 }
 
 #[tokio::test]
-async fn notes_remove_linkedin_session_material_before_storage() {
+async fn notes_remove_sensitive_url_fields_before_storage() {
     let db = memory_db().await;
 
     let result = record_event(
@@ -197,12 +306,10 @@ async fn notes_remove_linkedin_session_material_before_storage() {
             title: Some("Principal Security Engineer".to_string()),
             company: Some("Example Co".to_string()),
             url: Some(
-                "https://www.linkedin.com/jobs/view/123?currentJobId=123&token=secret"
-                    .to_string(),
+                "https://www.linkedin.com/jobs/view/123?currentJobId=123&token=secret".to_string(),
             ),
             notes: Some(
-                "Saved from https://www.linkedin.com/jobs/view/123?token=secret li_at=raw-cookie session=abc"
-                    .to_string(),
+                "Saved from https://www.linkedin.com/jobs/view/123?token=secret".to_string(),
             ),
         },
     )
@@ -213,8 +320,103 @@ async fn notes_remove_linkedin_session_material_before_storage() {
     assert_eq!(job.url, "https://www.linkedin.com/jobs/view/123");
     let notes = job.notes.unwrap_or_default();
     assert!(notes.contains("https://www.linkedin.com/jobs/view/123"));
-    assert!(notes.contains("li_at=[REDACTED]"));
-    assert!(notes.contains("session=[removed]"));
     assert!(!notes.contains("token=secret"));
-    assert!(!notes.contains("raw-cookie"));
+}
+
+#[tokio::test]
+async fn secret_bearing_notes_fail_before_any_durable_write() {
+    for notes in [
+        r#"{"access_token": "json-secret-value"}"#,
+        "Authorization: Basic dXNlcjpwYXNz",
+        "li_at = AQED-opaque-value",
+        "Cookie: JSESSIONID=ajax:123456; bcookie=v=2",
+        "Bearer eyJhbGciOi.fake.payload",
+        r#"{"name":"li_at","value":"AQED-opaque-value"}"#,
+        "oauth_token=oauth-secret-value",
+        r#"{"id_token":"eyJhbGciOi.fake.payload"}"#,
+        "client_secret=client-secret-value",
+        "curl -H 'Authorization: Basic dXNlcjpwYXNz' https://example.com",
+        r#"{"authorization":"Bearer eyJhbGciOi.fake.payload"}"#,
+        "curl -H 'Cookie: li_at=AQED-opaque-value' https://example.com",
+        r#"{"cookie":"li_at=AQED-opaque-value"}"#,
+    ] {
+        let db = memory_db().await;
+        let result = record_event(
+            &db,
+            LinkedInWorkbenchEventInput {
+                event_type: LinkedInWorkbenchEventType::Note,
+                title: Some("Principal Security Engineer".to_string()),
+                company: Some("Example Co".to_string()),
+                url: Some("https://www.linkedin.com/jobs/view/123".to_string()),
+                notes: Some(notes.to_string()),
+            },
+        )
+        .await;
+
+        assert_eq!(
+            result.unwrap_err().to_string(),
+            "LinkedIn Workbench text cannot contain session or credential material",
+            "{notes}"
+        );
+        assert!(db.get_recent_jobs(10).await.unwrap().is_empty(), "{notes}");
+    }
+}
+
+#[tokio::test]
+async fn secret_bearing_title_or_company_fails_before_any_durable_write() {
+    for (title, company) in [
+        (
+            "Authorization: Bearer eyJhbGciOi.fake.payload",
+            "Example Co",
+        ),
+        (
+            "Principal Security Engineer",
+            r#"{"name":"JSESSIONID","value":"ajax:123456"}"#,
+        ),
+    ] {
+        let db = memory_db().await;
+        let result = record_event(
+            &db,
+            LinkedInWorkbenchEventInput {
+                event_type: LinkedInWorkbenchEventType::Saved,
+                title: Some(title.to_string()),
+                company: Some(company.to_string()),
+                url: Some("https://www.linkedin.com/jobs/view/123".to_string()),
+                notes: None,
+            },
+        )
+        .await;
+
+        assert!(result.is_err(), "{title} / {company}");
+        assert!(db.get_recent_jobs(10).await.unwrap().is_empty());
+    }
+}
+
+#[tokio::test]
+async fn legitimate_clearance_and_interview_notes_are_preserved() {
+    let db = memory_db().await;
+    let notes = "Secret clearance: required. Work authorization: U.S. citizen. Interview session: Tuesday. Bearer of good news. Bearer authentication. Authorization: Basic knowledge.";
+
+    let result = record_event(
+        &db,
+        LinkedInWorkbenchEventInput {
+            event_type: LinkedInWorkbenchEventType::Note,
+            title: Some("Principal Security Engineer".to_string()),
+            company: Some("Example Co".to_string()),
+            url: Some("https://www.linkedin.com/jobs/view/123".to_string()),
+            notes: Some(notes.to_string()),
+        },
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(
+        db.get_job_by_hash(&result.job_hash)
+            .await
+            .unwrap()
+            .unwrap()
+            .notes
+            .as_deref(),
+        Some(notes)
+    );
 }

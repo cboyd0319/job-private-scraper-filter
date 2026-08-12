@@ -167,13 +167,16 @@ pub struct VectorProvenance {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct VectorFreshnessKey {
     pub text_hash: String,
+    pub model_id: String,
     pub model_revision: String,
+    pub backend: String,
     pub dimension: usize,
     pub instruction_profile: String,
     pub chunker_version: String,
     pub normalizer_version: String,
     pub pooling: String,
     pub normalization: String,
+    pub model_manifest_hash: String,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -196,12 +199,15 @@ impl VectorFreshnessKey {
         }
 
         if self.text_hash == current.text_hash
+            && self.model_id == current.model_id
             && self.model_revision == current.model_revision
+            && self.backend == current.backend
             && self.instruction_profile == current.instruction_profile
             && self.chunker_version == current.chunker_version
             && self.normalizer_version == current.normalizer_version
             && self.pooling == current.pooling
             && self.normalization == current.normalization
+            && self.model_manifest_hash == current.model_manifest_hash
         {
             VectorFreshness::Valid
         } else {
@@ -214,6 +220,22 @@ impl VectorFreshnessKey {
 mod tests {
     use super::*;
     use crate::load_model_manifest;
+
+    fn freshness_key() -> VectorFreshnessKey {
+        VectorFreshnessKey {
+            text_hash: "a".to_string(),
+            model_id: "qwen3-embedding-0.6b".to_string(),
+            model_revision: "r".to_string(),
+            backend: "qwen3-candle".to_string(),
+            dimension: 768,
+            instruction_profile: "resume_requirement_v1".to_string(),
+            chunker_version: "chunker_v1".to_string(),
+            normalizer_version: "normalizer_v1".to_string(),
+            pooling: "last-token".to_string(),
+            normalization: "l2".to_string(),
+            model_manifest_hash: "manifest-a".to_string(),
+        }
+    }
 
     #[test]
     fn compatibility_accepts_matching_qwen3_embedding_spec() {
@@ -257,16 +279,7 @@ mod tests {
 
     #[test]
     fn freshness_key_detects_stale_instruction_profile() {
-        let stored = VectorFreshnessKey {
-            text_hash: "a".to_string(),
-            model_revision: "r".to_string(),
-            dimension: 768,
-            instruction_profile: "resume_requirement_v1".to_string(),
-            chunker_version: "chunker_v1".to_string(),
-            normalizer_version: "normalizer_v1".to_string(),
-            pooling: "last-token".to_string(),
-            normalization: "l2".to_string(),
-        };
+        let stored = freshness_key();
         let mut current = stored.clone();
         current.instruction_profile = "resume_requirement_v2".to_string();
 
@@ -274,5 +287,23 @@ mod tests {
             stored.compare(&current, true),
             VectorFreshness::StaleRebuildNeeded
         );
+    }
+
+    #[test]
+    fn freshness_key_detects_changed_model_backend_and_manifest() {
+        let stored = freshness_key();
+        let mut changed_model = stored.clone();
+        changed_model.model_id = "other-model".to_string();
+        let mut changed_backend = stored.clone();
+        changed_backend.backend = "other-backend".to_string();
+        let mut changed_manifest = stored.clone();
+        changed_manifest.model_manifest_hash = "manifest-b".to_string();
+
+        for current in [changed_model, changed_backend, changed_manifest] {
+            assert_eq!(
+                stored.compare(&current, true),
+                VectorFreshness::StaleRebuildNeeded
+            );
+        }
     }
 }

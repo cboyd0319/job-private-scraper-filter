@@ -9,11 +9,14 @@ import type {
   MockRequirementReview,
 } from "./resumeAnalysis";
 import { isMockCredentialKeyword } from "./resumeCredentialTaxonomy";
+import type { ProfessionMatchingProfile } from "../../../features/resumes/shared/atsAnalysisContracts";
+import { mockProfilePrefersSection } from "./resumeMatchingProfile";
 
 export function buildMockRequirementReviews(
   keywords: MockAtsKeyword[],
   keywordMatches: MockKeywordMatch[],
   missingKeywordDetails: MockAtsKeyword[],
+  profession?: ProfessionMatchingProfile,
 ): MockRequirementReview[] {
   const reviews: MockRequirementReview[] = [];
 
@@ -30,6 +33,14 @@ export function buildMockRequirementReviews(
         match_state: matchState,
         evidence_sections: matched.found_in,
         hard_constraint: Boolean(getMockHardConstraintCategory(keyword)),
+        ...(profession
+          ? {
+              profile_preferred_section: mockProfilePrefersSection(
+                profession,
+                matched.found_in,
+              ),
+            }
+          : {}),
         recommendation: getMockRequirementRecommendation(matchState),
       });
       continue;
@@ -46,6 +57,7 @@ export function buildMockRequirementReviews(
         match_state: "Missing",
         evidence_sections: [],
         hard_constraint: Boolean(getMockHardConstraintCategory(keyword)),
+        ...(profession ? { profile_preferred_section: false } : {}),
         recommendation: getMockRequirementRecommendation("Missing"),
       });
     }
@@ -68,6 +80,8 @@ export function buildMockRequirementReviews(
     return (
       importanceOrder[a.importance] - importanceOrder[b.importance] ||
       stateOrder[a.match_state] - stateOrder[b.match_state] ||
+      Number(Boolean(b.profile_preferred_section)) -
+        Number(Boolean(a.profile_preferred_section)) ||
       a.keyword.localeCompare(b.keyword)
     );
   });

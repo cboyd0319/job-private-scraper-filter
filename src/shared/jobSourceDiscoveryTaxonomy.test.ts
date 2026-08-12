@@ -311,6 +311,7 @@ describe("jobSourceDiscoveryTaxonomy", () => {
 
     expect(builtin).toMatchObject({
       accessModel: "restricted-user-gated",
+      status: "manual-only",
       requiresUserAgreement: true,
     });
     expect("technicalAccess" in builtin!).toBe(false);
@@ -356,6 +357,20 @@ describe("jobSourceDiscoveryTaxonomy", () => {
     );
   });
 
+  it("keeps retired scheduled boards manual-only after policy review", () => {
+    for (const id of ["builtin", "dice", "glassdoor", "simplyhired"]) {
+      const source = JOB_SOURCE_DISCOVERY_TAXONOMY.find((entry) => entry.id === id);
+
+      expect(source).toMatchObject({
+        status: "manual-only",
+        requiresUserAgreement: true,
+      });
+      expect(source?.implementationPath).toContain(
+        "Scheduled and pasted-URL fetches are policy-disabled.",
+      );
+    }
+  });
+
   it("separates public consent-gated sources from authenticated user sessions", () => {
     const publicUnauthenticatedIds =
       publicUnauthenticatedJobSourceDiscoveryEntries().map((entry) => entry.id);
@@ -369,7 +384,12 @@ describe("jobSourceDiscoveryTaxonomy", () => {
       expect.arrayContaining(["greenhouse", "indeed", "builtin", "dice"]),
     );
     expect(publicAgreementIds).toEqual(
-      expect.arrayContaining(["indeed", "builtin", "dice", "glassdoor"]),
+      expect.arrayContaining([
+        "indeed",
+        "builtin",
+        "dice",
+        "glassdoor",
+      ]),
     );
     expect(authenticatedIds).toEqual(
       expect.arrayContaining([
@@ -401,7 +421,6 @@ describe("jobSourceDiscoveryTaxonomy", () => {
         "remote-first-jobs",
         "we-work-remotely",
         "hacker-news-who-is-hiring",
-        "yc-work-at-a-startup",
       ]),
     );
 
@@ -412,6 +431,19 @@ describe("jobSourceDiscoveryTaxonomy", () => {
         "authenticated-user-session",
       );
     }
+  });
+
+  it("keeps YC user-opened without an automation agreement path", () => {
+    const yc = JOB_SOURCE_DISCOVERY_TAXONOMY.find(
+      (entry) => entry.id === "yc-work-at-a-startup",
+    );
+
+    expect(yc).toMatchObject({
+      accessModel: "review-required",
+      status: "manual-only",
+      implementationPath: "Open the YC search in the user's browser.",
+    });
+    expect(yc?.requiresUserAgreement).not.toBe(true);
   });
 
   it("caps restricted authenticated interactive sessions and forbids auth storage", () => {

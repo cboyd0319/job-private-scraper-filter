@@ -93,6 +93,52 @@ describe("ScreeningAnswersForm", () => {
       );
     });
 
+    it("keeps protected-answer patterns local and manual-only", async () => {
+      const user = userEvent.setup();
+      render(<ScreeningAnswersForm />);
+
+      await waitFor(() => {
+        expect(
+          screen.getByRole("button", { name: /add answer/i }),
+        ).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByRole("button", { name: /add answer/i }));
+
+      fireEvent.change(screen.getByLabelText(/question wording to look for/i), {
+        target: { value: "Do you identify as a protected veteran?" },
+      });
+
+      expect(screen.getByTestId("hard-screening-answer-guidance")).toHaveTextContent(
+        "This voluntary or sensitive personal question stays local and manual-only. Review and answer it yourself.",
+      );
+    });
+
+    it("does not treat civilian role or embedded word fragments as protected-answer patterns", async () => {
+      const user = userEvent.setup();
+      render(<ScreeningAnswersForm />);
+
+      await waitFor(() => {
+        expect(
+          screen.getByRole("button", { name: /add answer/i }),
+        ).toBeInTheDocument();
+      });
+
+      await user.click(screen.getByRole("button", { name: /add answer/i }));
+
+      fireEvent.change(screen.getByLabelText(/question wording to look for/i), {
+        target: { value: "Care Coordinator" },
+      });
+
+      expect(screen.queryByTestId("hard-screening-answer-guidance")).not.toBeInTheDocument();
+
+      fireEvent.change(screen.getByLabelText(/question wording to look for/i), {
+        target: { value: "Distributed trace experience" },
+      });
+
+      expect(screen.queryByTestId("hard-screening-answer-guidance")).not.toBeInTheDocument();
+    });
+
     it("allows typing in answer field", async () => {
       const user = userEvent.setup();
       render(<ScreeningAnswersForm />);

@@ -17,11 +17,16 @@ document = "Job posting, job summary, or role requirement."
 strong = 0.82
 medium = 0.65
 weak = 0.48
+retrieval = 0.30
 
 [thresholds.job_search]
 strong = 0.76
 medium = 0.60
 weak = 0.42
+retrieval = 0.42
+
+[reranker_acceptance]
+resume_requirement = 3.0
 
 [[models]]
 id = "qwen3-embedding-0.6b"
@@ -31,7 +36,7 @@ revision = "97b0c614be4d77ee51c0cef4e5f07c00f9eb65b3"
 source_url = "https://huggingface.co/Qwen/Qwen3-Embedding-0.6B"
 license = "Apache-2.0"
 backend = "qwen3-candle"
-backend_compatibility = ["fastembed-qwen3", "qwen3-candle"]
+backend_compatibility = []
 dimension = 768
 native_dimension = 1024
 max_tokens = 32768
@@ -97,7 +102,7 @@ revision = "e61197ed45024b0ed8a2d74b80b4d909f1255473"
 source_url = "https://huggingface.co/Qwen/Qwen3-Reranker-0.6B"
 license = "Apache-2.0"
 backend = "qwen3-reranker-candle"
-backend_compatibility = ["qwen3-reranker-candle", "qwen3-seq-cls-candle", "local-http", "python-sidecar"]
+backend_compatibility = []
 max_tokens = 32768
 tokenizer_family = "qwen3"
 pooling = "logit-score"

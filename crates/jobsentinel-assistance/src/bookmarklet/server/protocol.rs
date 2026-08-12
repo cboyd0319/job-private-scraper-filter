@@ -2,103 +2,12 @@ use super::*;
 
 pub(super) fn http_response_data(status: &str, content_type: &str, response: &str) -> String {
     format!(
-        "HTTP/1.1 {}\r\nContent-Type: {}\r\nContent-Length: {}\r\nCache-Control: no-store\r\nPragma: no-cache\r\nX-Content-Type-Options: nosniff\r\nReferrer-Policy: no-referrer\r\nCross-Origin-Resource-Policy: same-origin\r\nConnection: close\r\n\r\n{}",
+        "HTTP/1.1 {}\r\nContent-Type: {}\r\nContent-Length: {}\r\nCache-Control: no-store\r\nPragma: no-cache\r\nX-Content-Type-Options: nosniff\r\nReferrer-Policy: no-referrer\r\nCross-Origin-Resource-Policy: cross-origin\r\nConnection: close\r\n\r\n{}",
         status,
         content_type,
         response.len(),
         response
     )
-}
-
-pub(super) fn constant_time_ascii_eq(left: &str, right: &str) -> bool {
-    let left_bytes = left.as_bytes();
-    let right_bytes = right.as_bytes();
-    let max_len = left_bytes.len().max(right_bytes.len());
-    let mut diff = left_bytes.len() ^ right_bytes.len();
-
-    for index in 0..max_len {
-        let left_byte = left_bytes.get(index).copied().unwrap_or(0);
-        let right_byte = right_bytes.get(index).copied().unwrap_or(0);
-        diff |= usize::from(left_byte ^ right_byte);
-    }
-
-    diff == 0
-}
-
-pub(super) fn has_valid_bookmarklet_token(request: &str, auth_token: &str) -> bool {
-    !auth_token.is_empty()
-        && request_header_value(request, BOOKMARKLET_TOKEN_HEADER)
-            .is_some_and(|value| constant_time_ascii_eq(value, auth_token))
-}
-
-pub(super) fn body_has_valid_bookmarklet_token(body: &serde_json::Value, auth_token: &str) -> bool {
-    !auth_token.is_empty()
-        && body
-            .get("token")
-            .and_then(serde_json::Value::as_str)
-            .is_some_and(|value| constant_time_ascii_eq(value, auth_token))
-}
-
-pub(super) fn bookmarklet_body_or_header_has_token(
-    request: &str,
-    body: &serde_json::Value,
-    auth_token: &str,
-) -> bool {
-    has_valid_bookmarklet_token(request, auth_token)
-        || body_has_valid_bookmarklet_token(body, auth_token)
-}
-
-pub(super) fn consume_valid_bookmarklet_token(
-    auth_state: &Arc<RwLock<BookmarkletAuthState>>,
-    request: &str,
-    body: &serde_json::Value,
-    now: DateTime<Utc>,
-) -> bool {
-    let mut state = match auth_state.write() {
-        Ok(state) => state,
-        Err(poisoned) => poisoned.into_inner(),
-    };
-
-    let valid = now <= state.auth_token_expires_at
-        && bookmarklet_body_or_header_has_token(request, body, &state.auth_token);
-
-    if valid {
-        state.auth_token.clear();
-        state.auth_token_expires_at = now - TimeDelta::seconds(1);
-    }
-
-    valid
-}
-
-pub(super) fn bookmarklet_job_value(body: &serde_json::Value) -> serde_json::Value {
-    if let Some(job) = body.get("job") {
-        return job.clone();
-    }
-
-    let mut body = body.clone();
-    if let serde_json::Value::Object(ref mut map) = body {
-        map.remove("token");
-    }
-
-    body
-}
-
-pub(super) fn bookmarklet_job_values(
-    body: &serde_json::Value,
-) -> Result<Vec<serde_json::Value>, String> {
-    let Some(jobs) = body.get("jobs") else {
-        return Ok(vec![bookmarklet_job_value(body)]);
-    };
-
-    let Some(jobs) = jobs.as_array() else {
-        return Err(INVALID_BOOKMARKLET_PAYLOAD_MESSAGE.to_string());
-    };
-
-    if jobs.is_empty() || jobs.len() > MAX_BOOKMARKLET_JOBS_PER_REQUEST {
-        return Err(INVALID_BOOKMARKLET_PAYLOAD_MESSAGE.to_string());
-    }
-
-    Ok(jobs.clone())
 }
 
 pub(super) fn request_header_value<'a>(request: &'a str, header_name: &str) -> Option<&'a str> {
@@ -128,28 +37,28 @@ pub(super) fn has_valid_bookmarklet_host(request: &str, port: u16) -> bool {
 }
 
 pub(super) fn has_allowed_bookmarklet_origin(request: &str) -> bool {
-    request_header_value(request, "origin").is_none_or(is_http_or_https_url)
-        && request_header_value(request, "referer").is_none_or(is_http_or_https_url)
+    request_header_value(request, "origin").is_some_and(|value| {
+        external_https_origin(value).is_some()
+            && request_header_value(request, "referer")
+                .is_none_or(|referer| external_https_origin(referer).is_some())
+    })
 }
 
-pub(super) fn is_http_or_https_url(value: &str) -> bool {
-    http_or_https_origin(value).is_some()
-}
-
-pub(super) fn http_or_https_origin(value: &str) -> Option<(String, String, u16)> {
-    let Ok(url) = url::Url::parse(value.trim()) else {
-        return None;
-    };
-
-    if !matches!(url.scheme(), "http" | "https") {
+pub(super) fn external_https_origin(value: &str) -> Option<String> {
+    let value = value.trim();
+    if value
+        .strip_prefix("https://")
+        .is_none_or(|authority| authority.starts_with('/'))
+    {
         return None;
     }
-
-    Some((
-        url.scheme().to_string(),
-        url.host_str()?.trim_end_matches('.').to_ascii_lowercase(),
-        url.port_or_known_default()?,
-    ))
+    let url = url::Url::parse(value).ok()?;
+    if !url.username().is_empty() || url.password().is_some() {
+        return None;
+    }
+    let origin = url.origin().ascii_serialization();
+    validate_credential_free_external_https_url(&origin).ok()?;
+    Some(origin)
 }
 
 pub(super) fn bookmarklet_job_url_values(body: &serde_json::Value) -> Vec<&str> {
@@ -173,14 +82,15 @@ pub(super) fn bookmarklet_payload_matches_request_origin(
     body: &serde_json::Value,
 ) -> bool {
     bookmarklet_job_url_values(body).into_iter().all(|job_url| {
-        let Some(job_origin) = http_or_https_origin(job_url) else {
+        let Some(job_origin) = external_https_origin(job_url) else {
             return true;
         };
 
-        request_header_value(request, "origin").is_none_or(|origin| {
-            http_or_https_origin(origin).is_some_and(|request_origin| request_origin == job_origin)
+        request_header_value(request, "origin").is_some_and(|origin| {
+            external_https_origin(origin).is_some_and(|request_origin| request_origin == job_origin)
         }) && request_header_value(request, "referer").is_none_or(|referer| {
-            http_or_https_origin(referer).is_some_and(|request_origin| request_origin == job_origin)
+            external_https_origin(referer)
+                .is_some_and(|request_origin| request_origin == job_origin)
         })
     })
 }

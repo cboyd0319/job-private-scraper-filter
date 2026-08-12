@@ -56,16 +56,19 @@ export type ApplicationReviewActionKind =
   | "offers"
   | "to_apply"
   | "weekly_review"
+  | "source_review"
   | "steady";
 
 export type ApplicationReviewPriority = "high" | "medium" | "low";
 
 export interface ApplicationReviewAction {
+  id: string;
   kind: ApplicationReviewActionKind;
   priority: ApplicationReviewPriority;
-  count: number;
   title: string;
   description: string;
+  applicationId?: number;
+  reminderId?: number;
   handoff?: ApplicationReviewHandoff;
 }
 
@@ -214,106 +217,122 @@ export function getApplicationReviewSummary(
   reminders: PendingReminder[],
   now = new Date(),
 ): ApplicationReviewSummary {
-  if (!applications || !hasAnyApplications(applications)) {
-    return {
-      title: "Start with one role",
-      description: "Save or import a job, then JobSentinel will help choose the next step.",
-      actions: [
-        {
-          kind: "to_apply",
-          priority: "low",
-          count: 0,
-          title: "Add a job to track",
-          description: "Start with one saved, pasted, or imported job so the board has something to organize.",
-          handoff: ACTION_HANDOFFS.to_apply,
-        },
-      ],
-    };
-  }
-
-  const noResponseCount = countNoResponseCandidates(applications, now);
-  const interviewCount =
-    applications.screening_call.length +
-    applications.phone_interview.length +
-    applications.technical_interview.length +
-    applications.onsite_interview.length;
-  const offerCount = applications.offer_received.length;
-  const toApplyCount = applications.to_apply.length;
-
   const actions: ApplicationReviewAction[] = [];
+  const add = (action: ApplicationReviewAction) => {
+    if (actions.length < 7) actions.push(action);
+  };
 
-  if (reminders.length > 0) {
-    actions.push({
-      kind: "reminders",
-      priority: "high",
-      count: reminders.length,
-      title: "Finish reminders",
-      description: pluralize(reminders.length, "follow-up, prep item, or deadline is waiting", "follow-ups, prep items, or deadlines are waiting"),
-      handoff: ACTION_HANDOFFS.reminders,
-    });
-  }
-
-  if (noResponseCount > 0) {
-    actions.push({
-      kind: "no_response",
-      priority: "high",
-      count: noResponseCount,
-      title: "Review quiet roles",
-      description: pluralize(noResponseCount, "role has been quiet for 14 days", "roles have been quiet for 14 days"),
-      handoff: ACTION_HANDOFFS.no_response,
-    });
-  }
-
-  if (interviewCount > 0) {
-    actions.push({
-      kind: "interviews",
-      priority: "medium",
-      count: interviewCount,
-      title: "Prepare for interviews",
-      description: pluralize(interviewCount, "conversation needs prep or follow-up", "conversations need prep or follow-up"),
-      handoff: ACTION_HANDOFFS.interviews,
-    });
-  }
-
-  if (offerCount > 0) {
-    actions.push({
-      kind: "offers",
-      priority: "medium",
-      count: offerCount,
-      title: "Review offers",
-      description: pluralize(offerCount, "offer needs compensation and deadline review", "offers need compensation and deadline review"),
-      handoff: ACTION_HANDOFFS.offers,
-    });
-  }
-
-  if (toApplyCount > 0) {
-    actions.push({
+  if (!applications || !hasAnyApplications(applications)) {
+    add({
+      id: "add-job",
       kind: "to_apply",
       priority: "low",
-      count: toApplyCount,
-      title: "Apply or skip saved roles",
-      description: pluralize(toApplyCount, "saved role needs a decision", "saved roles need a decision"),
+      title: "Add a job to track",
+      description: "Save, paste, or import one job to start an opportunity case.",
       handoff: ACTION_HANDOFFS.to_apply,
     });
+  } else {
+    for (const reminder of [...reminders].sort(
+      (left, right) => left.reminder_time.localeCompare(right.reminder_time) || left.id - right.id,
+    )) {
+      add({
+        id: `reminder-${reminder.id}`,
+        kind: "reminders",
+        priority: "high",
+        title: `Review ${formatReminderType(reminder.reminder_type).toLowerCase()}`,
+        description: `${reminder.job_title} at ${reminder.company} has a saved reminder ready for review.`,
+        applicationId: reminder.application_id,
+        reminderId: reminder.id,
+        handoff: ACTION_HANDOFFS.reminders,
+      });
+    }
+
+    const activeInterviews = [
+      ...applications.screening_call,
+      ...applications.phone_interview,
+      ...applications.technical_interview,
+      ...applications.onsite_interview,
+    ];
+    const noResponses = [
+      ...applications.applied,
+      ...applications.phone_interview,
+      ...applications.technical_interview,
+      ...applications.onsite_interview,
+    ]
+      .filter((application) => isNoResponseCandidate(application, now))
+      .sort(compareApplicationActivity);
+    for (const application of noResponses) {
+      add({
+        id: `no-response-${application.id}`,
+        kind: "no_response",
+        priority: "high",
+        title: "Choose a quiet-role next step",
+        description: `${application.job_title} at ${application.company} has been quiet for at least 14 days.`,
+        applicationId: application.id,
+        handoff: ACTION_HANDOFFS.no_response,
+      });
+    }
+    for (const application of [...activeInterviews].sort(compareApplicationId)) {
+      add({
+        id: `interview-${application.id}`,
+        kind: "interviews",
+        priority: "medium",
+        title: "Prepare or follow up",
+        description: `${application.job_title} at ${application.company} has an interview-stage action.`,
+        applicationId: application.id,
+        handoff: ACTION_HANDOFFS.interviews,
+      });
+    }
+    for (const application of [...applications.offer_received].sort(compareApplicationId)) {
+      add({
+        id: `offer-${application.id}`,
+        kind: "offers",
+        priority: "medium",
+        title: "Review this offer",
+        description: `Review the written facts, deadline, and options for ${application.job_title} at ${application.company}.`,
+        applicationId: application.id,
+        handoff: ACTION_HANDOFFS.offers,
+      });
+    }
+    for (const application of [...applications.to_apply].sort(compareApplicationId)) {
+      add({
+        id: `to-apply-${application.id}`,
+        kind: "to_apply",
+        priority: "low",
+        title: "Review this tracked role",
+        description: `Review the status and notes for ${application.job_title} at ${application.company}.`,
+        applicationId: application.id,
+        handoff: ACTION_HANDOFFS.to_apply,
+      });
+    }
+    if (actions.length === 0) {
+      add({
+        id: "review-outcomes",
+        kind: "steady",
+        priority: "low",
+        title: "Review completed outcomes",
+        description: "Review closed roles and outcomes before changing your search plan.",
+        handoff: ACTION_HANDOFFS.steady,
+      });
+    }
   }
 
-  if (actions.length === 0) {
-    actions.push({
-      kind: "steady",
+  add({
+    id: "weekly-review",
+    kind: "weekly_review",
+    priority: "low",
+    title: "Review this week's plan",
+    description: "Compare sources, quiet roles, saved roles, responses, and interviews before changing pace.",
+    handoff: ACTION_HANDOFFS.weekly_review,
+  });
+  if (actions.length < 3) {
+    add({
+      id: "source-review",
+      kind: "source_review",
       priority: "low",
-      count: 0,
-      title: "Everything is organized",
-      description: "No reminders, stale applications, interviews, offers, or saved roles need attention right now.",
-      handoff: ACTION_HANDOFFS.steady,
-    });
-  } else {
-    actions.push({
-      kind: "weekly_review",
-      priority: "low",
-      count: 0,
-      title: "Replan this week",
-      description: "Compare sources, quiet roles, saved roles, responses, and interviews before changing pace.",
-      handoff: ACTION_HANDOFFS.weekly_review,
+      title: "Review job sources",
+      description: "Review enabled sources; no source is contacted until you choose a source action.",
+      handoff: ACTION_HANDOFFS.source_review,
     });
   }
 
@@ -324,18 +343,9 @@ export function getApplicationReviewSummary(
     description:
       highPriorityCount > 0
         ? "Start with time-sensitive follow-ups and quiet roles before spending energy elsewhere."
-        : "Use this short list to decide where your job-search time goes next.",
+        : "Choose from these local actions; source checks stay behind an explicit click.",
     actions,
   };
-}
-
-function countNoResponseCandidates(applications: ApplicationsByStatus, now: Date): number {
-  return [
-    ...applications.applied,
-    ...applications.phone_interview,
-    ...applications.technical_interview,
-    ...applications.onsite_interview,
-  ].filter((application) => isNoResponseCandidate(application, now)).length;
 }
 
 function isNoResponseCandidate(application: Application, now: Date): boolean {
@@ -351,8 +361,14 @@ function parseApplicationDate(value: string | null): Date | null {
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
-function pluralize(count: number, singular: string, plural: string): string {
-  return `${count} ${count === 1 ? singular : plural}.`;
+function compareApplicationId(left: Application, right: Application): number {
+  return left.id - right.id;
+}
+
+function compareApplicationActivity(left: Application, right: Application): number {
+  const leftTime = parseApplicationDate(left.last_contact ?? left.applied_at)?.getTime() ?? 0;
+  const rightTime = parseApplicationDate(right.last_contact ?? right.applied_at)?.getTime() ?? 0;
+  return leftTime - rightTime || compareApplicationId(left, right);
 }
 
 const ACTION_HANDOFFS: Record<ApplicationReviewActionKind, ApplicationReviewHandoff> = {
@@ -373,12 +389,16 @@ const ACTION_HANDOFFS: Record<ApplicationReviewActionKind, ApplicationReviewHand
     description: "Separate written offer facts, deadline, benefits, commute, risks, and counter notes.",
   },
   to_apply: {
-    label: "Posting review",
-    description: "Review source, pay, and must-haves, then tailor only if the role is worth applying to.",
+    label: "Application tracking",
+    description: "Confirm status and notes, then decide whether to apply, skip, or close the role.",
   },
   weekly_review: {
     label: "Job-search plan",
     description: "Replan lanes, sources, pacing, and stop rules from tracker evidence.",
+  },
+  source_review: {
+    label: "Job sources",
+    description: "Review enabled sources and start any connectivity-required check yourself.",
   },
   steady: {
     label: "Job-search plan",

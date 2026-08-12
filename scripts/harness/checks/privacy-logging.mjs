@@ -79,9 +79,15 @@ const privacyLoggingViolationChecks = [
   [core.hasRawSchedulerScoringPrivacyLeak, "replace raw scheduler scoring privacy leaks"],
   [core.hasResidualCorePrivacyLeak, "replace residual core privacy leaks"],
   [commands.hasManualBookmarkletJsonErrorResponses, "replace manual bookmarklet JSON error responses"],
-  [commands.hasUnauthenticatedBookmarkletImports, "require bookmarklet import auth token"],
-  [commands.hasReusableBookmarkletImportToken, "make bookmarklet import safety codes one-use"],
-  [frontend.hasBookmarkletCodeWithoutTokenHeader, "include bookmarklet auth token header"],
+  [
+    commands.hasUnauthenticatedBookmarkletImports,
+    "require structured bookmarklet pairing authorization",
+  ],
+  [commands.hasNonAtomicBookmarkletPairing, "make bookmarklet pairing atomic and one-use"],
+  [
+    frontend.hasBookmarkletCodeWithoutPairingBoundary,
+    "bind bookmarklet code to structured pairing and origin",
+  ],
   [frontend.hasUnsanitizedFrontendErrorReportStorage, "sanitize frontend error report storage"],
   [frontend.hasRawFrontendErrorReporterForwarding, "sanitize frontend error reporter console forwarding"],
   [frontend.hasRawFrontendErrorHelperDebugLogging, "sanitize frontend error helper debug logging"],

@@ -54,6 +54,42 @@ pub struct MatchResult {
     pub created_at: DateTime<Utc>,
 }
 
+/// Explicit local feedback attached to one saved resume match.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ResumeMatchFeedbackLabel {
+    Useful,
+    NotRelevant,
+}
+
+impl ResumeMatchFeedbackLabel {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Useful => "useful",
+            Self::NotRelevant => "not_relevant",
+        }
+    }
+}
+
+impl TryFrom<&str> for ResumeMatchFeedbackLabel {
+    type Error = &'static str;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        match value {
+            "useful" => Ok(Self::Useful),
+            "not_relevant" => Ok(Self::NotRelevant),
+            _ => Err("invalid resume match feedback label"),
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ResumeMatchFeedback {
+    pub match_id: i64,
+    pub label: ResumeMatchFeedbackLabel,
+    pub recorded_at: DateTime<Utc>,
+}
+
 /// Resume-job match result with job details (for frontend display)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MatchResultWithJob {
@@ -69,6 +105,7 @@ pub struct MatchResultWithJob {
     pub missing_skills: Vec<String>,
     pub matching_skills: Vec<String>,
     pub gap_analysis: Option<String>,
+    pub feedback: Option<ResumeMatchFeedback>,
     pub created_at: DateTime<Utc>,
 }
 

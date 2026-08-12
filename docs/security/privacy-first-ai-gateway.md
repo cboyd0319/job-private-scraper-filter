@@ -27,12 +27,15 @@ debug reports.
 flowchart TD
   A[Feature requests AI action] --> B[Classify privacy labels]
   B --> C[Minimize payload]
-  C --> D[Show payload preview]
-  D --> E{User approves?}
-  E -- No --> F[Cancel and keep local path]
-  E -- Yes --> G[Send through selected provider]
-  G --> H[Store response locally]
-  H --> I[Log metadata locally]
+  C --> D[Review exact stored public fields]
+  D --> E[Backend verifies and canonicalizes request]
+  E --> F[Create short-lived pending review]
+  F --> G{Approve trusted native confirmation?}
+  G -- No --> H[Cancel and keep local]
+  G -- Yes --> I[Return single-use approval]
+  I --> J[Record started state and privacy receipt]
+  J --> K[Send once through selected provider]
+  K --> L[Record terminal or ambiguous outcome]
 ```
 
 Required lifecycle:
@@ -40,12 +43,20 @@ Required lifecycle:
 1. Feature requests AI action.
 2. Classify data sensitivity and feature privacy labels.
 3. Minimize payload to the smallest useful set of fields.
-4. Preview exact payload.
-5. User approves or cancels.
-6. Send to selected provider only after approval.
-7. Store response locally.
-8. Log metadata locally: feature, provider, timestamp, and high-level data
-   categories sent.
+4. Review the exact stored public field values and optionally remove fields.
+5. Verify those values against the stored job and canonicalize the exact
+   provider, destination, model, policy, and minimized payload in Rust.
+6. Create a short-lived pending review.
+7. Show a trusted native confirmation with the backend-canonical provider,
+   destination, model, and field count. Cancel the pending review unless the
+   user approves.
+8. Consume one matching, unexpired, single-use approval before credential
+   access.
+9. Record the started state and a bound privacy receipt before provider
+   transport.
+10. Send the provider request once, without automatic retries.
+11. Record success, failure, or an explicit ambiguous outcome. Interrupted
+    started operations become ambiguous at startup.
 
 ## Gateway Rules
 
@@ -58,6 +69,12 @@ Required lifecycle:
 - Sensitive fields require explicit user selection and sensitive-payload opt-in.
 - Payload preview is required before external calls where UI workflow exists.
 - Redaction, edit, and cancel paths are required where UI exists.
+- Approval is exact, short-lived, single-use, and owned by the Rust and SQLite
+  boundary. Renderer booleans and browser storage are not authorization.
+- Payload, provider, destination, model, category, or policy drift invalidates
+  the approval.
+- Custom provider destinations must be public HTTPS URLs without embedded
+  credentials, query parameters, or fragments.
 - Public-data-only prompts must include only job posting content or public
   metadata.
 - Reviewed outgoing text with obvious prompt-like instructions, hidden
@@ -106,7 +123,6 @@ external_ai.provider = none
 external_ai.require_payload_preview = true
 external_ai.allow_sensitive_payloads = false
 external_ai.redaction.enabled = true
-external_ai.log_requests_locally = true
 ```
 
 Provider credentials must not be hardcoded. User-provided API keys should be
@@ -131,18 +147,22 @@ sent. The gateway sends only that reviewed payload to provider transports.
 The sole Rust provider transport owner is `crates/jobsentinel-ai`. Tauri
 commands delegate through `jobsentinel-application` and never call providers
 directly. Production code must not call external AI provider APIs outside the
-Rust owner.
+Rust owner. `jobsentinel-storage` owns the metadata-only approval lifecycle and
+binds each external privacy receipt to the exact started operation.
 
 ## Current Status And Release Contract
 
-Release status for the current maintenance line: Settings can configure
+Release status for the v3 execution line: Settings can configure
 optional outside-AI providers, provider preference order, per-provider model
 names, and provider keys through `CredentialService`. Provider keys stay in the
 local secure vault, not in settings backups. The first user-facing provider
 path is public job posting summary from a job card. It is optional,
-public-data-only, previewed, editable, cancellable, and backend-validated
-before provider transport. Metadata-only request history is viewable in
-Settings and does not store the reviewed payload.
+public-data-only, previewed, field-removal-only, cancellable,
+backend-validated, and confirmed through a trusted native dialog before
+provider transport. The durable backend ledger stores only bounded metadata,
+request digests, lifecycle state, and bound privacy receipts. Settings shows
+provider, credential-free destination, status, and timestamps from that
+backend-owned ledger. It is not an authorization surface.
 
 Implemented now:
 
@@ -153,7 +173,8 @@ Implemented now:
   and custom HTTPS providers.
 - Multi-provider preference order and per-provider model-name config.
 - Provider key storage through the local credential vault.
-- Payload preview and user-approval guards.
+- Exact, expiring, single-use backend approvals after trusted native
+  confirmation.
 - Redacted payload required when redaction is enabled.
 - Reviewed redacted payload sent instead of raw feature payload.
 - Classified payload-key guard for unknown fields.
@@ -162,11 +183,15 @@ Implemented now:
 - Sensitive-payload guard.
 - Full-database block.
 - Public-data-only payload guard.
-- Local metadata logging hook.
+- Durable metadata-only lifecycle and bound privacy receipts before provider
+  transport.
+- Startup reconciliation for interrupted and expired operations.
+- Bounded durable lifecycle activity in Settings, without payloads, responses,
+  credentials, approval references, request digests, or raw errors.
 - Provider transports for OpenAI, Anthropic, Google Gemini, GitHub Copilot, and
   custom HTTPS endpoints.
 - Public job-posting summary from a job card after review and approval.
-- Settings request-history viewer with clear-history action.
+- Settings durable activity viewer with no audit-deletion action.
 
 Release contract for shipped external AI features:
 
@@ -177,7 +202,7 @@ Release contract for shipped external AI features:
   `job-description-summary`, a public-data-only job-card action that can still
   fall back to local job-card details, local fit signals, posting-risk cues, and
   extracted public fields.
-- No private-data external AI feature ships in the current maintenance line. A
+- No private-data external AI feature ships in the v3 execution line. A
   future private-data feature must add feature-specific payload minimization,
   privacy labels, backend validation, preview, edit, cancel, approval,
   redaction, and metadata-only request-history coverage before it becomes

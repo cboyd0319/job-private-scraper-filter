@@ -1,180 +1,67 @@
-use chrono::{Datelike, Utc};
+// Matches ATS keywords against plain-text resume evidence.
 
-use super::super::ats_types::{KeywordImportance, KeywordMatch, MissingKeyword};
+use chrono::{Datelike, Utc};
+use jobsentinel_domain::{ResumeEvidenceCitation, ResumeEvidenceSnapshot};
+
+use super::super::ats_types::{
+    KeywordImportance, KeywordMatch, MissingKeyword, RegionalMatchingProfile,
+};
 use super::super::format_taxonomy::resume_format_taxonomy;
-use super::super::structured_resume::{ResumeAnalysisInput, ResumeExperience};
+use super::super::structured_resume::ResumeExperience;
 use super::{term_expansion, AtsAnalyzer};
 
+mod structured;
+
+pub(super) struct MatchedKeyword {
+    pub keyword_match: KeywordMatch,
+    pub evidence_citations: Vec<ResumeEvidenceCitation>,
+}
+
 impl AtsAnalyzer {
-    pub(super) fn find_keyword_matches(
-        input: &ResumeAnalysisInput,
-        job_keywords: &[(String, KeywordImportance)],
-    ) -> (Vec<KeywordMatch>, Vec<MissingKeyword>) {
-        let resume = &input.resume;
-        let mut matches = Vec::new();
-        let mut missing = Vec::new();
-
-        for (keyword, importance) in job_keywords {
-            let mut found_in = Vec::new();
-            let mut frequency = 0;
-            let keyword_lower = keyword.to_lowercase();
-            let search_terms = term_expansion::conservative_keyword_search_terms(&keyword_lower);
-
-            // Search in summary
-            let summary_lower = resume.summary.as_deref().unwrap_or_default().to_lowercase();
-            let count = Self::keyword_frequency_for_search_terms(&summary_lower, &search_terms);
-            if count > 0 {
-                Self::add_evidence_section(&mut found_in, "summary");
-                frequency += count;
-            }
-
-            // Search in experience
-            for exp in &resume.experience {
-                let exp_text = format!(
-                    "{} {} {}",
-                    exp.title,
-                    exp.company,
-                    exp.achievements.join(" ")
-                )
-                .to_lowercase();
-                let count = Self::keyword_frequency_for_search_terms(&exp_text, &search_terms);
-                if count > 0 {
-                    let section = Self::structured_experience_evidence_section(exp);
-                    Self::add_evidence_section(&mut found_in, section);
-                    frequency += Self::evidence_strength_adjusted_count(count, &exp_text, section);
-                }
-            }
-
-            // Search in skills
-            for category in &resume.skills {
-                for skill in &category.skills {
-                    let skill_lower = skill.name.to_lowercase();
-                    if search_terms.iter().any(|term| {
-                        Self::keyword_appears_in_text(&skill_lower, term)
-                            || Self::keyword_appears_in_text(term, &skill_lower)
-                    }) {
-                        Self::add_evidence_section(&mut found_in, "skills");
-                        frequency += 1;
-                    }
-                }
-            }
-
-            for education in &resume.education {
-                let education_text = format!(
-                    "{} {} {} {}",
-                    education.degree,
-                    education.institution,
-                    education.location.as_deref().unwrap_or_default(),
-                    education.honors.join(" ")
-                )
-                .to_lowercase();
-                let count =
-                    Self::keyword_frequency_for_search_terms(&education_text, &search_terms);
-                if count > 0 {
-                    Self::add_evidence_section(&mut found_in, "education");
-                    frequency += count;
-                }
-            }
-
-            for certification in &resume.certifications {
-                let certification_lower = format!(
-                    "{} {} {} {} {}",
-                    certification.name,
-                    certification.issuer,
-                    certification.date_obtained.as_deref().unwrap_or_default(),
-                    certification.expiration_date.as_deref().unwrap_or_default(),
-                    certification.credential_id.as_deref().unwrap_or_default()
-                )
-                .to_lowercase();
-                let count =
-                    Self::keyword_frequency_for_search_terms(&certification_lower, &search_terms);
-                if count > 0 {
-                    Self::add_evidence_section(&mut found_in, "certifications");
-                    frequency += count;
-                }
-            }
-
-            for project in &resume.projects {
-                let project_lower = format!(
-                    "{} {} {} {}",
-                    project.name,
-                    project.description,
-                    project.technologies.join(" "),
-                    project.url.as_deref().unwrap_or_default()
-                )
-                .to_lowercase();
-                let count = Self::keyword_frequency_for_search_terms(&project_lower, &search_terms);
-                if count > 0 {
-                    Self::add_evidence_section(&mut found_in, "projects");
-                    frequency +=
-                        Self::evidence_strength_adjusted_count(count, &project_lower, "projects");
-                }
-            }
-
-            if frequency > 0 {
-                matches.push(KeywordMatch {
-                    keyword: keyword.clone(),
-                    found_in,
-                    frequency,
-                    importance: *importance,
-                });
-            } else {
-                missing.push(MissingKeyword {
-                    keyword: keyword.clone(),
-                    importance: *importance,
-                });
-            }
-        }
-
-        sort_keyword_matches(&mut matches);
-        sort_missing_keywords(&mut missing);
-
-        (matches, missing)
-    }
-
     pub(super) fn find_keyword_matches_in_text(
         resume_text: &str,
         skills: &[String],
         job_keywords: &[(String, KeywordImportance)],
-    ) -> (Vec<KeywordMatch>, Vec<MissingKeyword>) {
+        evidence_snapshot: Option<&ResumeEvidenceSnapshot>,
+        region: Option<RegionalMatchingProfile>,
+    ) -> (Vec<MatchedKeyword>, Vec<MissingKeyword>) {
         let mut matches = Vec::new();
         let mut missing = Vec::new();
 
         for (keyword, importance) in job_keywords {
             let keyword_lower = keyword.to_lowercase();
-            let search_terms = term_expansion::conservative_keyword_search_terms(&keyword_lower);
-            let (mut found_in, mut frequency) =
-                Self::plain_text_search_term_hits(resume_text, &search_terms);
+            let search_terms =
+                term_expansion::conservative_keyword_search_terms(&keyword_lower, region);
+            let (mut found_in, mut frequency, mut evidence_citations) =
+                Self::plain_text_search_term_hits(resume_text, &search_terms, evidence_snapshot);
 
-            let skill_hits = skills
-                .iter()
-                .filter(|skill| {
-                    let skill_lower = skill.to_lowercase();
-                    search_terms.iter().any(|term| {
-                        Self::keyword_appears_in_text(&skill_lower, term)
-                            || Self::keyword_appears_in_text(term, &skill_lower)
-                    })
-                })
-                .count();
-
-            if skill_hits > 0 {
-                Self::add_evidence_section(&mut found_in, "skills");
-                frequency += skill_hits;
+            for (index, skill) in skills.iter().enumerate() {
+                let skill_lower = skill.to_lowercase();
+                if search_terms.iter().any(|term| {
+                    Self::keyword_appears_in_text(&skill_lower, term)
+                        || Self::keyword_appears_in_text(term, &skill_lower)
+                }) {
+                    Self::add_evidence_section(&mut found_in, "skills");
+                    if let Some(snapshot) = evidence_snapshot {
+                        if let Some(citation) =
+                            ResumeEvidenceCitation::for_field(snapshot, &format!("skills.{index}"))
+                        {
+                            evidence_citations.push(citation);
+                        }
+                    }
+                    frequency += 1;
+                }
             }
 
-            if frequency > 0 {
-                matches.push(KeywordMatch {
-                    keyword: keyword.clone(),
-                    found_in,
-                    frequency,
-                    importance: *importance,
-                });
-            } else {
-                missing.push(MissingKeyword {
-                    keyword: keyword.clone(),
-                    importance: *importance,
-                });
-            }
+            record_keyword_result(
+                keyword,
+                *importance,
+                found_in,
+                frequency,
+                evidence_citations,
+                &mut matches,
+                &mut missing,
+            );
         }
 
         sort_keyword_matches(&mut matches);
@@ -186,16 +73,21 @@ impl AtsAnalyzer {
     fn plain_text_search_term_hits(
         resume_text: &str,
         search_terms: &[String],
-    ) -> (Vec<String>, usize) {
+        evidence_snapshot: Option<&ResumeEvidenceSnapshot>,
+    ) -> (Vec<String>, usize, Vec<ResumeEvidenceCitation>) {
         let mut found_in = Vec::new();
         let mut frequency = 0;
+        let mut evidence_citations = Vec::new();
         let mut current_section = "resume text";
+        let mut current_section_is_military = false;
         let mut current_experience_is_current = false;
         let mut current_experience_is_recent = false;
 
-        for line in resume_text.lines() {
+        for (line_index, line) in resume_text.lines().enumerate() {
             if let Some(section) = Self::plain_text_section_label(line) {
                 current_section = section;
+                current_section_is_military =
+                    section == "experience" && line.to_ascii_lowercase().contains("military");
                 current_experience_is_current = false;
                 current_experience_is_recent = false;
             }
@@ -228,11 +120,22 @@ impl AtsAnalyzer {
                     current_section
                 };
             Self::add_evidence_section(&mut found_in, evidence_section);
+            if current_section_is_military {
+                Self::add_evidence_section(&mut found_in, "military service");
+            }
+            if let Some(snapshot) = evidence_snapshot {
+                if let Some(citation) = ResumeEvidenceCitation::for_field(
+                    snapshot,
+                    &format!("resume_text.{line_index}"),
+                ) {
+                    evidence_citations.push(citation);
+                }
+            }
             frequency +=
                 Self::evidence_strength_adjusted_count(count, &line_lower, evidence_section);
         }
 
-        (found_in, frequency)
+        (found_in, frequency, evidence_citations)
     }
 
     fn evidence_strength_adjusted_count(
@@ -469,11 +372,38 @@ fn keyword_importance_order(importance: KeywordImportance) -> usize {
     }
 }
 
-fn sort_keyword_matches(matches: &mut [KeywordMatch]) {
+fn record_keyword_result(
+    keyword: &str,
+    importance: KeywordImportance,
+    found_in: Vec<String>,
+    frequency: usize,
+    evidence_citations: Vec<ResumeEvidenceCitation>,
+    matches: &mut Vec<MatchedKeyword>,
+    missing: &mut Vec<MissingKeyword>,
+) {
+    if frequency > 0 {
+        matches.push(MatchedKeyword {
+            keyword_match: KeywordMatch {
+                keyword: keyword.to_string(),
+                found_in,
+                frequency,
+                importance,
+            },
+            evidence_citations,
+        });
+    } else {
+        missing.push(MissingKeyword {
+            keyword: keyword.to_string(),
+            importance,
+        });
+    }
+}
+
+fn sort_keyword_matches(matches: &mut [MatchedKeyword]) {
     matches.sort_by(|a, b| {
-        keyword_importance_order(a.importance)
-            .cmp(&keyword_importance_order(b.importance))
-            .then(b.frequency.cmp(&a.frequency))
+        keyword_importance_order(a.keyword_match.importance)
+            .cmp(&keyword_importance_order(b.keyword_match.importance))
+            .then(b.keyword_match.frequency.cmp(&a.keyword_match.frequency))
     });
 }
 

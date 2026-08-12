@@ -184,30 +184,20 @@ Command::new(&tesseract_path)
 
 ### 3. Controlled Temp Directory
 
-**Purpose**: Use UUID-named directories to prevent collisions and race conditions.
+**Purpose**: Atomically create a unique directory with automatic cleanup.
 
 ```rust
-use uuid::Uuid;
-
-// Create temp directory for intermediate files
-let temp_dir = std::env::temp_dir()
-    .join(format!("jobsentinel_ocr_{}", Uuid::new_v4()));
-
-std::fs::create_dir_all(&temp_dir)
+let temp_dir = tempfile::Builder::new()
+    .prefix("jobsentinel_ocr_")
+    .tempdir()
     .context("Failed to create temp directory for OCR")?;
-
-// Ensure cleanup on exit
-let temp_dir_cleanup = temp_dir.clone();
-let _cleanup = scopeguard::guard((), |_| {
-    let _ = std::fs::remove_dir_all(&temp_dir_cleanup);
-});
 ```
 
 **What this prevents**:
 
-- Race conditions: UUID makes collisions impractical
+- Race conditions: `tempfile` creates the directory atomically
 - File overwrites: each run uses a unique directory
-- Temp file leaks: `scopeguard` runs cleanup on scope exit
+- Temp file leaks: `TempDir` removes its directory when dropped
 - Privilege escalation: no predictable output path is reused
 
 ### 4. Output Path Validation
@@ -216,7 +206,7 @@ let _cleanup = scopeguard::guard((), |_| {
 
 ```rust
 // Convert PDF pages to images
-let output_prefix = temp_dir.join("page");
+let output_prefix = temp_dir.path().join("page");
 
 let pdftoppm_path = resolve_ocr_tool(OcrTool::PdfToPpm)?;
 let pdftoppm_result = Command::new(&pdftoppm_path)
@@ -228,7 +218,7 @@ let pdftoppm_result = Command::new(&pdftoppm_path)
     .output();
 
 // Security: Validate all generated image files
-let mut image_paths: Vec<PathBuf> = std::fs::read_dir(&temp_dir)?
+let mut image_paths: Vec<PathBuf> = std::fs::read_dir(temp_dir.path())?
     .filter_map(|e| e.ok())
     .map(|e| e.path())
     .filter(|p| {
@@ -236,7 +226,7 @@ let mut image_paths: Vec<PathBuf> = std::fs::read_dir(&temp_dir)?
         if p.extension().map(|e| e == "png").unwrap_or(false) {
             // Security: Verify path is within temp_dir
             if let Ok(canonical) = p.canonicalize() {
-                if let Ok(canonical_temp) = temp_dir.canonicalize() {
+                if let Ok(canonical_temp) = temp_dir.path().canonicalize() {
                     // Ensure canonical path is still in temp_dir
                     return canonical.starts_with(&canonical_temp) && canonical.is_file();
                 }
@@ -382,9 +372,10 @@ if !canonical_path.is_file() { return Err(...); }
 // 4. Verify file extension
 if canonical_path.extension() != Some("pdf") { return Err(...); }
 
-// 5. Create UUID-named temp directory
-let temp_dir = std::env::temp_dir()
-    .join(format!("jobsentinel_ocr_{}", Uuid::new_v4()));
+// 5. Atomically create a unique, automatically cleaned temp directory
+let temp_dir = tempfile::Builder::new()
+    .prefix("jobsentinel_ocr_")
+    .tempdir()?;
 
 // 6. Resolve OCR tools to canonical absolute paths
 let pdftoppm_path = resolve_ocr_tool(OcrTool::PdfToPpm)?;
@@ -396,13 +387,13 @@ Command::new(&pdftoppm_path)
     .arg("-r")                      // Hardcoded flag
     .arg("300")                     // Hardcoded value
     .arg(&canonical_path)           // Validated input
-    .arg(&temp_dir.join("page"))    // Controlled output
+    .arg(&temp_dir.path().join("page")) // Controlled output
     .output()?;
 
 // 8. Validate each generated image file
 for image_path in generated_images {
     let canonical_image = image_path.canonicalize()?;
-    let canonical_temp = temp_dir.canonicalize()?;
+    let canonical_temp = temp_dir.path().canonicalize()?;
 
     // Must be within temp_dir
     if !canonical_image.starts_with(&canonical_temp) {
@@ -474,13 +465,13 @@ if !ALLOWED_EXTENSIONS.contains(&ext) {
 }
 ```
 
-### 4. Use UUID for temp files/directories
+### 4. Use atomic unique temp files/directories
 
 ```rust
-use uuid::Uuid;
-
-// Unpredictable, no collisions
-let temp_file = format!("/tmp/jobsentinel_{}.tmp", Uuid::new_v4());
+// Atomically created, unique, and removed on drop
+let temp_file = tempfile::Builder::new()
+    .prefix("jobsentinel_")
+    .tempfile()?;
 
 // Predictable, race conditions
 let temp_file = format!("/tmp/jobsentinel_{}.tmp", user_id);
@@ -489,19 +480,14 @@ let temp_file = format!("/tmp/jobsentinel_{}.tmp", user_id);
 ### 5. Always clean up temp files
 
 ```rust
-use scopeguard::guard;
-
-let temp_dir = create_temp_dir()?;
-
-// Ensure cleanup even if function panics or returns early
-let _cleanup = guard(temp_dir.clone(), |dir| {
-    let _ = std::fs::remove_dir_all(&dir);
-});
+let temp_dir = tempfile::Builder::new()
+    .prefix("jobsentinel_")
+    .tempdir()?;
 
 // Do work with temp_dir
 // ...
 
-// Cleanup happens automatically when _cleanup is dropped
+// Cleanup happens automatically when temp_dir is dropped
 ```
 
 ### 6. Validate command output

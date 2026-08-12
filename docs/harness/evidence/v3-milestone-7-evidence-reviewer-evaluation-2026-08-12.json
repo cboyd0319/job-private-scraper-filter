@@ -1,0 +1,60 @@
+{
+  "schema": "jobsentinel.feature_evidence.v1",
+  "feature_id": "v3-milestone-7-agent-pack-runtime",
+  "slice": "evidence-reviewer-agent-evaluation",
+  "behavior": "A Ready signed evaluation pack is reloaded, verified against caller-supplied trust, and self-tested before exactly one bounded synthetic resume-evidence case runs through the compiled Evidence Reviewer over an isolated in-memory database and temporary resume. The caller database retains no synthetic job or resume, and the result exposes only the fixed target plus aggregate pass and fail counts.",
+  "result": "partial",
+  "verified_at": "2026-08-12T04:37:06Z",
+  "revision": "0696f01936bca267ee59dd9b6bce59cd5b3f50b7",
+  "revision_scope": "The closed Evidence Reviewer evaluation target, distinct signed payload target, bounded single-case scorer, isolated synthetic application execution, opaque result, and regressions committed at the recorded revision.",
+  "platform": {
+    "macos": "Full Rust and focused verification passed on macOS 27.0 arm64.",
+    "windows": "Not live-run for this platform-neutral evaluation slice. Windows source compilation and native runtime proof remain separate requirements.",
+    "linux": "Not rerun for this platform-neutral evaluation slice; the earlier Unix private-storage checkpoint retains Linux runtime evidence."
+  },
+  "commands": [
+    {
+      "command": "cargo test -p jobsentinel-application pack_runtime_tests::evaluation::active_evaluation_pack_runs_the_evidence_reviewer_target_opaquely",
+      "exit_status": 101,
+      "relevant_result": "Fail-first compilation rejected the absent Evidence Reviewer evaluator and result type before production implementation."
+    },
+    {
+      "command": "cargo test -p jobsentinel-domain v3_evidence_reviewer_evaluation_tests && cargo test -p jobsentinel-domain targeted_evaluation_pack && cargo test -p jobsentinel-application pack_runtime_tests::evaluation",
+      "exit_status": 0,
+      "relevant_result": "Two Evidence Reviewer payload tests, the retained ATS target test, and all six application evaluation tests passed. Coverage includes exact single-case acceptance, full and mixed-set rejection, passing hard-negative and anti-vacuity outcomes, opaque fields, caller-state isolation, and altered-artifact quarantine."
+    },
+    {
+      "command": "cargo test -p jobsentinel-domain && node scripts/dev/run-cargo.mjs test -p jobsentinel-application pack_runtime",
+      "exit_status": 0,
+      "relevant_result": "All 187 domain tests and five doctests passed. All 38 application pack-runtime tests passed."
+    },
+    {
+      "command": "cargo clippy -p jobsentinel-domain --lib -- -D warnings && cargo clippy -p jobsentinel-application --lib -- -D warnings && cargo fmt --all -- --check",
+      "exit_status": 0,
+      "relevant_result": "Both affected production libraries passed clippy with warnings denied, and workspace formatting passed."
+    },
+    {
+      "command": "npm run verify:rust",
+      "exit_status": 0,
+      "relevant_result": "Full workspace formatting, clippy with warnings denied, unit tests, integration tests, and doctests passed."
+    },
+    {
+      "command": "npm run harness:check && npm run lint:file-size && npm run lint:file-description && npm run lint:architecture && npm run lint:security && git diff --check",
+      "exit_status": 0,
+      "relevant_result": "Harness and state, hard file-size limits, changed-file responsibility headers, architecture, security sensors, secret scan, and patch validation passed."
+    },
+    {
+      "command": "Independent G19 and execution-boundary review",
+      "exit_status": 0,
+      "relevant_result": "The G19 review returned APPROVE for exactly one agent-quality slice. The execution review returned SAFE: caller trust remains mandatory, synthetic data stays isolated, no task, receipt, credential, network, AI, or model authority was added, and only aggregate output crosses the boundary."
+    }
+  ],
+  "caveats": [
+    "This proves one deterministic Evidence Reviewer agent-quality target only. It does not prove static-skill quality or close G19.",
+    "Treating a verified static-skill handoff plus this deterministic Evidence Reviewer outcome as the v3.0 skill-quality bar still requires product approval.",
+    "Production publisher trust and active-artifact startup reconciliation remain blocked on approved public key identities and capability ceilings.",
+    "No Tauri or renderer caller exposes this evaluation target, and user-visible execution remains unwired.",
+    "Native Windows 11 private-storage proof remains open.",
+    "Milestone 7 remains active."
+  ]
+}

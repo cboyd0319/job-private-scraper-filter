@@ -1,4 +1,9 @@
-pub(super) fn conservative_keyword_search_terms(keyword_lower: &str) -> Vec<String> {
+use super::super::ats_types::RegionalMatchingProfile;
+
+pub(super) fn conservative_keyword_search_terms(
+    keyword_lower: &str,
+    region: Option<RegionalMatchingProfile>,
+) -> Vec<String> {
     let mut terms = vec![keyword_lower.to_string()];
     for group in super::requirement_rules::conservative_search_term_groups() {
         if group.iter().any(|term| term == keyword_lower) {
@@ -23,6 +28,9 @@ pub(super) fn conservative_keyword_search_terms(keyword_lower: &str) -> Vec<Stri
         keyword_lower,
     ));
     extend_language_fluency_terms(keyword_lower, &mut terms);
+    if let Some(region) = region {
+        super::matching_profiles::extend_regional_search_terms(keyword_lower, region, &mut terms);
+    }
 
     match keyword_lower {
         "senior-level experience" => {

@@ -1,20 +1,7 @@
-import { Page, Locator, expect } from "@playwright/test";
-import { BasePage } from "./BasePage";
+// Provides Playwright locators and actions for application-tracking browser journeys.
 
-const STATUS_LABELS: Record<string, string> = {
-  to_apply: "To Apply",
-  applied: "Applied",
-  screening_call: "Screening Call",
-  phone_interview: "Phone Interview",
-  technical_interview: "Skills Interview",
-  onsite_interview: "Onsite Interview",
-  offer_received: "Offer Received",
-  offer_accepted: "Offer Accepted",
-  offer_rejected: "Offer Declined",
-  rejected: "Not Selected",
-  withdrawn: "Withdrawn",
-  ghosted: "No Response",
-};
+import { Page, Locator } from "@playwright/test";
+import { BasePage } from "./BasePage";
 
 /**
  * Applications page object - application tracking kanban
@@ -57,10 +44,6 @@ export class ApplicationsPage extends BasePage {
 
   get summaryButton(): Locator {
     return this.page.locator("header").getByRole("button", { name: "Summary" });
-  }
-
-  get reviewNoResponsesButton(): Locator {
-    return this.page.getByRole("button", { name: "Review No Responses" });
   }
 
   get pendingReminders(): Locator {
@@ -110,59 +93,6 @@ export class ApplicationsPage extends BasePage {
     const column = this.getColumn(status);
     const cards = column.locator("[data-testid='application-card']");
     return await cards.count();
-  }
-
-  async dragCardToColumn(cardIndex: number, targetStatus: string) {
-    const targetColumn = this.getColumn(targetStatus);
-    if ((await targetColumn.count()) === 0) {
-      return;
-    }
-
-    const initialCard = this.applicationCards.nth(cardIndex);
-    const cardTitle = (await initialCard.locator("[data-testid='application-position']").textContent())?.trim();
-    const targetLabel = STATUS_LABELS[targetStatus];
-
-    for (let attempt = 0; attempt < 2; attempt += 1) {
-      const card = cardTitle
-        ? this.getApplicationCardByText(cardTitle).first()
-        : this.applicationCards.nth(cardIndex);
-      await card.scrollIntoViewIfNeeded();
-      const cardBox = await card.boundingBox({ timeout: 5000 });
-      const targetBox = await targetColumn.boundingBox({ timeout: 5000 });
-      if (!cardBox || !targetBox) return;
-
-      await this.page.mouse.move(
-        cardBox.x + cardBox.width / 2,
-        cardBox.y + cardBox.height / 2,
-      );
-      await this.page.mouse.down();
-      await this.page.mouse.move(targetBox.x + targetBox.width / 2, targetBox.y + 100, {
-        steps: 16,
-      });
-      await this.page.mouse.up();
-      await this.waitForReady();
-
-      if (!cardTitle || !targetLabel) {
-        return;
-      }
-
-      const movedStatus = await this.getApplicationCardByText(cardTitle)
-        .locator("[data-testid='application-status']")
-        .textContent();
-      if (movedStatus?.trim() === targetLabel) {
-        return;
-      }
-    }
-
-    if (cardTitle && targetLabel) {
-      const movedStatusLocator = this.getApplicationCardByText(cardTitle)
-        .locator("[data-testid='application-status']");
-      await expect
-        .poll(async () => (await movedStatusLocator.textContent())?.trim(), {
-          timeout: 15000,
-        })
-        .toBe(targetLabel);
-    }
   }
 
   async openApplicationDetails(cardText: string) {

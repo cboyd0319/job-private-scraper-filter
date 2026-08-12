@@ -91,6 +91,10 @@ export function BrowserImportReviewList({
           {imports.map((item) => {
             const saveKey = pendingActionKey("save", [item.id]);
             const skipKey = pendingActionKey("skip", [item.id]);
+            const appliedDraft = item.operation === "applied_logging";
+            const missingDetails = item.missing_fields.map((field) =>
+              field === "title" ? "Job title" : "Company",
+            );
             return (
               <div
                 key={item.id}
@@ -98,6 +102,11 @@ export function BrowserImportReviewList({
               >
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
+                    {appliedDraft && (
+                      <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-blue-300">
+                        Applied draft
+                      </p>
+                    )}
                     <p className="font-medium text-white">{item.title}</p>
                     <p className="text-sm text-gray-300">
                       {item.company}
@@ -107,6 +116,11 @@ export function BrowserImportReviewList({
                     {item.description_preview && (
                       <p className="mt-2 text-xs leading-5 text-gray-400">
                         {item.description_preview}
+                      </p>
+                    )}
+                    {missingDetails.length > 0 && (
+                      <p className="mt-2 text-xs font-medium text-amber-200">
+                        Missing details: {missingDetails.join(", ")}
                       </p>
                     )}
                     <p className="mt-2 break-all text-xs text-gray-500">
@@ -119,9 +133,17 @@ export function BrowserImportReviewList({
                       size="sm"
                       variant="primary"
                       disabled={action !== null}
-                      aria-label={`Save ${item.title}`}
+                      aria-label={
+                        appliedDraft
+                          ? "Save applied draft"
+                          : `Save ${item.title}`
+                      }
                     >
-                      {action === saveKey ? "Saving..." : "Save Job"}
+                      {action === saveKey
+                        ? "Saving..."
+                        : appliedDraft
+                          ? "Save Applied Draft"
+                          : "Save Job"}
                     </Button>
                     <Button
                       onClick={() => onSkip([item.id])}

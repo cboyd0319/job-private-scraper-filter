@@ -40,6 +40,7 @@ export function createExternalAiGateway(
 
       const preparedRequest: PreparedExternalAiRequest = {
         feature: request.feature,
+        sourceJobId: request.sourceJobId,
         provider,
         labels: request.labels,
         dataCategories: request.dataCategories,

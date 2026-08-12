@@ -1,9 +1,15 @@
+// Proves official Agent Skills conformance and JobSentinel package-policy failures.
+
 import assert from "node:assert/strict";
 import { mkdtempSync, mkdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-import { checkAgentSkills, validateSkillPackage } from "../../checks/agent-skills.mjs";
+import {
+  checkAgentSkills,
+  validateAgentSkillSpecification,
+  validateSkillPackage,
+} from "../../checks/agent-skills.mjs";
 
 function skillBody({
   workflow = "1. Review the request.",
@@ -55,6 +61,51 @@ function writeSkill(root, name, body = skillBody()) {
 
 test("repo skills comply with Agent Skills structure", () => {
   assert.deepEqual(checkAgentSkills(), []);
+});
+
+test("official specification validator accepts the complete frontmatter contract", () => {
+  const root = mkdtempSync(join(tmpdir(), "jobsentinel-skill-spec-"));
+  const skillDir = join(root, "spec-skill");
+  mkdirSync(skillDir, { recursive: true });
+  writeFileSync(
+    join(skillDir, "SKILL.md"),
+    [
+      "---",
+      "name: spec-skill",
+      `description: ${"x".repeat(1024)}`,
+      "license: Apache-2.0",
+      "compatibility: Requires a local desktop runtime.",
+      "metadata:",
+      "  author: example-org",
+      '  version: "1.0"',
+      "allowed-tools: Bash(git:*) Read",
+      "---",
+      "",
+      "Use the skill.",
+      "",
+    ].join("\n"),
+  );
+
+  assert.deepEqual(validateAgentSkillSpecification(skillDir), []);
+});
+
+test("official specification validator rejects malformed YAML and field types", () => {
+  const root = mkdtempSync(join(tmpdir(), "jobsentinel-skill-yaml-"));
+  const skillDir = join(root, "typed-skill");
+  mkdirSync(skillDir, { recursive: true });
+  const base = (extra) =>
+    `---\nname: typed-skill\ndescription: Use when testing YAML.\n${extra}\n---\n\nUse it.\n`;
+
+  for (const frontmatter of [
+    base('license: "unterminated'),
+    base("metadata:\n  - invalid"),
+    base("metadata:\n  version: 1"),
+    base("allowed-tools:\n  - shell"),
+    base("unexpected: value"),
+  ]) {
+    writeFileSync(join(skillDir, "SKILL.md"), frontmatter);
+    assert.notDeepEqual(validateAgentSkillSpecification(skillDir), []);
+  }
 });
 
 test("validator catches directory and frontmatter drift", () => {
@@ -118,6 +169,20 @@ test("validator catches missing referenced skill resources", () => {
   const errors = validateSkillPackage(join(root, "skills", "missing-reference"));
 
   assert.ok(errors.some((error) => error.includes("references missing file")));
+});
+
+test("validator rejects referenced paths that escape the skill directory", () => {
+  const root = mkdtempSync(join(tmpdir(), "jobsentinel-skill-traversal-"));
+  writeFileSync(join(root, "package.json"), "{}\n");
+  writeSkill(
+    root,
+    "escaping-reference",
+    skillBody({ output: "Read `references/../../package.json`." }),
+  );
+
+  const errors = validateSkillPackage(join(root, "skills", "escaping-reference"));
+
+  assert.ok(errors.some((error) => error.includes("must stay inside the skill directory")));
 });
 
 test("validator catches missing untrusted-content guardrail", () => {

@@ -420,6 +420,7 @@ export default function ResumeBuilderPage({ onBack }: ResumeBuilderPageProps) {
         importingSkills={importingSkills}
         newSkill={newSkill}
         previewHtml={previewHtml}
+        resumeData={resumeData}
         saving={saving}
         selectedTemplate={selectedTemplate}
         showContactValidation={showContactValidation}

@@ -1,0 +1,108 @@
+{
+  "schema": "jobsentinel.feature_evidence.v1",
+  "feature_id": "v3-milestone-6-opportunity-case-file-daily-workflow",
+  "slice": "milestone-6-completion",
+  "behavior": "Case files keep daily job-search evidence and actions local, reviewable, and useful offline.",
+  "result": "passing",
+  "verified_at": "2026-07-22T21:31:31Z",
+  "revision": "48a47eaf20917d51f70b84d26074d25adc19e6db",
+  "revision_scope": "The committed Milestone 6 opportunity case, daily mission, evidence wall, preparation, debrief, reviewed native file drops, protected-answer controls, first-run choices, and workflow-state coverage through 48a47eaf.",
+  "platform": "local macOS arm64 host; browser layout checks used Chromium at 1440 by 1000 and 390 by 844",
+  "commands": [
+    {
+      "command": "npm run test:run -- src/features/onboarding/SetupWizard.test.tsx src/features/onboarding/SetupWizard.first-run.test.tsx src/app/App.startup.test.tsx src/features/opportunity-case/OpportunityCaseAction.test.tsx",
+      "exit_status": 0,
+      "relevant_result": "All 34 focused tests passed for reviewed setup, session-only skip, retained-choice retry, startup recovery precedence, and bounded case rendering.",
+      "caveat": "Renderer tests use typed command doubles; Rust command and storage behavior is covered by focused owner tests and the prior Milestone 6 checkpoints."
+    },
+    {
+      "command": "npm run test:e2e -- tests/e2e/playwright/setup-wizard.spec.ts",
+      "exit_status": 0,
+      "relevant_result": "All four first-run Chromium journeys passed at desktop and narrow widths, including completion, session-only skip, useful local import access, and no horizontal overflow.",
+      "caveat": "The browser runtime is deterministic and does not contact live job sources."
+    },
+    {
+      "command": "npm run test:e2e -- tests/e2e/playwright/opportunity-case-states.spec.ts",
+      "exit_status": 0,
+      "relevant_result": "All 12 Chromium journeys passed for empty, partial, duplicate, offline, failed-source, and restored-data case states at desktop and narrow widths.",
+      "caveat": "Controlled case snapshots prove renderer behavior and layout; Rust aggregation and sanitization remain covered by their focused owner tests."
+    },
+    {
+      "command": "cargo test -p jobsentinel --lib ipc::config::tests::complete_setup_reuses_the_owned_database -- --exact",
+      "exit_status": 0,
+      "relevant_result": "The reviewed setup reused the owned database, persisted exact settings, and made the saved configuration non-first-run on restart.",
+      "caveat": "The test uses isolated temporary paths and an in-memory SQLite database."
+    },
+    {
+      "command": "cargo test -p jobsentinel-domain ordinary_screening_questions_remain_reviewable --lib",
+      "exit_status": 0,
+      "relevant_result": "The ordinary-screening regression passed, including Care Coordinator as a civilian occupation and military experience, work authorization, clearance, age, and religious studies as reviewable factual questions.",
+      "caveat": "The focused classifier test does not replace the broader protected-answer checkpoint suites."
+    },
+    {
+      "command": "npm run lint; npm run typecheck; npm run lint:file-size; npm run lint:architecture; git diff --check",
+      "exit_status": 0,
+      "relevant_result": "Frontend lint and types, every hard file limit, architecture contracts, and patch whitespace passed after the focused first-run test split.",
+      "caveat": "Focused verification was used instead of full frontend, browser, and Rust workspace suites."
+    },
+    {
+      "command": "npm run harness:check",
+      "exit_status": 0,
+      "relevant_result": "Canonical state passed with revision-bound Milestone 6 evidence and Milestone 7 as the sole active feature.",
+      "caveat": "Static repository checks do not replace installed application or release-platform proof."
+    },
+    {
+      "command": "npm run lint:docs",
+      "exit_status": 0,
+      "relevant_result": "Maintained documentation, links, prose, and planning markers passed.",
+      "caveat": "Documentation checks do not prove runtime behavior."
+    },
+    {
+      "command": "npm run test:scripts",
+      "exit_status": 0,
+      "relevant_result": "All 852 repository and cross-platform script contract tests passed.",
+      "caveat": "Script contracts do not replace installed application or release-platform proof."
+    },
+    {
+      "command": "Fresh read-only adversarial Milestone 6 completion review",
+      "exit_status": 0,
+      "relevant_result": "The final verdict was SOUND after the session-only skip disclosure was made explicit and regression-protected.",
+      "caveat": "The review preserves installed platform and release-wide proof for their later milestone owners."
+    }
+  ],
+  "completion": {
+    "first_run": "Plain-language setup persists reviewed search settings, keeps sources and alerts opt-in, provides a disclosed session-only skip, preserves choices after a failed save, and exposes a local import path without starting hidden source work.",
+    "case_file": "One bounded local snapshot presents job, source, risk, evidence and packet counts, application and contact presence, interviews, offer, outcome, decision, preparation, and sanitized timeline state.",
+    "daily_workflow": "The deterministic mission board, evidence wall, why-not explanation, preparation workup, and post-interview debrief reuse focused existing owners without hidden writes, sends, AI, source refresh, status changes, or submission.",
+    "native_drop": "Rust-owned reviewed drops route resumes, UTF-8 job postings, and encrypted backups to their existing review owners without exposing source paths or acting automatically.",
+    "protected_answers": "Voluntary or sensitive personal answers stay explicit, local, and manual-only across lookup, suggestion, preview, and live-form preparation. Care Coordinator remains an ordinary civilian occupation.",
+    "state_matrix": "Empty, partial, duplicate, offline, failed-source, and restored-data states remain usable at desktop and narrow widths."
+  },
+  "red_green": {
+    "initial_red": "Focused tests failed for absent skip, retry, duplicate, risk, contact, and completed-interview behavior.",
+    "review_red": "Fresh combined browser verification exposed an incorrect empty-dashboard button assertion, and the adversarial pass exposed ambiguous session-only skip copy.",
+    "green": "The corrected local Import Job assertion and explicit session-only disclosure passed their focused UI and browser regressions."
+  },
+  "retained_gaps": [
+    {
+      "owner": "Milestone 7",
+      "gap": "Source-pack quarantine, signature verification, installation, lifecycle, and drop completion are not part of Milestone 6."
+    },
+    {
+      "owner": "Milestone 9",
+      "gap": "The edition and model first-run doctor remains unimplemented."
+    },
+    {
+      "owner": "Milestone 11",
+      "gap": "Exact Windows 11 and macOS 26 installed journeys, live native drop behavior, and release-wide platform proof remain unverified; Windows reparse handling is source-reviewed but was not live-run on this macOS host."
+    }
+  ],
+  "privacy_and_network": {
+    "external_ai_used": false,
+    "credentials_used": false,
+    "keychain_accessed": false,
+    "user_resume_data_used": false,
+    "live_sources_contacted_in_closure_checks": false
+  },
+  "source": "docs/plans/v3/master-exec-plan.md"
+}

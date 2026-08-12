@@ -1,0 +1,163 @@
+{
+  "schema": "jobsentinel.resume-matching-profile-eval",
+  "schema_version": 1,
+  "revision": "matching-profiles-v1",
+  "data_origin": "synthetic",
+  "contains_personal_data": false,
+  "profession_case": {
+    "resume_text": "Experience\nLed account management and scheduling.\n\nProjects\nBuilt Kubernetes services.\n\nEducation\nBachelor's degree.\n\nCertifications\nCISSP.\n\nSkills\nExcel.",
+    "skills": ["Excel"],
+    "job_description": "Required: account management, Kubernetes, scheduling, bachelor's degree, CISSP, Excel",
+    "profiles": [
+      {
+        "profession": "technical",
+        "expected_preferred_keywords": ["account management", "cissp", "kubernetes", "scheduling"],
+        "expected_review_order": ["excel", "account management", "cissp", "kubernetes", "scheduling", "bachelor's degree"],
+        "expected_keyword_score_delta": 0.0,
+        "expected_overall_score_delta": 0.0
+      },
+      {
+        "profession": "content",
+        "expected_preferred_keywords": ["account management", "kubernetes", "scheduling"],
+        "expected_review_order": ["excel", "account management", "kubernetes", "scheduling", "bachelor's degree", "cissp"],
+        "expected_keyword_score_delta": 0.0,
+        "expected_overall_score_delta": 0.0
+      },
+      {
+        "profession": "operations",
+        "expected_preferred_keywords": ["account management", "kubernetes", "scheduling"],
+        "expected_review_order": ["excel", "account management", "kubernetes", "scheduling", "bachelor's degree", "cissp"],
+        "expected_keyword_score_delta": 0.0,
+        "expected_overall_score_delta": 0.0
+      },
+      {
+        "profession": "healthcare",
+        "expected_preferred_keywords": ["account management", "bachelor's degree", "cissp", "scheduling"],
+        "expected_review_order": ["excel", "account management", "bachelor's degree", "cissp", "scheduling", "kubernetes"],
+        "expected_keyword_score_delta": 0.0,
+        "expected_overall_score_delta": 0.0
+      },
+      {
+        "profession": "service",
+        "expected_preferred_keywords": ["account management", "kubernetes", "scheduling"],
+        "expected_review_order": ["excel", "account management", "kubernetes", "scheduling", "bachelor's degree", "cissp"],
+        "expected_keyword_score_delta": 0.0,
+        "expected_overall_score_delta": 0.0
+      },
+      {
+        "profession": "trades",
+        "expected_preferred_keywords": ["account management", "bachelor's degree", "cissp", "scheduling"],
+        "expected_review_order": ["excel", "account management", "bachelor's degree", "cissp", "scheduling", "kubernetes"],
+        "expected_keyword_score_delta": 0.0,
+        "expected_overall_score_delta": 0.0
+      },
+      {
+        "profession": "education",
+        "expected_preferred_keywords": ["account management", "bachelor's degree", "cissp", "scheduling"],
+        "expected_review_order": ["excel", "account management", "bachelor's degree", "cissp", "scheduling", "kubernetes"],
+        "expected_keyword_score_delta": 0.0,
+        "expected_overall_score_delta": 0.0
+      },
+      {
+        "profession": "sales",
+        "expected_preferred_keywords": ["account management", "kubernetes", "scheduling"],
+        "expected_review_order": ["excel", "account management", "kubernetes", "scheduling", "bachelor's degree", "cissp"],
+        "expected_keyword_score_delta": 0.0,
+        "expected_overall_score_delta": 0.0
+      },
+      {
+        "profession": "early_career",
+        "expected_preferred_keywords": ["bachelor's degree", "cissp", "kubernetes"],
+        "expected_review_order": ["excel", "bachelor's degree", "cissp", "kubernetes", "account management", "scheduling"],
+        "expected_keyword_score_delta": 0.0,
+        "expected_overall_score_delta": 0.0
+      }
+    ]
+  },
+  "regional_cases": [
+    {
+      "id": "us-does-not-infer-uk-wording",
+      "region": "us",
+      "resume_text": "Experience\nLed program evaluation.",
+      "skills": [],
+      "job_description": "Required: programme evaluation",
+      "expected_matches": [],
+      "expected_missing": [],
+      "expected_hard_constraint_categories": [],
+      "expected_keyword_score_delta": 0.0,
+      "expected_overall_score_delta": 0.0
+    },
+    {
+      "id": "uk-job-wording-to-canonical-resume",
+      "region": "uk",
+      "resume_text": "Experience\nLed program evaluation.",
+      "skills": [],
+      "job_description": "Required: programme evaluation",
+      "expected_matches": ["program evaluation"],
+      "expected_missing": [],
+      "expected_hard_constraint_categories": [],
+      "expected_keyword_score_delta": 100.0,
+      "expected_overall_score_delta": 40.0
+    },
+    {
+      "id": "eu-job-wording-to-canonical-resume",
+      "region": "eu",
+      "resume_text": "Experience\nLed program evaluation.",
+      "skills": [],
+      "job_description": "Required: programme evaluation",
+      "expected_matches": ["program evaluation"],
+      "expected_missing": [],
+      "expected_hard_constraint_categories": [],
+      "expected_keyword_score_delta": 100.0,
+      "expected_overall_score_delta": 40.0
+    },
+    {
+      "id": "india-job-wording-to-canonical-resume",
+      "region": "india",
+      "resume_text": "Experience\nLed program evaluation.",
+      "skills": [],
+      "job_description": "Required: programme evaluation",
+      "expected_matches": ["program evaluation"],
+      "expected_missing": [],
+      "expected_hard_constraint_categories": [],
+      "expected_keyword_score_delta": 100.0,
+      "expected_overall_score_delta": 40.0
+    },
+    {
+      "id": "uk-canonical-job-to-regional-resume",
+      "region": "uk",
+      "resume_text": "Experience\nLed programme evaluation.",
+      "skills": [],
+      "job_description": "Required: program evaluation",
+      "expected_matches": ["program evaluation"],
+      "expected_missing": [],
+      "expected_hard_constraint_categories": [],
+      "expected_keyword_score_delta": 100.0,
+      "expected_overall_score_delta": 40.0
+    },
+    {
+      "id": "uk-project-evaluation-is-not-program-evaluation",
+      "region": "uk",
+      "resume_text": "Experience\nLed project evaluation.",
+      "skills": [],
+      "job_description": "Required: programme evaluation",
+      "expected_matches": [],
+      "expected_missing": ["program evaluation"],
+      "expected_hard_constraint_categories": [],
+      "expected_keyword_score_delta": 0.0,
+      "expected_overall_score_delta": 0.0
+    },
+    {
+      "id": "uk-missing-licence-stays-a-hard-constraint",
+      "region": "uk",
+      "resume_text": "Experience\nLed program evaluation.",
+      "skills": [],
+      "job_description": "Required: driver's licence, programme evaluation",
+      "expected_matches": ["program evaluation"],
+      "expected_missing": ["driver's license"],
+      "expected_hard_constraint_categories": ["LicenseOrCertification"],
+      "expected_keyword_score_delta": 50.0,
+      "expected_overall_score_delta": 1.5
+    }
+  ]
+}

@@ -76,11 +76,16 @@ describe("ExternalAiJobSummary", () => {
 
   it("sends only reviewed public job details through the backend command", async () => {
     const user = userEvent.setup();
+    let preparedArgs: unknown;
     let sentArgs: unknown;
 
     mockInvoke.mockImplementation((cmd, args) => {
       if (cmd === "get_config") {
         return Promise.resolve({ external_ai: enabledExternalAiConfig() });
+      }
+      if (cmd === "prepare_external_ai_request") {
+        preparedArgs = args;
+        return Promise.resolve({ approvalId: "approval-123" });
       }
       if (cmd === "send_external_ai_request") {
         sentArgs = args;
@@ -107,13 +112,19 @@ describe("ExternalAiJobSummary", () => {
 
     await waitFor(() => {
       expect(mockInvoke).toHaveBeenCalledWith(
+        "prepare_external_ai_request",
+        expect.anything(),
+      );
+      expect(mockInvoke).toHaveBeenCalledWith(
         "send_external_ai_request",
         expect.anything(),
       );
     });
     expect(sentArgs).toMatchObject({
+      approvalId: "approval-123",
       request: {
         feature: "job-description-summary",
+        sourceJobId: 42,
         provider: "open_ai",
         labels: ["External AI optional", "Public-data only"],
         dataCategories: ["job_posting", "public_metadata"],
@@ -122,20 +133,81 @@ describe("ExternalAiJobSummary", () => {
         payload: {
           title: "Customer Support Lead",
           company: "CareBridge Services",
-          sourceUrl: "https://example.com/job/42",
-          source: "greenhouse",
-          jobId: "42",
           location: "Chicago, IL",
           description: "Guide care teams and improve customer support workflows.",
-          salaryRange: "$55k - $72k",
         },
       },
     });
+    expect((sentArgs as { request: unknown }).request).toBe(
+      (preparedArgs as { request: unknown }).request,
+    );
     expect(JSON.stringify(sentArgs)).not.toContain("Private local note");
     expect(JSON.stringify(sentArgs)).not.toContain("0.92");
     expect(
       await screen.findByRole("heading", { name: "Posting Summary" }),
     ).toBeInTheDocument();
     expect(screen.getByText(/public posting summary/i)).toBeInTheDocument();
+  });
+
+  it("cancels the active backend approval while sending", async () => {
+    const user = userEvent.setup();
+    let rejectSend: ((error: Error) => void) | undefined;
+
+    mockInvoke.mockImplementation((cmd) => {
+      if (cmd === "get_config") {
+        return Promise.resolve({ external_ai: enabledExternalAiConfig() });
+      }
+      if (cmd === "prepare_external_ai_request") {
+        return Promise.resolve({ approvalId: "approval-cancel" });
+      }
+      if (cmd === "send_external_ai_request") {
+        return new Promise((_resolve, reject) => {
+          rejectSend = reject;
+        });
+      }
+      if (cmd === "cancel_external_ai_request") {
+        return Promise.resolve({ outcome: "ambiguous" });
+      }
+      return Promise.reject(new Error(`Unexpected command: ${cmd}`));
+    });
+
+    renderWithToast(<ExternalAiJobSummary job={job} />);
+    await user.click(
+      screen.getByRole("button", {
+        name: "Summarize posting with Outside AI",
+      }),
+    );
+    await user.click(
+      await screen.findByRole("button", { name: "Send Reviewed Details" }),
+    );
+    await waitFor(() => {
+      expect(mockInvoke).toHaveBeenCalledWith(
+        "send_external_ai_request",
+        expect.anything(),
+      );
+    });
+
+    await user.click(screen.getByRole("button", { name: "Cancel" }));
+
+    await waitFor(() => {
+      expect(mockInvoke).toHaveBeenCalledWith(
+        "cancel_external_ai_request",
+        { approvalId: "approval-cancel" },
+      );
+    });
+    expect(
+      screen.getByRole("button", {
+        name: "Summarize posting with Outside AI",
+      }),
+    ).toBeDisabled();
+    rejectSend?.(new Error("Outside AI request cancelled."));
+    expect(
+      await screen.findByText(/Settings > Outside AI.*durable activity/i),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", {
+        name: "Summarize posting with Outside AI",
+      }),
+    ).toBeDisabled();
   });
 });

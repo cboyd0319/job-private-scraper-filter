@@ -1,5 +1,7 @@
 use super::{has_stored_path, resume_file_display_name};
-use crate::application::automation::{ApplicationAttempt, ApplicationProfile, ScreeningAnswer};
+use crate::application::automation::{
+    requires_user_answer, ApplicationAttempt, ApplicationProfile, ScreeningAnswer,
+};
 use serde::{Deserialize, Serialize};
 
 /// Response type for application profile (frontend-friendly)
@@ -111,6 +113,27 @@ impl From<ScreeningAnswer> for ScreeningAnswerResponse {
             updated_at: a.updated_at.to_rfc3339(),
         }
     }
+}
+
+/// Minimal saved-answer data for application review surfaces.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct ApplicationScreeningAnswerPreviewResponse {
+    pub question_pattern: String,
+    pub answer: String,
+}
+
+pub(crate) fn application_screening_answer_previews(
+    answers: Vec<ScreeningAnswer>,
+) -> Vec<ApplicationScreeningAnswerPreviewResponse> {
+    answers
+        .into_iter()
+        .filter(|answer| !requires_user_answer(&answer.question_pattern))
+        .map(|answer| ApplicationScreeningAnswerPreviewResponse {
+            question_pattern: answer.question_pattern,
+            answer: answer.answer,
+        })
+        .collect()
 }
 
 /// Response type for automation attempts (frontend-friendly)

@@ -1,0 +1,79 @@
+{
+  "schema": "jobsentinel.feature_evidence.v1",
+  "feature_id": "v3-milestone-3-recovery-portability-policy-repair",
+  "slice": "offline-storage-health-and-cleanup",
+  "behavior": "A user can inspect aggregate local storage health and explicitly reclaim SQLite WAL and already-free pages without deleting application records, exposing private details, using credentials, or requiring connectivity.",
+  "result": "passing",
+  "verified_at": "2026-07-19T06:50:49Z",
+  "revision": "4304fbb54028c630d59f29b1bd053e8f4cf6e131",
+  "revision_scope": "The clean committed offline storage inspection and cleanup implementation within active Milestone 3.",
+  "platform": "local macOS 27.0 arm64 host",
+  "commands": [
+    {
+      "command": "env -u JOBSENTINEL_LIVE_KEYRING_TESTS cargo test -p jobsentinel-storage --lib connection::tests::maintenance_tests -- --nocapture",
+      "exit_status": 0,
+      "relevant_result": "All 7 focused tests passed for aggregate-only inspection, production incremental-vacuum configuration, physical reclamation, row preservation, integrity and foreign-key checks, success and busy provenance, in-memory use, non-file WAL refusal, and databases without incremental vacuum.",
+      "caveat": "Live keyring tests were explicitly disabled. The storage library test owner uses a fixed test-only SQLCipher key and did not prompt for Keychain access."
+    },
+    {
+      "command": "env -u JOBSENTINEL_LIVE_KEYRING_TESTS cargo clippy -p jobsentinel-storage -p jobsentinel-application --lib -- -D warnings",
+      "exit_status": 0,
+      "relevant_result": "The changed storage and application production libraries passed Clippy with warnings denied.",
+      "caveat": "An exploratory all-target Clippy command also linted legacy tests and failed on 1,718 existing unwrap, expect, and float-comparison findings. Those unrelated tests were not changed."
+    },
+    {
+      "command": "env -u JOBSENTINEL_LIVE_KEYRING_TESTS npm run lint:sqlx",
+      "exit_status": 0,
+      "relevant_result": "Migrations 0 through 12 applied to an isolated database and SQLx offline metadata remained current for every workspace owner.",
+      "caveat": "No migration or prepared-query metadata change was needed for the SQLite PRAGMA-based maintenance contract."
+    },
+    {
+      "command": "npm run harness:check; npm run lint:file-size; npm run lint:docs; npm run lint:deps; npm run lint:architecture; npm run lint:security",
+      "exit_status": 0,
+      "relevant_result": "Harness, hard file limits, documentation, dependency pins, architecture ownership, security sensors, and secret scanning passed on the final diff.",
+      "caveat": "Three changed owners reached the modularization review threshold without exceeding hard limits. Repository GitHub Actions remain temporarily disabled by user direction."
+    },
+    {
+      "command": "env -u JOBSENTINEL_LIVE_KEYRING_TESTS cargo fmt --all -- --check; git diff --check",
+      "exit_status": 0,
+      "relevant_result": "Rust formatting and patch whitespace passed on the final implementation.",
+      "caveat": "The full Rust workspace test lane was not run while the user was away because downstream on-disk tests can enter macOS credential paths. Focused storage tests and production-library Clippy were used instead."
+    },
+    {
+      "command": "Two read-only adversarial reviews for privacy, data loss, Rust, SQLx, and SQLite behavior",
+      "exit_status": 0,
+      "relevant_result": "Both reviewers returned PASS after fixes for new-database incremental-vacuum activation, vacuum and checkpoint ordering, fresh WAL reporting, and non-file WAL coverage.",
+      "caveat": "The reviewers inspected the final files without running Tauri, live-keyring, or signed-package paths."
+    }
+  ],
+  "source": "docs/plans/v3/master-exec-plan.md",
+  "measurements": {
+    "maximum_incremental_vacuum_pages": 100,
+    "focused_tests_passed": 7,
+    "focused_tests_failed": 0,
+    "cleanup_implementation_file_lines": 220,
+    "cleanup_test_file_lines": 270,
+    "adversarial_reviewers_passed": 2
+  },
+  "decisions": {
+    "inspection": "Return only typed health, aggregate reclaimable bytes, optional WAL bytes, incremental-vacuum availability, and a false connectivity requirement. Do not return paths, table counts, record contents, or credentials.",
+    "refusal": "Run quick and foreign-key checks before any cleanup provenance or maintenance mutation. Require compatible backup recovery when either check fails.",
+    "cleanup": "Use checked SQLite TRUNCATE checkpoints and at most 100 pages of native incremental vacuum. Do not add a generic deletion, vacuum, reindex, FTS rebuild, artifact cleanup, or repair service.",
+    "configuration": "Enable incremental auto-vacuum in encrypted connection options before new schemas are created. Do not force a full VACUUM on existing databases that report auto-vacuum disabled.",
+    "ordering": "Checkpoint before maintenance, vacuum already-free pages, verify integrity, record success, checkpoint again, and only then return a fresh report. Convert success provenance to failed if finalization fails.",
+    "privacy": "Keep cleanup fully local and offline. Do not call credential, Keychain, AI, network, source, model, backup, export, restore, or package owners.",
+    "credential_tests": "Keep live keyring tests opt-in. Every unattended Rust command unsets JOBSENTINEL_LIVE_KEYRING_TESTS."
+  },
+  "review": {
+    "adversarial_verdict": "PASS after SQLite activation, ordering, reporting, and non-file WAL corrections",
+    "privacy_or_security_regression": false,
+    "open_slice_blockers": 0,
+    "remaining_findings": [
+      "The renderer, Tauri command surface, and Settings review UI remain later Milestone 3 work.",
+      "Existing databases created without incremental auto-vacuum still receive checked WAL cleanup but do not claim page reclamation. Enabling it would require a separate reviewed full-VACUUM design.",
+      "The success-to-failed provenance conversion for a reader appearing only at the second checkpoint is not directly regression-tested.",
+      "Run filesystem behavior on Windows 11, macOS 26, and Linux, including removable and network filesystems, in the release matrix.",
+      "Milestone 3 Privacy Doctor, support bundle, policy, consent, offline repair, and platform-health work remain active."
+    ]
+  }
+}

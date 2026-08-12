@@ -102,10 +102,20 @@ const RESUME_REVIEW_ERRORS = [
   { pattern: /token.*limit|context.*length/i, title: 'Resume or Job Post Too Long', message: 'The resume or job post is too long for this review.', action: 'Try a shorter resume or job post. Remove repeated sections first.' },
 ];
 
+const OUTSIDE_AI_ERRORS = [
+  {
+    pattern: /outside AI.*(?:outcome is unknown|provider may have received)|do not retry.*outside AI/i,
+    title: 'Outside AI Outcome Unknown',
+    message: 'The provider may have received this request. Do not retry it.',
+    action: 'Open Settings > Outside AI and check durable activity before taking any next step.',
+  },
+];
+
 /**
  * All error pattern groups combined
  */
 const ALL_ERROR_PATTERNS = [
+  ...OUTSIDE_AI_ERRORS,
   ...RESUME_REVIEW_ERRORS,
   ...NETWORK_ERRORS,
   ...DATABASE_ERRORS,

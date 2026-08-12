@@ -27,6 +27,10 @@ less wasted effort.
   without telemetry or hidden cloud training.
 - **Work beyond one market.** Make UK, EU, and India starter support possible
   through regional packs, taxonomies, CV profiles, and source manifests.
+- **Support military transition.** Carry user-confirmed military service,
+  occupations, credentials, and current clearance evidence into civilian
+  resumes, matching, public-service paths, and application review without
+  inventing equivalence or inferring protected veteran status or eligibility.
 - **Use the OS intelligently.** Use native platform features and small
   on-device model APIs where they remove friction, while keeping JobSentinel's
   governed evidence engine in control.

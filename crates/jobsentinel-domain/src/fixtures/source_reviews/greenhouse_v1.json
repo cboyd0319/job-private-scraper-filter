@@ -1,0 +1,33 @@
+{
+  "source_id": "greenhouse",
+  "reviewed_on": "2026-08-12",
+  "reference_ids": [
+    "source-review.greenhouse.public-get-api",
+    "source-review.greenhouse.api-robots"
+  ],
+  "evidence": [
+    {
+      "url": "https://developers.greenhouse.io/job-board",
+      "observed": "Job Board GET data is public and does not require authentication."
+    },
+    {
+      "url": "https://boards-api.greenhouse.io/robots.txt",
+      "observed": "The API robots policy disallows only the embed path."
+    }
+  ],
+  "local_policy": {
+    "operation": "public GET job-list checks only",
+    "request_limit_per_hour": 1000,
+    "basis": "JobSentinel conservative ceiling; no provider GET rate was published in the reviewed documentation.",
+    "burst": 1,
+    "automatic_retries": false,
+    "application_submission": false,
+    "external_model_training": false
+  },
+  "change_triggers": [
+    "public GET authentication changes",
+    "documentation or robots policy changes",
+    "rate-limit or access rejection",
+    "response schema drift"
+  ]
+}

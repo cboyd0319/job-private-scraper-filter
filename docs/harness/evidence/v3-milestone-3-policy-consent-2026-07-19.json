@@ -1,0 +1,73 @@
+{
+  "schema": "jobsentinel.feature_evidence.v1",
+  "feature_id": "v3-milestone-3-recovery-portability-policy-repair",
+  "slice": "append-only-source-policy-and-exact-scheduled-consent",
+  "behavior": "Restricted scheduled sources run only with current local consent bound to the exact Rust-owned source policy, operation, warning, behavior revision, destination, allowed data categories, and minimized request fingerprint. Request or policy drift appends a revocation, restored config booleans cannot authorize transport, and fixed restricted-source health probes remain unavailable until they receive distinct reviewed scope.",
+  "result": "passing",
+  "verified_at": "2026-07-19T08:53:11Z",
+  "revision": "802185967ade9d8e6ac627fa85cc8f2ceff969ed",
+  "revision_scope": "The committed append-only policy and consent ledgers, exact restricted scheduled-source consent owner, startup/config/scheduler enforcement, health-check boundary, Privacy Doctor projection, Settings review copy, and development-runtime parity.",
+  "platform": "local macOS arm64 host",
+  "commands": [
+    {
+      "command": "env -u JOBSENTINEL_LIVE_KEYRING_TESTS cargo test -p jobsentinel-domain v3_source_consent --lib; env -u JOBSENTINEL_LIVE_KEYRING_TESTS cargo test -p jobsentinel-storage v3_source_consent --lib; env -u JOBSENTINEL_LIVE_KEYRING_TESTS cargo test -p jobsentinel-storage migration_13_backfills_existing_policy_once --lib",
+      "exit_status": 0,
+      "relevant_result": "All 5 domain consent tests, 5 storage consent tests, and the migration backfill test passed. Coverage includes exact context matching, protected-data rejection, disabled-policy refusal, immutable append-only history, stale-write conflicts, hostile replacement attempts, policy drift, revocation, and idempotent migration.",
+      "caveat": "Live keyring tests were explicitly disabled. No network, Tauri launch, or credential path ran."
+    },
+    {
+      "command": "env -u JOBSENTINEL_LIVE_KEYRING_TESTS cargo test -p jobsentinel-application restricted_source_consent --lib; env -u JOBSENTINEL_LIVE_KEYRING_TESTS cargo test -p jobsentinel-application restricted_smoke_test_is_unavailable_without_distinct_reviewed_scope --lib; env -u JOBSENTINEL_LIVE_KEYRING_TESTS cargo test --manifest-path src-tauri/Cargo.toml save_config_reconciles_restricted_source_review_with_the_local_ledger --lib; env -u JOBSENTINEL_LIVE_KEYRING_TESTS cargo test --manifest-path src-tauri/Cargo.toml restricted_source_toggle_revokes_and_never_silently_regrants --lib",
+      "exit_status": 0,
+      "relevant_result": "All 5 application consent tests, the restricted health-boundary test, and both desktop IPC tests passed. A fail-first replay regression proves that X grant, Y request drift, and X restoration remains revoked across startup-style refresh until a new explicit review.",
+      "caveat": "The tests use isolated local databases and config paths. Live Settings GUI, signed packages, Windows 11, macOS 26, and Linux remain release-matrix work."
+    },
+    {
+      "command": "npm run test:run -- src/features/settings/sources/health/ScraperHealthDashboard.sourceChecks.test.tsx src/features/settings/sources/health/ScraperHealthDashboard.sources-and-history.test.tsx src/features/settings/SettingsPage.source-connections.test.tsx src/dev-runtime/features/settings/sources/scraperHealth.test.ts; npm run typecheck; npm run lint; npm run lint:file-size",
+      "exit_status": 0,
+      "relevant_result": "All 39 focused frontend tests passed with frontend types, lint, and hard file limits. Settings exposes exact scope and exclusions accessibly, config booleans remain projections, and the development runtime matches the native restricted-health boundary.",
+      "caveat": "The full frontend suite was intentionally not run because focused tests covered the changed behavior."
+    },
+    {
+      "command": "env -u JOBSENTINEL_LIVE_KEYRING_TESTS cargo clippy -p jobsentinel-domain -p jobsentinel-storage -p jobsentinel-application -p jobsentinel --lib -- -D warnings; npm run harness:check; npm run lint:docs; npm run lint:architecture; npm run lint:sqlx; npm run lint:security; git diff --check",
+      "exit_status": 0,
+      "relevant_result": "Changed production Rust libraries passed Clippy with warnings denied. Harness state, docs, repository architecture, isolated SQLx migration metadata, security sensors, secret scan, and patch whitespace passed.",
+      "caveat": "The broad all-target Rust lane was not run because downstream tests can enter live macOS credential paths. Repository GitHub Actions remain temporarily disabled by user direction."
+    },
+    {
+      "command": "Two read-only adversarial reviews of the consent contract, SQLite enforcement, authorization use points, renderer boundary, fixed health probes, and replay behavior",
+      "exit_status": 0,
+      "relevant_result": "Both reviewers returned PASS after corrections for disabled-policy alignment, INSERT OR REPLACE bypasses, policy-race error mapping, health-probe scope, visible copy, and an old-grant replay sequence.",
+      "caveat": "The separate user-directed Job Import gate remains outside this scheduled-source slice and belongs to the full Milestone 4 source operation model."
+    }
+  ],
+  "source": "docs/plans/v3/master-exec-plan.md",
+  "measurements": {
+    "domain_consent_tests_passed": 5,
+    "storage_consent_tests_passed": 5,
+    "application_consent_tests_passed": 5,
+    "desktop_ipc_tests_passed": 2,
+    "frontend_tests_passed": 39,
+    "adversarial_reviewers_passed": 2
+  },
+  "decisions": {
+    "authorization": "Only exact durable consent evaluated in Rust immediately before a scheduled adapter can authorize transport. Renderer and config booleans are projected review state only.",
+    "scope": "Milestone 3 owns policy history and exact consent for the four already-shipped restricted scheduled sources. Milestone 4 owns the complete source graph, new source operations, browser permissions, and any distinct fixed health-check consent.",
+    "privacy": "Persist lowercase SHA-256 fingerprints, policy metadata, typed allowed categories, and event chaining only. Do not persist raw query, location, resume, application, pay, veteran, clearance, protected-answer, credential, or browser-session material in consent records.",
+    "drift": "Any material request or policy drift appends a local revocation. Restoring an old request cannot resurrect its old grant.",
+    "health": "A scheduled-source grant never authorizes a fixed connectivity probe with a different request and destination. Restricted Source Status checks remain unavailable with visible alternatives.",
+    "exports": "Policy and consent ledgers remain local operational metadata and are excluded from reviewed plaintext exports.",
+    "red_green": "Fail-first tests reproduced missing contracts and storage APIs, stale boolean authority, request drift, source re-enable, replacement attacks, policy races, health-probe authority, and old-grant replay before each correction.",
+    "credential_tests": "Keep live keyring tests opt-in. Every unattended Rust command unsets JOBSENTINEL_LIVE_KEYRING_TESTS."
+  },
+  "review": {
+    "adversarial_verdict": "PASS after contract, storage, health-scope, copy, and replay corrections",
+    "privacy_or_security_regression": false,
+    "open_slice_blockers": 0,
+    "remaining_findings": [
+      "External-send audit durability and privacy-receipt approval references remain active Milestone 3 work.",
+      "Offline repair, platform health, package-repair fallbacks, and Settings presentation remain active Milestone 3 work.",
+      "User-directed restricted Job Import and distinct reviewed health-check operations remain Milestone 4 source-graph work.",
+      "Windows 11, macOS 26, Linux, installed-app, and signed-package GUI proof remain release-matrix work."
+    ]
+  }
+}

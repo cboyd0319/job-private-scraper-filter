@@ -1,3 +1,4 @@
+use jobsentinel_domain::ResumeEvidenceSnapshot;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::str::FromStr;
@@ -82,6 +83,8 @@ pub struct ResumeAnalysisInput {
     pub resume: StructuredResume,
     #[serde(default)]
     pub custom_sections: HashMap<String, Vec<String>>,
+    #[serde(default)]
+    pub evidence_snapshot: Option<ResumeEvidenceSnapshot>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]

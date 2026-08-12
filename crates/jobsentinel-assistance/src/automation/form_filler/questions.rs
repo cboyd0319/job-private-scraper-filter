@@ -32,6 +32,11 @@ impl FormFiller {
         for selector in question_selectors {
             if let Ok(questions) = self.find_questions_with_selector(page, selector).await {
                 for (question_text, input_selector) in questions {
+                    if requires_user_answer(&question_text) {
+                        result.add_manual_review_topic();
+                        continue;
+                    }
+
                     if let Some(answer) = self.find_screening_answer_for_question(&question_text) {
                         let answer_value = answer.answer.clone();
                         let review_topic = screening_answer_review_topic(&answer.question_pattern);
@@ -160,7 +165,15 @@ impl FormFiller {
     }
 
     fn find_screening_answer_for_question(&self, question: &str) -> Option<&ScreeningAnswer> {
+        if requires_user_answer(question) {
+            return None;
+        }
+
         for answer in &self.screening_answers {
+            if requires_user_answer(&answer.question_pattern) {
+                continue;
+            }
+
             if screening_question_matches(&answer.question_pattern, question) {
                 tracing::debug!(
                     pattern_chars = answer.question_pattern.chars().count(),

@@ -1,3 +1,4 @@
+/** Renders one saved job with bounded evidence, guidance, and user actions. */
 import { useEffect, useState, memo, type ReactNode } from "react";
 import { ScoreDisplay } from "../../../ui/score-display/ScoreDisplay";
 import { GhostIndicatorCompact } from "./GhostIndicator";
@@ -61,7 +62,7 @@ interface JobCardProps {
   onHideJob?: (id: number) => void;
   onToggleBookmark?: (id: number) => void;
   onEditNotes?: (id: number, currentNotes?: string | null) => void;
-  onResearchCompany?: (company: string) => void;
+  onResearchCompany?: (company: string, jobHash: string | undefined) => void;
   renderApplicationAssistAction?: (job: Job) => ReactNode;
   isSelected?: boolean;
   salaryFloorUsd?: number | null;
@@ -404,9 +405,9 @@ export const JobCard = memo(function JobCard({
 
               {onResearchCompany && (
                 <button
-                  onClick={() => onResearchCompany(job.company)}
+                  onClick={() => onResearchCompany(job.company, job.hash)}
                   onKeyDown={(e) =>
-                    handleKeyDown(e, () => onResearchCompany(job.company))
+                    handleKeyDown(e, () => onResearchCompany(job.company, job.hash))
                   }
                   className="p-2 text-surface-400 hover:text-purple-500 dark:hover:text-purple-400 opacity-40 group-hover:opacity-100 focus-visible:opacity-100 transition-colors"
                   aria-label="Research company"

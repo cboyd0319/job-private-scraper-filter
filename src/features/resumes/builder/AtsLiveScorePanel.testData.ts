@@ -1,6 +1,7 @@
 import type { AtsAnalysisResult } from "./AtsLiveScorePanel";
 
 export const mockResumeData = {
+  id: 7,
   contact: {
     name: "Jordan Lee",
     email: "jordan@example.com",
@@ -37,6 +38,10 @@ export const mockResumeData = {
     { name: "Customer service", category: "Service", proficiency: "expert" as const },
     { name: "Scheduling tools", category: "Tools", proficiency: "advanced" as const },
   ],
+  certifications: [],
+  projects: [],
+  created_at: "2026-07-19T12:00:00Z",
+  updated_at: "2026-07-19T13:00:00Z",
 };
 
 export const mockAnalysis: AtsAnalysisResult = {

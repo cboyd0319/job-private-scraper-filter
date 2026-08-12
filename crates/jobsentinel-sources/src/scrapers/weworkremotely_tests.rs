@@ -2,24 +2,8 @@ use super::*;
 
 #[path = "weworkremotely_tests/edge_tests.rs"]
 mod edge_tests;
-
-#[test]
-fn test_build_url_default() {
-    let scraper = WeWorkRemotelyScraper::new(None, 10);
-    assert_eq!(
-        scraper.build_url(),
-        "https://weworkremotely.com/remote-jobs.rss"
-    );
-}
-
-#[test]
-fn test_build_url_with_category() {
-    let scraper = WeWorkRemotelyScraper::new(Some("programming".to_string()), 10);
-    assert_eq!(
-        scraper.build_url(),
-        "https://weworkremotely.com/categories/programming.rss"
-    );
-}
+#[path = "weworkremotely_tests/governance_tests.rs"]
+mod governance_tests;
 
 #[test]
 fn test_scraper_name() {
@@ -161,7 +145,7 @@ fn test_parse_rss_accepts_item_attributes() {
 
 #[test]
 fn test_parse_rss_multiple_jobs() {
-    let scraper = WeWorkRemotelyScraper::new(Some("programming".to_string()), 10);
+    let scraper = WeWorkRemotelyScraper::new(Some("remote-programming-jobs".to_string()), 10);
     let rss = r#"
         <rss>
             <channel>
@@ -234,23 +218,29 @@ fn test_parse_rss_with_html_entities() {
 
 #[test]
 fn test_parse_rss_category_programming() {
-    let scraper = WeWorkRemotelyScraper::new(Some("programming".to_string()), 10);
-    let url = scraper.build_url();
-    assert_eq!(url, "https://weworkremotely.com/categories/programming.rss");
+    let scraper = WeWorkRemotelyScraper::new(Some("remote-programming-jobs".to_string()), 10);
+    assert_eq!(
+        scraper.build_url().unwrap(),
+        "https://weworkremotely.com/categories/remote-programming-jobs.rss"
+    );
 }
 
 #[test]
 fn test_parse_rss_category_design() {
-    let scraper = WeWorkRemotelyScraper::new(Some("design".to_string()), 10);
-    let url = scraper.build_url();
-    assert_eq!(url, "https://weworkremotely.com/categories/design.rss");
+    let scraper = WeWorkRemotelyScraper::new(Some("remote-design-jobs".to_string()), 10);
+    assert_eq!(
+        scraper.build_url().unwrap(),
+        "https://weworkremotely.com/categories/remote-design-jobs.rss"
+    );
 }
 
 #[test]
 fn test_parse_rss_category_devops() {
-    let scraper = WeWorkRemotelyScraper::new(Some("devops".to_string()), 10);
-    let url = scraper.build_url();
-    assert_eq!(url, "https://weworkremotely.com/categories/devops.rss");
+    let scraper = WeWorkRemotelyScraper::new(Some("remote-devops-sysadmin-jobs".to_string()), 10);
+    assert_eq!(
+        scraper.build_url().unwrap(),
+        "https://weworkremotely.com/categories/remote-devops-sysadmin-jobs.rss"
+    );
 }
 
 #[test]
@@ -259,10 +249,10 @@ fn test_parse_rss_limit_respected() {
     let rss = r#"
         <rss>
             <channel>
-                <item><title>Co A: Job 1</title><link>http://a.com/1</link></item>
-                <item><title>Co B: Job 2</title><link>http://a.com/2</link></item>
-                <item><title>Co C: Job 3</title><link>http://a.com/3</link></item>
-                <item><title>Co D: Job 4</title><link>http://a.com/4</link></item>
+                <item><title>Co A: Job 1</title><link>https://weworkremotely.com/jobs/1</link></item>
+                <item><title>Co B: Job 2</title><link>https://weworkremotely.com/jobs/2</link></item>
+                <item><title>Co C: Job 3</title><link>https://weworkremotely.com/jobs/3</link></item>
+                <item><title>Co D: Job 4</title><link>https://weworkremotely.com/jobs/4</link></item>
             </channel>
         </rss>
     "#;

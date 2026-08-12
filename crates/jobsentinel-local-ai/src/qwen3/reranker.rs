@@ -105,15 +105,7 @@ impl Qwen3RerankerBackend {
             .to_vec2::<f32>()
             .context("failed to read Qwen3 reranker scores")?;
 
-        let mut scores: Vec<RerankScore> = bounded_candidates
-            .into_iter()
-            .zip(raw_scores)
-            .map(|(candidate, row)| RerankScore {
-                candidate_id: candidate.id.clone(),
-                score: row.first().copied().unwrap_or_default(),
-                rank: 0,
-            })
-            .collect();
+        let mut scores = build_rerank_scores(&bounded_candidates, &raw_scores)?;
 
         scores.sort_by(|left, right| {
             right
@@ -128,6 +120,29 @@ impl Qwen3RerankerBackend {
 
         Ok(scores)
     }
+}
+
+fn build_rerank_scores(
+    candidates: &[&RerankCandidate],
+    raw_scores: &[Vec<f32>],
+) -> Result<Vec<RerankScore>> {
+    if candidates.len() != raw_scores.len() {
+        anyhow::bail!("invalid Qwen3 reranker output");
+    }
+    candidates
+        .iter()
+        .zip(raw_scores)
+        .map(|(candidate, row)| {
+            if row.len() != 1 || !row[0].is_finite() {
+                anyhow::bail!("invalid Qwen3 reranker output");
+            }
+            Ok(RerankScore {
+                candidate_id: candidate.id.clone(),
+                score: row[0],
+                rank: 0,
+            })
+        })
+        .collect()
 }
 
 impl RerankerBackend for Qwen3RerankerBackend {
@@ -145,5 +160,39 @@ impl RerankerBackend for Qwen3RerankerBackend {
         candidates: &[RerankCandidate],
     ) -> Result<Vec<RerankScore>> {
         self.score_candidates(query, candidates)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn reranker_rows_require_exact_cardinality_one_finite_scalar_each() {
+        let candidates = [
+            RerankCandidate {
+                id: "a".to_string(),
+                text: "first".to_string(),
+                metadata: serde_json::Value::Null,
+            },
+            RerankCandidate {
+                id: "b".to_string(),
+                text: "second".to_string(),
+                metadata: serde_json::Value::Null,
+            },
+        ];
+        let candidates = candidates.iter().collect::<Vec<_>>();
+
+        assert!(build_rerank_scores(&candidates, &[vec![0.1]]).is_err());
+        assert!(build_rerank_scores(&candidates, &[vec![0.1], vec![0.2], vec![0.3]]).is_err());
+        assert!(build_rerank_scores(&candidates, &[vec![], vec![0.2]]).is_err());
+        assert!(build_rerank_scores(&candidates, &[vec![0.1, 0.2], vec![0.3]]).is_err());
+        assert!(build_rerank_scores(&candidates, &[vec![f32::NAN], vec![0.2]]).is_err());
+        assert_eq!(
+            build_rerank_scores(&candidates, &[vec![0.1], vec![0.2]])
+                .unwrap()
+                .len(),
+            2
+        );
     }
 }

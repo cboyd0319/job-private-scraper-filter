@@ -17,7 +17,7 @@ detailed entries split into under-cap changelog archives below.
 
 | Version | Note |
 | --- | --- |
-| v2.9.5 | [Full repository refactor source-candidate notes](v2.9.5.md) |
+| v2.9.5 | [Full repository refactor release notes](v2.9.5.md) |
 | v2.9.1 | [Maintenance and repo cleanup release notes](v2.9.1.md) |
 | v2.9.0 | [Job-search readiness release notes](v2.9.0.md) |
 | v2.6.x | [Changelog archive](changelog-v2.6.md) |

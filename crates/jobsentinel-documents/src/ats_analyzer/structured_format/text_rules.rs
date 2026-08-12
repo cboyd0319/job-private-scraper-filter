@@ -1,5 +1,7 @@
 use super::*;
-use jobsentinel_security::contains_prompt_injection_phrase;
+use jobsentinel_security::{
+    contains_prompt_injection_phrase, contains_review_required_invisible_control,
+};
 
 pub(in crate::ats_analyzer) fn has_adversarial_content(input: &ResumeAnalysisInput) -> bool {
     let resume = &input.resume;
@@ -141,12 +143,7 @@ pub(in crate::ats_analyzer) fn has_keyword_stuffing(input: &ResumeAnalysisInput)
 }
 
 pub(in crate::ats_analyzer) fn text_has_adversarial_content(text: &str) -> bool {
-    if text.chars().any(|c| {
-        matches!(
-            c,
-            '\u{200B}' | '\u{200C}' | '\u{200D}' | '\u{2060}' | '\u{FEFF}'
-        )
-    }) {
+    if contains_review_required_invisible_control(text) {
         return true;
     }
 

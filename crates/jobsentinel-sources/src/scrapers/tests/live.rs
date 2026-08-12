@@ -6,9 +6,8 @@
 //! Tests are ignored by default because they depend on live external sites.
 
 use super::{
-    BuiltInScraper, DiceScraper, GlassdoorScraper, GreenhouseCompany, GreenhouseScraper,
-    HnHiringScraper, JobScraper, LeverCompany, LeverScraper, RemoteOkScraper, SimplyHiredScraper,
-    WeWorkRemotelyScraper, YcStartupScraper,
+    GreenhouseCompany, GreenhouseScraper, HnHiringScraper, JobScraper, LeverCompany, LeverScraper,
+    RemoteOkScraper, WeWorkRemotelyScraper,
 };
 
 // ============================================================================
@@ -121,83 +120,6 @@ async fn test_weworkremotely_live() {
 }
 
 // ============================================================================
-// HTML SCRAPERS (May be blocked or rate-limited)
-// ============================================================================
-
-#[tokio::test]
-#[ignore = "Live network scraper check; run manually"]
-async fn test_builtin_live() {
-    // BuiltIn changed their URL structure - now uses /jobs and /jobs/remote
-    let scraper = BuiltInScraper::new(false, 50);
-
-    let result = scraper.scrape().await;
-    match result {
-        Ok(jobs) => {
-            println!("BuiltIn: found {} jobs", jobs.len());
-        }
-        Err(e) => {
-            println!("BuiltIn: {}", e);
-            println!("    (May be rate-limited or blocked)");
-        }
-    }
-}
-
-#[tokio::test]
-#[ignore = "Live network scraper check; run manually"]
-async fn test_builtin_remote_live() {
-    // Test the remote-only endpoint
-    let scraper = BuiltInScraper::new(true, 50);
-
-    let result = scraper.scrape().await;
-    match result {
-        Ok(jobs) => {
-            println!("BuiltIn (Remote): found {} jobs", jobs.len());
-        }
-        Err(e) => {
-            println!("BuiltIn (Remote): {}", e);
-            println!("    (May be rate-limited or blocked)");
-        }
-    }
-}
-
-#[tokio::test]
-#[ignore = "Live network scraper check; run manually"]
-async fn test_dice_live() {
-    let scraper = DiceScraper::new(
-        "project manager".to_string(),
-        Some("Remote".to_string()),
-        50,
-    );
-
-    let result = scraper.scrape().await;
-    match result {
-        Ok(jobs) => {
-            println!("Dice: found {} jobs", jobs.len());
-        }
-        Err(e) => {
-            println!("Dice: {}", e);
-            println!("    (May require JavaScript rendering)");
-        }
-    }
-}
-
-#[tokio::test]
-#[ignore = "Live network scraper check; run manually"]
-async fn test_yc_startups_live() {
-    let scraper = YcStartupScraper::new(Some("operations".to_string()), false, 50);
-
-    let result = scraper.scrape().await;
-    match result {
-        Ok(jobs) => {
-            println!("YC Startups: found {} jobs", jobs.len());
-        }
-        Err(e) => {
-            println!("YC Startups: {}", e);
-        }
-    }
-}
-
-// ============================================================================
 // EXTERNALLY CONFIGURED OR SOURCE-POLICY LIMITED SCRAPERS
 // ============================================================================
 
@@ -212,7 +134,7 @@ async fn test_linkedin_live() {
 async fn test_usajobs_live() {
     // USAJobs requires API key registration
     // This test is skipped by default
-    println!("⏭️  USAJobs: Skipped (requires API key)");
+    println!("USAJobs: Skipped (requires API key)");
 }
 
 #[tokio::test]
@@ -220,77 +142,5 @@ async fn test_usajobs_live() {
 async fn test_jobswithgpt_live() {
     // JobsWithGPT uses MCP protocol
     // This test is skipped by default
-    println!("⏭️  JobsWithGPT: Skipped (requires MCP endpoint)");
-}
-
-// ============================================================================
-// V2.5.5 SCRAPERS (May be blocked by Cloudflare)
-// ============================================================================
-
-#[tokio::test]
-#[ignore = "Live network scraper check; run manually"]
-async fn test_simplyhired_live() {
-    let scraper = SimplyHiredScraper::new(
-        "care coordinator".to_string(),
-        Some("Remote".to_string()),
-        50,
-    );
-
-    let result = scraper.scrape().await;
-    match result {
-        Ok(jobs) => {
-            if jobs.is_empty() {
-                println!("SimplyHired: 0 jobs (likely blocked by Cloudflare)");
-            } else {
-                println!("SimplyHired: found {} jobs", jobs.len());
-                // Verify job structure
-                for job in jobs.iter().take(3) {
-                    println!(
-                        "   - {} at {} ({})",
-                        job.title,
-                        job.company,
-                        job.location.as_deref().unwrap_or("Unknown")
-                    );
-                }
-            }
-        }
-        Err(e) => {
-            println!("SimplyHired: {}", e);
-            println!("    (May be blocked by Cloudflare)");
-        }
-    }
-}
-
-#[tokio::test]
-#[ignore = "Live network scraper check; run manually"]
-async fn test_glassdoor_live() {
-    let scraper = GlassdoorScraper::new(
-        "operations manager".to_string(),
-        Some("Denver".to_string()),
-        50,
-    );
-
-    let result = scraper.scrape().await;
-    match result {
-        Ok(jobs) => {
-            if jobs.is_empty() {
-                println!("Glassdoor: 0 jobs (likely blocked by Cloudflare)");
-            } else {
-                println!("Glassdoor: found {} jobs", jobs.len());
-                // Verify job structure
-                for job in jobs.iter().take(3) {
-                    println!(
-                        "   - {} at {} ({})",
-                        job.title,
-                        job.company,
-                        job.location.as_deref().unwrap_or("Unknown")
-                    );
-                }
-            }
-        }
-        Err(e) => {
-            println!("Glassdoor: {}", e);
-            println!("    (May be blocked by Cloudflare)");
-        }
-    }
+    println!("JobsWithGPT: Skipped (requires MCP endpoint)");
 }

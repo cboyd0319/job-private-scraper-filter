@@ -9,7 +9,11 @@ repository.workspace = true
 keywords.workspace = true
 categories.workspace = true
 
+[features]
+test-support = []
+
 [dependencies]
+ring.workspace = true
 url.workspace = true
 
 [lints]

@@ -1,39 +1,22 @@
 {
-  "schema": "jobsentinel.feature_list.v1", "project": "JobSentinel",
-  "last_updated": "2026-07-18",
-  "active_status": "active",
-  "rules": {
-    "single_active_feature": true,
-    "passing_requires_evidence": true,
-    "passing_is_irreversible": true
-  },
+  "schema": "jobsentinel.feature_list.v1", "project": "JobSentinel", "last_updated": "2026-08-12", "active_status": "active",
+  "rules": { "single_active_feature": true, "passing_requires_evidence": true, "passing_is_irreversible": true },
   "features": [
     {
-      "id": "harness-standard-contract",
-      "priority": 1,
-      "area": "repository harness",
-      "title": "Standard repository harness",
+      "id": "harness-standard-contract", "priority": 1, "area": "repository harness", "title": "Standard repository harness",
       "behavior": "A fresh session can initialize the repository, see one current objective, select the next task, route its diff, and verify completion without contradictory owners.",
       "user_visible_behavior": "Repository work preserves JobSentinel behavior while becoming resumable and verifiable across supported platforms.",
-      "status": "passing",
-      "verification": ["npm run harness:check", "npm run lint:file-size", "npm run test:scripts", "npm run test:smoke", "npm run verify:full"],
-      "evidence": ["docs/harness/evidence/harness-standard-contract-2026-07-14.json", "docs/harness/evidence/harness-standard-contract-2026-07-14.md"],
-      "blocker": "",
-      "next_trigger": "A regression against the recorded contract requires a new corrective feature."
+      "status": "passing", "verification": ["npm run harness:check", "npm run lint:file-size", "npm run test:scripts", "npm run test:smoke", "npm run verify:full"],
+      "evidence": ["docs/harness/evidence/harness-standard-contract-2026-07-14.json", "docs/harness/evidence/harness-standard-contract-2026-07-14.md"]
     },
     {
-      "id": "harness-canonical-remediation",
-      "priority": 2,
-      "area": "repository harness",
-      "title": "Canonical harness remediation",
+      "id": "harness-canonical-remediation", "priority": 2, "area": "repository harness", "title": "Canonical harness remediation",
       "behavior": "The repository harness conforms to the installed harness-engineering package except for the exact user-authorized pre-alpha-private-no-ci requirement exception.",
       "user_visible_behavior": "Repository work is resumable, growth-ready, and locally verifiable while hosted CI remains explicitly absent during private pre-alpha development.",
       "status": "passing",
       "verification": ["npm run harness:check", "npm run test:scripts", "npm run verify:full"],
       "evidence": ["docs/harness/evidence/harness-canonical-remediation-completion-2026-07-16.json",
-        "docs/harness/evidence/harness-canonical-remediation-effectiveness-2026-07-15.json", "docs/harness/evidence/root-ownership-reorganization-2026-07-16.json"],
-      "blocker": "",
-      "next_trigger": "A regression against the recorded canonical harness contract requires a new corrective feature."
+        "docs/harness/evidence/harness-canonical-remediation-effectiveness-2026-07-15.json", "docs/harness/evidence/root-ownership-reorganization-2026-07-16.json"]
     },
     {
       "id": "full-repository-refactor",
@@ -44,29 +27,7 @@
       "user_visible_behavior": "JobSentinel retains its privacy, security, accessibility, and platform behavior while internal ownership becomes explicit.",
       "status": "passing",
       "verification": ["npm run verify:full", "npm run test:e2e:all", "node scripts/dev/run-cargo.mjs test --workspace --all-features"],
-      "evidence": [
-        "docs/harness/evidence/full-repository-refactor-final-audit-2026-07-16.json",
-        "docs/harness/evidence/repository-foundational-rust-owners-2026-07-15.json",
-        "docs/harness/evidence/full-repository-refactor-2026-07-15.json",
-        "docs/harness/evidence/repository-layout-cutovers-2026-07-16.json",
-        "docs/harness/evidence/script-test-owner-cutover-2026-07-16.json",
-        "docs/harness/evidence/structural-exception-reduction-2026-07-16.json",
-        "docs/harness/evidence/structural-exception-batch-2026-07-16.json",
-        "docs/harness/evidence/structural-exception-followup-2026-07-16.json",
-        "docs/harness/evidence/structural-exception-second-followup-2026-07-16.json",
-        "docs/harness/evidence/structural-exception-third-followup-2026-07-16.json",
-        "docs/harness/evidence/structural-exception-fourth-followup-2026-07-16.json",
-        "docs/harness/evidence/structural-exception-fifth-followup-2026-07-16.json",
-        "docs/harness/evidence/structural-exception-sixth-followup-2026-07-16.json",
-        "docs/harness/evidence/structural-exception-seventh-followup-2026-07-16.json",
-        "docs/harness/evidence/structural-exception-eighth-followup-2026-07-16.json",
-        "docs/harness/evidence/structural-exception-ninth-followup-2026-07-16.json",
-        "docs/harness/evidence/structural-exception-tenth-followup-2026-07-16.json",
-        "docs/harness/evidence/structural-exception-eleventh-followup-2026-07-16.json",
-        "docs/harness/evidence/structural-exception-twelfth-followup-2026-07-16.json"
-      ],
-      "blocker": "",
-      "next_trigger": "A regression against the recorded ownership contract requires a new corrective feature."
+      "evidence": ["docs/harness/evidence/full-repository-refactor-final-audit-2026-07-16.json"]
     },
     {
       "id": "crates-dry-remediation",
@@ -81,9 +42,7 @@
         "docs/harness/evidence/crates-dry-completion-2026-07-16.json",
         "docs/harness/evidence/crates-dry-baseline-2026-07-16.json",
         "docs/harness/evidence/crates-dry-characterization-2026-07-16.md"
-      ],
-      "blocker": "",
-      "next_trigger": "A crate duplication or canonical-owner regression requires a new corrective feature."
+      ]
     },
     {
       "id": "frontend-dry-remediation",
@@ -92,11 +51,8 @@
       "title": "Frontend DRY remediation",
       "behavior": "Every confirmed actionable duplication under src and src-tauri/src has one canonical owner, obsolete copies are removed, and the maintained frontend production ratchet prevents recurrence.",
       "user_visible_behavior": "JobSentinel preserves its interface and desktop behavior while shared resume, score, dashboard, market, feedback, error, and command-adapter behavior stays consistent.",
-      "status": "passing",
-      "verification": ["npm run verify:full", "npm run test:run", "npm run lint:dup -- --list"],
-      "evidence": ["docs/harness/evidence/frontend-dry-completion-2026-07-17.json"],
-      "blocker": "",
-      "next_trigger": "A frontend production duplication or canonical-owner regression requires a new corrective feature."
+      "status": "passing", "verification": ["npm run verify:full", "npm run test:run", "npm run lint:dup -- --list"],
+      "evidence": ["docs/harness/evidence/frontend-dry-completion-2026-07-17.json"]
     },
     {
       "id": "repository-residual-cleanup",
@@ -105,11 +61,8 @@
       "title": "Repository residual cleanup",
       "behavior": "Frontend tests, scripts, plans, harness documents, generated artifacts, dependencies, and policy projections have one current owner with obsolete or duplicate material removed.",
       "user_visible_behavior": "JobSentinel preserves product behavior while the repository becomes smaller, easier to navigate, and harder to regress.",
-      "status": "passing",
-      "verification": ["npm run verify:full", "npm run lint:dup -- --list", "npm run test:scripts", "npm run harness:check"],
-      "evidence": ["docs/harness/evidence/repository-residual-cleanup-2026-07-17.json"],
-      "blocker": "",
-      "next_trigger": "A repository ownership, duplication, dependency, or generated-artifact regression requires a new corrective feature."
+      "status": "passing", "verification": ["npm run verify:full", "npm run lint:dup -- --list", "npm run test:scripts", "npm run harness:check"],
+      "evidence": ["docs/harness/evidence/repository-residual-cleanup-2026-07-17.json"]
     },
     {
       "id": "repository-post-cleanup-review",
@@ -118,19 +71,16 @@
       "title": "Repository post-cleanup adversarial review",
       "behavior": "Maintained source, tests, scripts, manifests, and documentation are independently reviewed for missed correctness, ownership, dependency, duplication, and maintainability work before another major feature begins.",
       "user_visible_behavior": "JobSentinel starts its next feature stream from a verified repository baseline with known maintenance risks made explicit.",
-      "status": "passing",
-      "verification": ["./init.sh", "npm run harness:check", "npm run lint:architecture", "npm run lint:dup -- --list", "npm run lint:file-size", "npm run lint",
+      "status": "passing", "verification": ["./init.sh", "npm run harness:check", "npm run lint:architecture", "npm run lint:dup -- --list", "npm run lint:file-size", "npm run lint",
         "npm run typecheck", "npm run test:scripts", "cargo fmt --all -- --check", "cargo clippy --workspace -- -D warnings", "git diff --check"],
-      "evidence": ["docs/harness/evidence/repository-post-cleanup-review-2026-07-17.json", "docs/harness/evidence/repository-post-cleanup-review-2026-07-17.md"],
-      "blocker": "",
-      "next_trigger": "A new concern requires reproduction and a bounded correction before it changes this verdict."
+      "evidence": ["docs/harness/evidence/repository-post-cleanup-review-2026-07-17.json", "docs/harness/evidence/repository-post-cleanup-review-2026-07-17.md"]
     },
     {
       "id": "repository-post-cleanup-corrections", "priority": 8, "area": "repository correctness and integrity", "title": "Repository post-cleanup corrections",
       "behavior": "Confirmed database, notification, documentation, manifest, mock-graph, dead-API, and review-sensor findings are corrected without reopening a broad cleanup stream.",
       "user_visible_behavior": "Saved alert choices and local data protections behave as described before new major feature work begins.",
       "status": "passing", "verification": ["npm run verify:full", "npm run lint:bloat", "npm run lint:docs", "npm run lint:deps", "npm run lint:file-size", "git diff --check"],
-      "evidence": ["docs/harness/evidence/repository-post-cleanup-corrections-2026-07-17.json"], "blocker": "", "next_trigger": "A regression against the recorded corrected baseline requires a new bounded feature."
+      "evidence": ["docs/harness/evidence/repository-post-cleanup-corrections-2026-07-17.json"]
     },
     {
       "id": "v2.9.5-release-closure", "priority": 10, "area": "release correctness", "title": "Close the v2.9.5 source candidate",
@@ -138,23 +88,53 @@
       "user_visible_behavior": "JobSentinel preserves local data integrity and sends eligible saved alerts while the release candidate accurately describes and verifies what it ships.",
       "status": "passing",
       "verification": ["npm run verify:full", "npm run test:e2e:all:budget", "node scripts/dev/run-cargo.mjs test --workspace --all-features", "npm run release:check-deps", "npm run release:readiness -- --version 2.9.5"],
-      "evidence": ["docs/harness/evidence/v2.9.5-release-closure-2026-07-17.json"], "blocker": "", "next_trigger": "A regression against the recorded release-candidate baseline requires a bounded corrective feature."
+      "evidence": ["docs/harness/evidence/v2.9.5-release-closure-2026-07-17.json"]
     }, {
       "id": "v2.9.5-gui-qa-corrections", "priority": 11, "area": "release GUI correctness", "title": "Correct v2.9.5 GUI QA regressions",
       "behavior": "Release-blocking regressions in resume validation, narrow salary filters, first-run dark contrast, support-report testing, and desktop close-to-tray behavior are corrected and regression-protected.",
       "user_visible_behavior": "Fresh resume, dashboard, first-run, support, and tray workflows behave correctly at release boundaries.", "status": "passing",
       "verification": ["npm run verify:full", "npm run test:e2e:all:budget", "node scripts/dev/run-cargo.mjs test --workspace --all-features", "npm run release:readiness -- --version 2.9.5"],
-      "evidence": ["docs/harness/evidence/v2.9.5-gui-qa-corrections-2026-07-17.json"], "blocker": "", "next_trigger": "A regression against the recorded GUI QA baseline requires a bounded corrective feature."
+      "evidence": ["docs/harness/evidence/v2.9.5-gui-qa-corrections-2026-07-17.json"]
     }, { "id": "v2.9.5-release-cut", "priority": 12, "area": "release publication", "title": "Cut the v2.9.5 release",
       "behavior": "The verified v2.9.5 source candidate is published through the authorized release workflow, and its public artifacts, metadata, and immutable references are validated before v3 work begins.",
       "user_visible_behavior": "Users can obtain a verified v2.9.5 release whose public artifacts match the tested source candidate.", "status": "passing",
       "verification": ["npm run release:readiness -- --version 2.9.5", "npm run release:verify:public -- --tag v2.9.5 --expected-version 2.9.5 --require-windows-unsigned-label"],
-      "evidence": ["docs/harness/evidence/v2.9.5-release-cut-2026-07-18.json"], "blocker": "", "next_trigger": "A regression against the public v2.9.5 release requires a bounded corrective feature."
-    }, { "id": "v3-workstream-selection", "priority": 13, "area": "product planning", "title": "Select the first v3 major workstream",
-      "behavior": "The ranked v3 planning package is reduced to one user-approved, bounded execution plan before implementation begins.",
-      "user_visible_behavior": "The next major investment targets a clear job-seeker burden with explicit privacy, usability, and verification boundaries.", "status": "active",
-      "verification": ["npm run harness:check", "npm run lint:docs"],
-      "evidence": [], "blocker": "", "next_trigger": "Review the ranked v3 package and obtain user approval for one bounded workstream."
-    }
-  ]
-}
+      "evidence": ["docs/harness/evidence/v2.9.5-release-cut-2026-07-18.json"]
+    }, { "id": "v3-workstream-selection", "priority": 13, "area": "product planning", "title": "Approve the comprehensive v3 execution plan",
+      "behavior": "The v3 strategy package and every unfinished maintained-doc commitment are dispositioned in one ordered, user-approved master plan before implementation begins.",
+      "user_visible_behavior": "The next major investment has explicit privacy, usability, and verification boundaries.", "status": "passing", "verification": ["npm run harness:check", "npm run lint:docs"],
+      "evidence": ["docs/harness/evidence/v3-gate-0-approval-2026-07-18.json"]
+    }, { "id": "v3-milestone-0-repository-truth", "priority": 14, "area": "product planning", "title": "Reconcile v3 planning truth",
+      "behavior": "Gate 0 records and deterministic plan checks keep release, debt, test, and pipeline claims accurate.", "user_visible_behavior": "V3 starts from one approved plan.", "status": "passing",
+      "verification": ["npm run harness:check", "npm run lint:docs", "npm run lint:deps:why", "npm run lint:dup -- --list", "npm run lint:file-size", "npm run test:scripts", "git diff --check"],
+      "evidence": ["docs/harness/evidence/v3-milestone-0-repository-truth-2026-07-18.json"]
+    }, { "id": "v3-milestone-1-contract-evaluation-baseline", "priority": 15, "area": "v3 contracts", "title": "Freeze the v3 quality baseline",
+      "behavior": "Versioned contracts, synthetic evals, typed-job evidence, deterministic file input, and budgets fail closed.", "user_visible_behavior": "V3 rules freeze before data migration.", "status": "passing",
+      "verification": ["npm run harness:check", "env -u JOBSENTINEL_LIVE_KEYRING_TESTS node scripts/dev/run-cargo.mjs test -p jobsentinel-domain --all-features", "npm run test:e2e:smoke:budget"],
+      "evidence": ["docs/harness/evidence/v3-milestone-1-contract-evaluation-baseline-2026-07-19.json"]
+    }, { "id": "v3-milestone-2-local-data-foundation", "priority": 16, "area": "v3 data", "title": "Build the local data foundation", "status": "passing",
+      "behavior": "Append-only migrations and typed operations add bounded local v3 records safely.", "user_visible_behavior": "Private payloads stay out of events.",
+      "verification": ["npm run lint:sqlx"], "evidence": ["docs/harness/evidence/v3-milestone-2-local-data-foundation-2026-07-19.json"]
+    }, { "id": "v3-milestone-3-recovery-portability-policy-repair", "priority": 17, "area": "v3 recovery", "title": "Build recovery and repair", "status": "passing",
+      "behavior": "Recovery, portability, policy, consent, support, and repair paths fail closed and work offline.", "user_visible_behavior": "Users can recover or move local data safely.",
+      "verification": ["npm run harness:check", "npm run lint:security"],
+      "evidence": ["docs/harness/evidence/v3-milestone-3-offline-recovery-platform-repair-2026-07-19.json"]
+    }, { "id": "v3-milestone-4-source-graph-browser-companion", "priority": 18, "area": "v3 sources", "title": "Build source and browser governance", "status": "passing",
+      "behavior": "Source actions and browser capture fail closed behind typed policy.", "user_visible_behavior": "Users can control and explain every source action.",
+      "verification": ["npm run harness:check", "npm run lint:security"], "evidence": ["docs/harness/evidence/v3-milestone-4-gate-3-2026-07-19.json"]
+    }, { "id": "v3-milestone-5-local-evidence-resume-matching", "priority": 19, "area": "v3 matching", "title": "Build local evidence and matching", "status": "passing",
+      "behavior": "Local evidence keeps resume and match claims bounded and reproducible.", "user_visible_behavior": "Users can see why a job matches and the evidence behind it.",
+      "verification": ["npm run harness:check"], "evidence": ["docs/harness/evidence/v3-milestone-5-local-evidence-completion-2026-07-21.json"]
+    }, { "id": "v3-milestone-6-opportunity-case-file-daily-workflow", "priority": 20, "area": "v3 workflow", "title": "Build opportunity case files", "status": "passing",
+      "behavior": "Case files keep daily job-search evidence and actions local, reviewable, and useful offline.", "user_visible_behavior": "Users can manage each opportunity and next action offline.",
+      "verification": ["npm run harness:check"], "evidence": ["docs/harness/evidence/v3-milestone-6-opportunity-case-workflow-2026-07-22.json"]
+    }, {"id":"v3-milestone-7-agent-pack-runtime","priority":21,"area":"v3 packs","title":"Pack runtime","status":"passing",
+      "behavior":"Packs stay bounded.","user_visible_behavior":"Users manage packs.",
+      "verification":["npm run harness:check"],"evidence":["docs/harness/evidence/v3-milestone-7-agent-pack-runtime-2026-08-12.json"]
+    }, {"id":"v3-milestone-8-employer-intelligence","priority":22,"area":"v3 intelligence","title":"Employer intelligence","status":"passing",
+      "behavior":"Guidance stays sourced.","user_visible_behavior":"Users see sourced context.",
+      "verification":["npm run verify:full","npm run test:e2e:all:budget","node scripts/dev/run-cargo.mjs test --workspace --all-features"],"evidence":["docs/harness/evidence/v3-milestone-8-employer-intelligence-2026-08-12.json"]
+    }, {"id":"v3-milestone-9-regions-access-editions-first-run","priority":23,"area":"v3 delivery","title":"Regions, access, editions, and first-run doctor","status":"active",
+      "behavior":"Regional and edition delivery is bounded, accessible, and model-optional.",
+      "user_visible_behavior":"Users complete the core journey on modest hardware and can add stronger local capabilities.",
+      "verification":["npm run harness:check"],"evidence":[] } ] }

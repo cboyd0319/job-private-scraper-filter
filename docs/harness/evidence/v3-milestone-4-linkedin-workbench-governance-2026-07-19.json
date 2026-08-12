@@ -1,0 +1,89 @@
+{
+  "schema": "jobsentinel.feature_evidence.v1",
+  "feature_id": "v3-milestone-4-source-graph-browser-companion",
+  "slice": "linkedin-workbench-governance",
+  "behavior": "LinkedIn remains user opened and locally recorded after trusted native review. Exact append-only backend consent and fresh provider-policy evidence authorize Workbench writes. Browser Import, pasted-URL fetches, scheduled access, page capture, and session-material storage fail closed before transport or durable writes.",
+  "result": "passing",
+  "verified_at": "2026-07-19T20:21:04Z",
+  "revision": "8baa2fea328842f0e558ad03276d3a48e50253a9",
+  "revision_scope": "The committed LinkedIn policy and source manifests, append-only restricted-user-opened consent migration, application authorization and credential boundary, native review and navigation dialogs, Browser Import pre-DOM block, frontend and development status, maintained source taxonomy and docs, and focused tests.",
+  "platform": "local macOS arm64 host",
+  "commands": [
+    {
+      "command": "env -u JOBSENTINEL_LIVE_KEYRING_TESTS cargo test -p jobsentinel-domain v3_source --quiet; env -u JOBSENTINEL_LIVE_KEYRING_TESTS cargo test -p jobsentinel-storage v3_source_consent --quiet; env -u JOBSENTINEL_LIVE_KEYRING_TESTS cargo test -p jobsentinel-storage v3_policy_migration_tests --quiet",
+      "exit_status": 0,
+      "relevant_result": "All 28 focused domain source tests, 6 consent-storage tests, and 5 policy-migration tests passed. Migration 19 preserved a grant and revocation chain, accepted a valid post-migration regrant, retained append-only triggers, and passed foreign-key inspection.",
+      "caveat": "Every Rust command explicitly disabled live keyring tests. Databases were isolated in memory or under the SQLx check root."
+    },
+    {
+      "command": "env -u JOBSENTINEL_LIVE_KEYRING_TESTS cargo test -p jobsentinel-application linkedin_workbench --quiet; env -u JOBSENTINEL_LIVE_KEYRING_TESTS cargo test -p jobsentinel-assistance bookmarklet --quiet; env -u JOBSENTINEL_LIVE_KEYRING_TESTS cargo test -p jobsentinel bookmarklet --quiet; env -u JOBSENTINEL_LIVE_KEYRING_TESTS cargo test -p jobsentinel linkedin_deep_links --quiet",
+      "exit_status": 0,
+      "relevant_result": "All 11 Workbench application tests, 43 assistance bookmarklet tests, 8 native bookmarklet tests, and the focused LinkedIn host-boundary test passed. Direct IPC without current review made no durable write, stale policy evidence could not create consent, structured credential and cookie inputs failed before storage, and legitimate clearance and work-authorization prose remained intact.",
+      "caveat": "No desktop process, live source, native dialog, credential flow, or Keychain-backed test ran."
+    },
+    {
+      "command": "npm run test:run -- src/features/linkedin-workbench/LinkedInWorkbench.test.tsx src/dev-runtime/features/linkedin-workbench/commands.test.ts src/features/settings/sources/browser-import/BrowserImportButtonScript.test.ts src/features/settings/sources/browser-import/BrowserImportSection.test.tsx",
+      "exit_status": 0,
+      "relevant_result": "All 26 focused frontend and development-runtime tests passed. Controls stayed disabled before review and during provider-policy refresh, renderer storage did not authorize use, LinkedIn Browser Import stopped before DOM access or fetch, and current copy describes single-posting import only.",
+      "caveat": "The full frontend suite was intentionally not rerun. Focused changed-behavior tests were used per the execution plan."
+    },
+    {
+      "command": "npm run typecheck; npm run lint; npm run lint:sqlx; npm run harness:check; npm run lint:file-size; npm run lint:docs; npm run lint:language; npm run lint:architecture; npm run lint:security; git diff --check",
+      "exit_status": 0,
+      "relevant_result": "TypeScript, ESLint, SQLx offline metadata through migration 19, harness state, file limits, maintained docs, language rules, architecture, security sensors, secret scan, and patch whitespace passed.",
+      "caveat": "Repository GitHub Actions remain temporarily disabled by user direction and must be restored before merge."
+    },
+    {
+      "command": "env -u JOBSENTINEL_LIVE_KEYRING_TESTS cargo fmt --all -- --check; env -u JOBSENTINEL_LIVE_KEYRING_TESTS cargo clippy -p jobsentinel-domain -p jobsentinel-storage -p jobsentinel-application -p jobsentinel-assistance -p jobsentinel --lib -- -D warnings",
+      "exit_status": 0,
+      "relevant_result": "Changed Rust libraries passed formatting and Clippy with warnings denied.",
+      "caveat": "The full Rust workspace test suite was intentionally not rerun. Focused changed-behavior tests avoided live credential and desktop-launch paths."
+    },
+    {
+      "command": "npm run test:scripts",
+      "exit_status": 0,
+      "relevant_result": "All 838 repository script-contract tests passed during this slice.",
+      "caveat": "Later corrections changed application, tests, UI copy, and maintained docs only, not repository scripts."
+    },
+    {
+      "command": "One independent read-only adversarial review of provider policy, Browser Import transport order, credential and cookie inputs, consent scope and freshness, navigation, migration integrity, development parity, and maintained product truth",
+      "exit_status": 0,
+      "relevant_result": "The reviewer returned APPROVE after fail-first corrections for pre-DOM blocking, structured secret rejection, clearance false positives, stale-policy state, navigation consent scope, paired browser applied logging, migration chains, taxonomy, and single-posting Browser Import copy.",
+      "caveat": "The reviewer statically inspected native dialog behavior but did not launch it under the unattended no-prompt constraint."
+    }
+  ],
+  "source": "docs/plans/v3/master-exec-plan.md",
+  "measurements": {
+    "domain_source_tests_passed": 28,
+    "storage_consent_tests_passed": 6,
+    "storage_policy_migration_tests_passed": 5,
+    "application_workbench_tests_passed": 11,
+    "assistance_bookmarklet_tests_passed": 43,
+    "native_bookmarklet_tests_passed": 8,
+    "native_linkedin_host_tests_passed": 1,
+    "focused_frontend_tests_passed": 26,
+    "script_contract_tests_passed": 838,
+    "adversarial_reviewers_passed": 1
+  },
+  "decisions": {
+    "provider_policy": "Current first-party LinkedIn evidence prohibits unauthorized scraping, copying, browser plugins, and automated activity. Local user consent cannot override that boundary.",
+    "workbench_consent": "RestrictedWorkbench is one exact reviewed local capability covering user-opened use, local job and application ledgers, and user-selected text. Renderer booleans cannot grant it, and policy, behavior, destination, request, or category drift requires review.",
+    "navigation": "LinkedIn navigation uses a separate trusted native confirmation and does not create durable Workbench consent.",
+    "browser_import": "LinkedIn is blocked in generated Browser Import code before iframe creation, DOM reads, or localhost transport, with server rejection retained as defense in depth.",
+    "applied_logging": "In-app local ledger actions remain part of RestrictedWorkbench. Browser-origin AppliedLogging and VisiblePageCapture require PairedBrowserGrant. Generic Smart Paste and browser-origin applied logging remain later Milestone 4 work.",
+    "session_material": "The Rust write boundary rejects recognized structured credentials, authorization headers, cookie headers, and LinkedIn cookie exports across title, company, and notes before the first durable write. URL queries are canonicalized first.",
+    "credential_tests": "Keep live keyring tests opt-in. Every unattended Rust command unsets JOBSENTINEL_LIVE_KEYRING_TESTS."
+  },
+  "review": {
+    "adversarial_verdict": "APPROVE after privacy, credential, freshness, transport-order, migration, and product-truth corrections",
+    "privacy_or_security_regression": false,
+    "open_slice_blockers": 0,
+    "remaining_findings": [
+      "Milestone 4 still needs employer discovery, starter regional packs, generic visible-capture governance, generic Smart Paste governance, browser-origin applied logging, simulator closure, and Gate 3 evidence.",
+      "Native dialog behavior remains statically reviewed but not live-run under the unattended no-prompt constraint.",
+      "Windows 11, macOS 26, Linux, installed-app, and signed-package proof remain release-matrix work.",
+      "Repository GitHub Actions must be re-enabled and verified before merge.",
+      "Commit 8baa2fea is local-only until a non-Keychain GitHub credential becomes available."
+    ]
+  }
+}

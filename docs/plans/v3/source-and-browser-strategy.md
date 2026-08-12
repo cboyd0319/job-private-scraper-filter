@@ -12,8 +12,8 @@ flows.
 | Official APIs and feeds | Greenhouse, Lever, USAJobs, RemoteOK, employer feeds | Low-friction scheduled checks with rate limits and parser tests. |
 | Public ATS and careers pages | Ashby, SmartRecruiters, Workday, iCIMS, Phenom, Oracle, Taleo, Radancy, employer pages | Source graph classification, tenant review, fixtures, and native adapters when stable. |
 | Public boards and aggregators | BuiltIn, WeWorkRemotely, Dice, SimplyHired, Glassdoor, regional boards | User-approved source checks with source-specific warnings where needed. |
-| Search destinations | Google Jobs Search, LinkedIn search links, regional search pages | Open in browser, then use visible import or manual review. |
-| Restricted authenticated sources | LinkedIn and similar account-backed pages | User-visible Workbench or browser companion only. No stored session material or scheduled refresh. |
+| Search destinations | Google Jobs Search, LinkedIn search links, regional search pages | Open in browser, then use a policy-permitted import or manual review. |
+| Restricted authenticated sources | LinkedIn and similar account-backed pages | User-visible Workbench with current provider-policy limits. No stored session material or scheduled refresh. |
 | User imports | Browser Import, pasted URLs, pasted text, local files, CSV | Review queue with source provenance and token scrubbing. |
 | Community packs | Source packs, regional packs, role packs | Signed declarative packs with fixtures, source policy, and local review. |
 
@@ -79,7 +79,8 @@ The Browser Import button should evolve into a browser companion:
   imports.
 
 The browser companion should not become a hidden scraper. It should capture
-what the user intentionally exposes and approves.
+what the user intentionally exposes and approves only where current provider
+policy permits page capture.
 
 ## Restricted Authenticated Sources
 
@@ -96,10 +97,13 @@ For LinkedIn-style sources:
 - Local analysis starts after the record exists in JobSentinel.
 - Scheduled background refresh is not allowed for account-backed restricted
   pages.
+- Current LinkedIn terms prohibit third-party page capture, browser plugins,
+  and automated activity, so LinkedIn Browser Import is blocked. The Workbench
+  accepts only user-entered or user-selected details after trusted native
+  review.
 
-V3 can still be much more automatic inside those rules by making the side panel
-always available, using one-click actions, detecting duplicates locally, and
-turning visible imports into case files immediately.
+V3 can still reduce friction inside those rules with one-click local actions,
+duplicate detection, sanitized pasted details, and direct case-file handoff.
 
 ## Public Source Automation
 

@@ -3,7 +3,7 @@
 use super::builder::ResumeBuilder;
 use super::skills::SkillExtractor;
 use super::types::{NewSkill, NullableFieldUpdate, SkillUpdate};
-use super::ResumeMatcher;
+use super::{ResumeMatchFeedbackLabel, ResumeMatcher};
 use sqlx::{Row, SqlitePool};
 
 async fn create_test_resume(pool: &SqlitePool, name: &str, text: &str) -> i64 {

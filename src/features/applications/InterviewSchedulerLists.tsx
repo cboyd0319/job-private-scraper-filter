@@ -41,9 +41,9 @@ export function InterviewSchedulerTabs({
             ? "bg-white dark:bg-surface-600 text-surface-900 dark:text-white shadow-sm"
             : "text-surface-600 dark:text-surface-400 hover:text-surface-900 dark:hover:text-white"
         }`}
-        aria-label="View upcoming interviews (press Tab to switch)"
+        aria-label="View open interviews (press Tab to switch)"
       >
-        Upcoming ({upcomingCount})
+        Open ({upcomingCount})
       </button>
       <button
         onClick={() => onTabChange("past")}
@@ -114,8 +114,8 @@ function UpcomingInterviewsList({
     return (
       <div className="text-center py-8 text-surface-500 dark:text-surface-400">
         <CalendarIcon className="w-12 h-12 mx-auto mb-4 opacity-50" />
-        <p>No upcoming interviews scheduled</p>
-        <p className="text-sm mt-1">Click "Schedule" to add your first interview</p>
+        <p>No open interviews</p>
+        <p className="text-sm mt-1">Schedule an interview to start preparation.</p>
       </div>
     );
   }
@@ -257,7 +257,7 @@ function PastInterviewsList({
               {interview.post_interview_notes && (
                 <div className="text-sm">
                   <p className="font-medium text-surface-700 dark:text-surface-300 mb-0.5">Post-interview notes:</p>
-                  <p className="text-surface-600 dark:text-surface-400">{interview.post_interview_notes}</p>
+                  <p className="whitespace-pre-wrap text-surface-600 dark:text-surface-400">{interview.post_interview_notes}</p>
                 </div>
               )}
             </div>

@@ -1,3 +1,5 @@
+/** Verifies resume library rendering, feedback, and local match interactions. */
+
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -5,9 +7,30 @@ import {
   makeResumeSummary,
   mockResumeLibraryResponses,
   mockSafeInvoke,
+  mockSafeInvokeWithToast,
   resetResumeLibraryMocks,
 } from "./ResumeLibraryPage.testSupport";
 import ResumeLibraryPage from "./ResumeLibraryPage";
+
+function makeFeedbackMatch() {
+  return {
+    id: 10,
+    resume_id: 1,
+    job_hash: "job-feedback",
+    job_title: "Care Coordinator",
+    company: "Community Health Partners",
+    overall_match_score: 0.82,
+    skills_match_score: 0.75,
+    experience_match_score: 0.5,
+    education_match_score: 0.25,
+    matching_skills: ["Scheduling"],
+    missing_skills: ["Case Management"],
+    gap_analysis: null,
+    feedback: null,
+    created_at: "2026-05-21T12:00:00Z",
+  };
+}
+
 describe("Resume page", () => {
   beforeEach(resetResumeLibraryMocks);
 
@@ -65,7 +88,8 @@ describe("Resume page", () => {
           education_match_score: 0.25,
           matching_skills: ["Scheduling"],
           missing_skills: ["Case Management"],
-          gap_analysis: null,
+          gap_analysis:
+            "Why not: Score limited because skill evidence was not found: Case Management\nScoring sources: skill coverage, required coverage",
           created_at: "2026-05-21T12:00:00Z",
         },
       ],
@@ -85,6 +109,14 @@ describe("Resume page", () => {
     expect(screen.getByText("Education fit")).toBeInTheDocument();
     expect(screen.getByText("Skills found in both (1)")).toBeInTheDocument();
     expect(screen.getByText("Skills to review (1)")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Why not: Score limited because skill evidence was not found: Case Management",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Scoring sources: skill coverage, required coverage"),
+    ).toBeInTheDocument();
     expect(screen.getByText("75%")).toBeInTheDocument();
     expect(screen.getByText("50%")).toBeInTheDocument();
     expect(screen.getByText("25%")).toBeInTheDocument();
@@ -129,6 +161,89 @@ describe("Resume page", () => {
     expect(screen.queryByText("Experience fit")).not.toBeInTheDocument();
     expect(screen.queryByText("Education fit")).not.toBeInTheDocument();
     expect(screen.queryByText("NaN%")).not.toBeInTheDocument();
+  });
+  it("records and clears a local saved-match feedback label without sending match content", async () => {
+    const user = userEvent.setup();
+    mockResumeLibraryResponses({
+      get_active_resume: makeResumeSummary(),
+      get_recent_matches: [makeFeedbackMatch()],
+    });
+    mockSafeInvokeWithToast
+      .mockResolvedValueOnce({
+        match_id: 10,
+        label: "useful",
+        recorded_at: "2026-07-20T00:00:00Z",
+      })
+      .mockResolvedValueOnce(null);
+
+    render(<ResumeLibraryPage onBack={vi.fn()} />);
+
+    const useful = await screen.findByRole("button", { name: "Useful" });
+    expect(useful).toHaveAttribute("aria-pressed", "false");
+
+    await user.click(useful);
+
+    expect(mockSafeInvokeWithToast).toHaveBeenNthCalledWith(
+      1,
+      "set_resume_match_feedback",
+      { matchId: 10, label: "useful" },
+      expect.anything(),
+      expect.objectContaining({ logContext: "Save resume match feedback" }),
+    );
+    expect(useful).toHaveAttribute("aria-pressed", "true");
+
+    await user.click(useful);
+
+    expect(mockSafeInvokeWithToast).toHaveBeenNthCalledWith(
+      2,
+      "set_resume_match_feedback",
+      { matchId: 10, label: null },
+      expect.anything(),
+      expect.objectContaining({ logContext: "Clear resume match feedback" }),
+    );
+    expect(useful).toHaveAttribute("aria-pressed", "false");
+    const sentArgs = mockSafeInvokeWithToast.mock.calls.map((call) => call[1]);
+    expect(JSON.stringify(sentArgs)).not.toContain("Care Coordinator");
+    expect(JSON.stringify(sentArgs)).not.toContain("Community Health Partners");
+    expect(JSON.stringify(sentArgs)).not.toContain("Scheduling");
+  });
+
+  it("prevents another saved-match feedback action while one is pending", async () => {
+    const user = userEvent.setup();
+    const match = makeFeedbackMatch();
+    mockResumeLibraryResponses({
+      get_active_resume: makeResumeSummary(),
+      get_recent_matches: [
+        match,
+        { ...match, id: 11, job_hash: "job-feedback-2", job_title: "Support Lead" },
+      ],
+    });
+    let finishSave: (value: unknown) => void = () => {};
+    mockSafeInvokeWithToast.mockReturnValueOnce(
+      new Promise((resolve) => {
+        finishSave = resolve;
+      }),
+    );
+
+    render(<ResumeLibraryPage onBack={vi.fn()} />);
+
+    const useful = await screen.findAllByRole("button", { name: "Useful" });
+    await user.click(useful[0]);
+
+    expect(useful).toHaveLength(2);
+    for (const button of [
+      ...useful,
+      ...screen.getAllByRole("button", { name: "Not relevant" }),
+    ]) {
+      expect(button).toBeDisabled();
+    }
+
+    finishSave({
+      match_id: 10,
+      label: "useful",
+      recorded_at: "2026-07-20T00:00:00Z",
+    });
+    await waitFor(() => expect(useful[0]).toBeEnabled());
   });
 
   it("shows a local readable-text preview without exposing a resume path", async () => {

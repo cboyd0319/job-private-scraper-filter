@@ -90,6 +90,53 @@ fn test_sanitize_mixed_platform_paths() {
 }
 
 #[test]
+fn support_reports_remove_complete_local_paths_and_private_filenames() {
+    let input = format!(
+        concat!(
+            "mac {}\nlinux {}\nwindows {}\ntemp /tmp/jobsentinel/Case Manager Resume.pdf\n",
+            "unc \\\\server\\Veteran Files\\Alice Resume.pdf\n",
+            "extended \\\\?\\C:\\Users\\Alice\\Documents\\Private Resume.pdf\n",
+            "forward C:/Users/Alice/Documents/Clinical Resume.pdf\n",
+            "mount /mnt/private/Alice Resume.pdf\n",
+            "network //server/share/Alice Resume.pdf\n",
+            "backtick-win `C:\\Users\\Alice\\Documents\\Backtick Resume.pdf`\n",
+            "backtick-unix `/opt/private/Backtick Notes.txt`\n",
+            "backtick-unc `\\\\server\\share\\Backtick File.txt`\n",
+            "nbsp\u{00a0}\\\\server\\share\\NBSP Resume.pdf\n",
+            "comma, /srv/private/Comma Notes.txt"
+        ),
+        mac_user_path("Alice", "Documents/Alice Resume.pdf"),
+        linux_home_path("bob", "Downloads/Acme Health Notes.txt"),
+        windows_user_path("D", "Casey", r"Desktop\Veteran Transition Plan.docx"),
+    );
+
+    let output = Sanitizer::sanitize_support_report_text(&input);
+
+    assert_eq!(output.matches("[LOCAL_PATH]").count(), 14);
+    assert!(output.ends_with("[LOCAL_PATH]"));
+    for private_detail in [
+        "Alice",
+        "Resume.pdf",
+        "bob",
+        "Acme Health",
+        "Casey",
+        "Veteran Transition",
+        "Case Manager",
+        "server",
+        "Private Resume",
+        "Clinical Resume",
+        "/mnt",
+        "Backtick Resume",
+        "Backtick Notes",
+        "Backtick File",
+        "NBSP Resume",
+        "Comma Notes",
+    ] {
+        assert!(!output.contains(private_detail), "{output}");
+    }
+}
+
+#[test]
 fn test_sanitize_non_home_unix_paths() {
     let input = concat!(
         "Temp config /private/var/folders/zz/abc123/T/jobsentinel/config.json ",

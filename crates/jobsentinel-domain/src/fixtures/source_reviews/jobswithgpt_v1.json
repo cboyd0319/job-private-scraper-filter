@@ -1,0 +1,35 @@
+{
+  "source_id": "jobswithgpt",
+  "reviewed_on": "2026-07-19",
+  "reference_ids": [
+    "source-review.jobswithgpt.provider-terms",
+    "source-review.jobswithgpt.robots"
+  ],
+  "evidence": [
+    {
+      "url": "https://jobswithgpt.com/terms/",
+      "observed": "The legacy URL redirects to corvi.careers terms, which identify the service as a public website for personal, non-commercial use."
+    },
+    {
+      "url": "https://corvi.careers/terms/",
+      "observed": "The terms describe the website service but do not document a scheduled feed, MCP contract, client authorization, or request limits."
+    }
+  ],
+  "review_result": "Scheduled feed access remains disabled until first-party documentation identifies an exact endpoint, authorizes client use, and defines current access and pacing boundaries.",
+  "local_policy": {
+    "operation": "none while provider review is unresolved",
+    "request_limit_per_hour": 0,
+    "automatic_retries": false,
+    "automation_authorized": false,
+    "exact_payload_approval_required_if_reenabled": true,
+    "data_use": "no external send while disabled",
+    "redistribution": false,
+    "external_model_training": false
+  },
+  "change_triggers": [
+    "first-party endpoint or client documentation is published",
+    "provider terms or identity change",
+    "robots policy becomes reviewable",
+    "response schema changes"
+  ]
+}

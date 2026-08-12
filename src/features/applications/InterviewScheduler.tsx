@@ -76,12 +76,12 @@ export const InterviewScheduler = memo(function InterviewScheduler({
     }
   }, [pastInterviews]);
 
-  // Load follow-up reminders when past interviews change
+  // Load follow-up reminders only when the user opens completed history.
   useEffect(() => {
-    if (pastInterviews.length > 0) {
+    if (activeTab === 'past' && pastInterviews.length > 0) {
       loadFollowUpReminders();
     }
-  }, [pastInterviews, loadFollowUpReminders]);
+  }, [activeTab, pastInterviews, loadFollowUpReminders]);
 
   // Load prep progress when interview is selected
   useEffect(() => {

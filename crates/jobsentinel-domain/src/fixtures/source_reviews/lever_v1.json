@@ -1,0 +1,37 @@
+{
+  "source_id": "lever",
+  "reviewed_on": "2026-08-12",
+  "reference_ids": [
+    "source-review.lever.public-postings-api",
+    "source-review.lever.api-robots"
+  ],
+  "evidence": [
+    {
+      "url": "https://hire.lever.co/developer/support",
+      "observed": "The Postings API is public and exposes published job postings without account API authentication."
+    },
+    {
+      "url": "https://github.com/lever/postings-api",
+      "observed": "The reviewed API documents public posting GET operations separately from authenticated application POST operations."
+    },
+    {
+      "url": "https://api.lever.co/robots.txt",
+      "observed": "The API robots policy allows public paths with a one-second crawl delay."
+    }
+  ],
+  "local_policy": {
+    "operation": "public GET job-list checks only",
+    "request_limit_per_hour": 1000,
+    "basis": "JobSentinel ceiling stays below the reviewed crawl-delay boundary; no provider GET rate was published.",
+    "burst": 1,
+    "automatic_retries": false,
+    "application_submission": false,
+    "external_model_training": false
+  },
+  "change_triggers": [
+    "public GET authentication changes",
+    "documentation or robots policy changes",
+    "rate-limit or access rejection",
+    "response schema drift"
+  ]
+}

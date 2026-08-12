@@ -294,7 +294,7 @@ describe("SetupWizard Accessibility", () => {
       expect(
         screen.getByText(/desktop alerts are optional/i),
       ).toBeInTheDocument();
-      expect(screen.getByText(/saves your search on this computer/i)).toBeInTheDocument();
+      expect(screen.getByText(/saves these search settings on this computer/i)).toBeInTheDocument();
       expect(screen.getByText(/can contact only checked job sources in this review/i)).toBeInTheDocument();
       expect(screen.getByText(/does not send resumes, private notes, saved answers, or application history/i)).toBeInTheDocument();
       expect(screen.queryByText(/only contacts job sources or alert services/i)).not.toBeInTheDocument();

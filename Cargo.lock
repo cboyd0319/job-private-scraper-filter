@@ -92,6 +92,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "annotate-snippets"
+version = "0.12.16"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f211a51805bc641f3ad5b7664c77d2547af685cc33b4cd8d31964027a46f13f1"
+dependencies = [
+ "anstyle",
+ "memchr",
+ "unicode-width",
+]
+
+[[package]]
+name = "anstyle"
+version = "1.0.14"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "940b3a0ca603d1eade50a4846a2afffd5ef57a9feac2c0e2ec2e14f9ead76000"
+
+[[package]]
 name = "anyhow"
 version = "1.0.103"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -149,6 +166,12 @@ dependencies = [
  "password-hash",
  "zeroize",
 ]
+
+[[package]]
+name = "arraydeque"
+version = "0.5.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7d902e3d592a523def97af8f317b08ce16b7ab854c1985a0c671e6f15cebc236"
 
 [[package]]
 name = "arrayref"
@@ -985,7 +1008,7 @@ version = "3.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "faf9468729b8cbcea668e36183cb69d317348c2e08e994829fb56ebfdfbaac34"
 dependencies = [
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -1532,7 +1555,7 @@ dependencies = [
  "libc",
  "option-ext",
  "redox_users",
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -1754,6 +1777,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "encoding_rs_io"
+version = "0.1.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fba3fe847045ecff794b9c138293a80db914678c453ad63fbf0c6a9eb6e00b22"
+dependencies = [
+ "encoding_rs",
+]
+
+[[package]]
 name = "endi"
 version = "1.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1816,7 +1848,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39cab71617ae0d63f51a36d69f866391735b51691dbda63cf6f96d042b63efeb"
 dependencies = [
  "libc",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -1852,11 +1884,10 @@ dependencies = [
 
 [[package]]
 name = "event-listener"
-version = "5.4.1"
+version = "5.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e13b66accf52311f30a0db42147dadea9850cb48cd070028831ae5f5d4b856ab"
+checksum = "5a23add41df1562121a9393cb065eab5146a1242410f23a644851e90cfd669d2"
 dependencies = [
- "concurrent-queue",
  "parking",
  "pin-project-lite",
 ]
@@ -2546,6 +2577,16 @@ dependencies = [
  "glib-sys",
  "libc",
  "system-deps",
+]
+
+[[package]]
+name = "granit-parser"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7c92814c286f45b5ed1498ce9547bc9637b473eba7037f8aee6a4d5a3c1e051c"
+dependencies = [
+ "arraydeque",
+ "smallvec",
 ]
 
 [[package]]
@@ -3279,12 +3320,13 @@ dependencies = [
 
 [[package]]
 name = "jobsentinel"
-version = "2.9.5"
+version = "3.0.0"
 dependencies = [
  "anyhow",
  "arboard",
  "chrono",
  "jobsentinel-application",
+ "libc",
  "regex",
  "serde",
  "serde_json",
@@ -3303,20 +3345,21 @@ dependencies = [
 
 [[package]]
 name = "jobsentinel-ai"
-version = "2.9.5"
+version = "3.0.0"
 dependencies = [
  "jobsentinel-domain",
  "jobsentinel-network",
  "jobsentinel-security",
  "serde",
  "serde_json",
+ "sha2 0.11.0",
  "tracing",
  "urlencoding",
 ]
 
 [[package]]
 name = "jobsentinel-application"
-version = "2.9.5"
+version = "3.0.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3338,6 +3381,7 @@ dependencies = [
  "jobsentinel-storage",
  "proptest",
  "regex",
+ "rustix",
  "serde",
  "serde_json",
  "sha2 0.11.0",
@@ -3352,7 +3396,7 @@ dependencies = [
 
 [[package]]
 name = "jobsentinel-assistance"
-version = "2.9.5"
+version = "3.0.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3371,11 +3415,12 @@ dependencies = [
  "url",
  "urlencoding",
  "uuid",
+ "zeroize",
 ]
 
 [[package]]
 name = "jobsentinel-credentials"
-version = "2.9.5"
+version = "3.0.0"
 dependencies = [
  "argon2",
  "chacha20poly1305",
@@ -3393,34 +3438,34 @@ dependencies = [
 
 [[package]]
 name = "jobsentinel-documents"
-version = "2.9.5"
+version = "3.0.0"
 dependencies = [
  "anyhow",
  "chrono",
  "docx-rs",
+ "jobsentinel-domain",
  "jobsentinel-local-ai",
  "jobsentinel-security",
  "pdf-extract",
  "quick-xml 0.41.0",
  "regex",
- "scopeguard",
  "serde",
  "serde_json",
  "tempfile",
  "tracing",
- "uuid",
  "zip 8.6.0",
 ]
 
 [[package]]
 name = "jobsentinel-domain"
-version = "2.9.5"
+version = "3.0.0"
 dependencies = [
  "chrono",
  "hex",
  "jobsentinel-security",
  "regex",
  "serde",
+ "serde-saphyr",
  "serde_json",
  "sha2 0.11.0",
  "tracing",
@@ -3429,7 +3474,7 @@ dependencies = [
 
 [[package]]
 name = "jobsentinel-intelligence"
-version = "2.9.5"
+version = "3.0.0"
 dependencies = [
  "chrono",
  "regex",
@@ -3439,15 +3484,17 @@ dependencies = [
 
 [[package]]
 name = "jobsentinel-local-ai"
-version = "2.9.5"
+version = "3.0.0"
 dependencies = [
  "anyhow",
  "basic-toml",
  "candle-core",
  "candle-nn",
  "chrono",
+ "futures-util",
  "hex",
  "hf-hub",
+ "jobsentinel-domain",
  "jobsentinel-security",
  "serde",
  "serde_json",
@@ -3461,7 +3508,7 @@ dependencies = [
 
 [[package]]
 name = "jobsentinel-network"
-version = "2.9.5"
+version = "3.0.0"
 dependencies = [
  "jobsentinel-security",
  "reqwest",
@@ -3475,7 +3522,7 @@ dependencies = [
 
 [[package]]
 name = "jobsentinel-notifications"
-version = "2.9.5"
+version = "3.0.0"
 dependencies = [
  "anyhow",
  "chrono",
@@ -3490,7 +3537,7 @@ dependencies = [
 
 [[package]]
 name = "jobsentinel-platform"
-version = "2.9.5"
+version = "3.0.0"
 dependencies = [
  "chacha20poly1305",
  "dirs",
@@ -3500,23 +3547,28 @@ dependencies = [
  "objc2",
  "objc2-foundation",
  "objc2-local-authentication",
+ "rustix",
  "security-framework",
+ "serde",
+ "serde_json",
  "tempfile",
  "tokio",
  "tracing",
+ "windows-sys 0.61.2",
  "zeroize",
 ]
 
 [[package]]
 name = "jobsentinel-security"
-version = "2.9.5"
+version = "3.0.0"
 dependencies = [
+ "ring",
  "url",
 ]
 
 [[package]]
 name = "jobsentinel-sources"
-version = "2.9.5"
+version = "3.0.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3541,7 +3593,7 @@ dependencies = [
 
 [[package]]
 name = "jobsentinel-storage"
-version = "2.9.5"
+version = "3.0.0"
 dependencies = [
  "anyhow",
  "chrono",
@@ -3555,6 +3607,7 @@ dependencies = [
  "regex",
  "serde",
  "serde_json",
+ "sha2 0.11.0",
  "sqlx",
  "tempfile",
  "tokio",
@@ -4050,7 +4103,7 @@ dependencies = [
  "png 0.18.1",
  "serde",
  "thiserror 2.0.18",
- "windows-sys 0.60.2",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -4131,7 +4184,7 @@ version = "0.50.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7957b9740744892f114936ab4a57b3f487491bbeafaf8083688b16841a4240e5"
 dependencies = [
- "windows-sys 0.59.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -4240,7 +4293,7 @@ version = "0.7.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "680998035259dcfcafe653688bf2aa6d3e2dc05e98be6ab46afb089dc84f1df8"
 dependencies = [
- "proc-macro-crate 1.3.1",
+ "proc-macro-crate 3.5.0",
  "proc-macro2",
  "quote",
  "syn 2.0.119",
@@ -4568,7 +4621,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7d8fae84b431384b68627d0f9b3b1245fcf9f46f6c0e3dc902e9dce64edd1967"
 dependencies = [
  "libc",
- "windows-sys 0.45.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -5086,7 +5139,7 @@ dependencies = [
  "once_cell",
  "socket2",
  "tracing",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -5454,7 +5507,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -5513,7 +5566,7 @@ dependencies = [
  "security-framework",
  "security-framework-sys",
  "webpki-root-certs",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -5771,6 +5824,20 @@ checksum = "9a8e94ea7f378bd32cbbd37198a4a91436180c5bb472411e48b5ec2e2124ae9e"
 dependencies = [
  "serde_core",
  "serde_derive",
+]
+
+[[package]]
+name = "serde-saphyr"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "af2c6921c8ce48fb1b052b457619d008834039d80325992ed3bc55bbe6c155ad"
+dependencies = [
+ "annotate-snippets",
+ "encoding_rs_io",
+ "granit-parser",
+ "num-traits",
+ "serde_core",
+ "smallvec",
 ]
 
 [[package]]
@@ -6105,7 +6172,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c3d1e2c7f27f8d4cb10542a02c49005dbd6e93095799d6f3be745fae9f8fedd4"
 dependencies = [
  "libc",
- "windows-sys 0.60.2",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -6929,10 +6996,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "32497e9a4c7b38532efcdebeef879707aa9f794296a4f0244f6f69e9bc8574bd"
 dependencies = [
  "fastrand",
- "getrandom 0.3.4",
+ "getrandom 0.4.3",
  "once_cell",
  "rustix",
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -7497,7 +7564,7 @@ dependencies = [
  "png 0.18.1",
  "serde",
  "thiserror 2.0.18",
- "windows-sys 0.60.2",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -7576,7 +7643,7 @@ checksum = "f2f6fb2847f6742cd76af783a2a2c49e9375d0a111c7bef6f71cd9e738c72d6e"
 dependencies = [
  "memoffset",
  "tempfile",
- "windows-sys 0.60.2",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]
@@ -8110,7 +8177,7 @@ version = "0.1.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c2a7b1c03c876122aa43f3020e6c3c3ee5c05081c9a00739faf7503aeba10d22"
 dependencies = [
- "windows-sys 0.52.0",
+ "windows-sys 0.61.2",
 ]
 
 [[package]]

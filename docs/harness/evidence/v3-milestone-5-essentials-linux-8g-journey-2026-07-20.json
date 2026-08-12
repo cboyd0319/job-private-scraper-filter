@@ -1,0 +1,228 @@
+{
+  "schema": "jobsentinel.feature_evidence.v1",
+  "feature_id": "v3-milestone-5-local-evidence-resume-matching",
+  "slice": "essentials-linux-model-free-8g-journey",
+  "behavior": "The default model-free Essentials Debian package builds, installs, launches, completes the core local journey, and preserves its data after restart inside a controlled 8 GiB Linux guest without external AI, model execution, host credentials, or real user data.",
+  "result": "partial",
+  "verified_at": "2026-07-20T13:52:10Z",
+  "revision": "d442138f986b62af662c19e5739581ef4c0f3fe1",
+  "revision_scope": "The two-file setup database-owner correction, focused regression checks, exact matching source tree used for the Linux package rebuild, installed journey, persistence relaunch, resource measurements, and evidence recorded here.",
+  "platform": {
+    "guest_os": "Ubuntu 24.04.4 LTS",
+    "guest_architecture": "amd64",
+    "guest_kernel": "Linux 7.0.11-orbstack-00360-gc9bc4d96ac70",
+    "guest_runtime": "OrbStack LXC",
+    "guest_memory_limit_bytes": 8589934592,
+    "guest_swap_limit_bytes": 0,
+    "guest_cpu_limit": 6,
+    "isolation": "Disposable guest created with --isolated and --isolate-network. No host filesystem, host credential store, or host user data was mounted into the guest.",
+    "measurement_caveat": "This is an enforced 8 GiB cgroup limit in a controlled guest, not a physical computer with exactly 8 GiB installed. Guest /proc/meminfo reflects the host and is not used as the memory authority."
+  },
+  "commands": [
+    {
+      "command": "env -u JOBSENTINEL_LIVE_KEYRING_TESTS cargo test -p jobsentinel 'ipc::config::tests' -- --nocapture",
+      "exit_status": 0,
+      "relevant_result": "All 13 config IPC tests passed, including complete_setup_reuses_the_owned_database.",
+      "caveat": "The regression uses an in-memory database because a file-backed dependent platform crate can reach macOS secure storage even when the root crate is under cfg(test). The production function signature and installed Linux journey prove reuse of the live owned database."
+    },
+    {
+      "command": "env -u JOBSENTINEL_LIVE_KEYRING_TESTS cargo clippy -p jobsentinel --lib -- -D warnings",
+      "exit_status": 0,
+      "relevant_result": "Strict desktop library clippy passed for the setup correction.",
+      "caveat": "No live Keychain test ran."
+    },
+    {
+      "command": "cargo fmt --all -- --check",
+      "exit_status": 0,
+      "relevant_result": "Rust formatting passed for the setup correction.",
+      "caveat": "Formatting does not execute credential code."
+    },
+    {
+      "command": "git diff --check",
+      "exit_status": 0,
+      "relevant_result": "Diff validation passed for the setup correction.",
+      "caveat": "This check was run before the code commit and again before the evidence commit."
+    },
+    {
+      "command": "APPIMAGE_EXTRACT_AND_RUN=1 env -u JOBSENTINEL_LIVE_KEYRING_TESTS /usr/bin/time -v node scripts/platform/build-linux-appimage.mjs --target x86_64-unknown-linux-gnu",
+      "exit_status": 0,
+      "relevant_result": "The exact d442138f source tree produced the Debian and AppImage bundles in 3 minutes 43.32 seconds. The release compilation itself completed in 2 minutes 17 seconds.",
+      "caveat": "This was a warm rebuild after the same disposable guest had completed one prior release build. It is a memory-safety and artifact result, not a cold-build timing benchmark."
+    },
+    {
+      "command": "sudo dpkg -i JobSentinel_2.9.5_amd64.deb",
+      "exit_status": 0,
+      "relevant_result": "The amd64 Debian package installed as job-sentinel 2.9.5 and provided /usr/bin/jobsentinel.",
+      "caveat": "The product version remains 2.9.5 because v3 is still an unreleased branch."
+    },
+    {
+      "command": "Installed app first-run journey through Xvfb, AT-SPI, xdotool, and a guest-local disposable Secret Service",
+      "exit_status": 0,
+      "relevant_result": "Setup reached the dashboard; a user-triggered Greenhouse check reported Worked in under one second; a synthetic veteran resume imported locally; deterministic resume review returned Mixed evidence with six requirement reviews and exact evidence locations; a synthetic role was tracked and moved from To Apply to Applied; Pay Protection returned an honest no-data result; and a support report with zero tested private-marker matches was saved.",
+      "caveat": "All job, resume, military-service, salary, and application content was synthetic. Only the explicit Greenhouse health check contacted a live public source. No external AI or model path ran."
+    },
+    {
+      "command": "Installed app persistence relaunch with the same isolated XDG roots and guest-local Secret Service",
+      "exit_status": 0,
+      "relevant_result": "Configuration loaded, database configuration and integrity passed, first-run was false, and the dashboard retained one tracked application and the saved synthetic roles.",
+      "caveat": "The visible-window measurement is a polling upper bound, not an interactive-ready measurement."
+    },
+    {
+      "command": "set -eu; test ! -e /tmp/jobsentinel-appimage-audit-d442; mkdir /tmp/jobsentinel-appimage-audit-d442; cd /tmp/jobsentinel-appimage-audit-d442; APPIMAGE_EXTRACT_AND_RUN=1 JobSentinel_2.9.5_amd64.AppImage --appimage-extract; test -d squashfs-root",
+      "exit_status": 0,
+      "relevant_result": "AppImage extraction completed in a fresh disposable guest directory and produced the expected root.",
+      "caveat": "The directory did not exist before the command and was removed after all inspection steps."
+    },
+    {
+      "command": "find squashfs-root -type f -print > files.txt",
+      "exit_status": 0,
+      "relevant_result": "The extracted AppImage file enumeration completed successfully.",
+      "caveat": "This ran in the fresh extraction directory from the preceding status-bound command."
+    },
+    {
+      "command": "grep -Eiq '(safetensors|\\.onnx$|\\.gguf$|tokenizer|qwen|minilm)' files.txt",
+      "exit_status": 1,
+      "relevant_result": "The expected no-match predicate found zero embedded model payload files.",
+      "caveat": "Exit status 1 is the expected grep result for no matches in the successfully enumerated AppImage file manifest."
+    },
+    {
+      "command": "Independent adversarial review of the setup database-owner correction",
+      "exit_status": 0,
+      "relevant_result": "The reviewer returned APPROVE after checking owner-lock behavior, migration and recovery invariants, restricted-source reconciliation, privacy, credential access, and cross-platform behavior.",
+      "caveat": "The reviewer identified the in-memory regression-test limitation as non-blocking because the production call site makes owned-database reuse compile-time explicit and the installed journey reproduces the original failure path."
+    }
+  ],
+  "artifact": {
+    "deb_path": "target/x86_64-unknown-linux-gnu/release/bundle/deb/JobSentinel_2.9.5_amd64.deb",
+    "deb_sha256": "5b432444740b0b945cd80349879d69dc4aded40f9704a1fd7ac22d43f23f9599",
+    "deb_bytes": 16181176,
+    "appimage_path": "target/x86_64-unknown-linux-gnu/release/bundle/appimage/JobSentinel_2.9.5_amd64.AppImage",
+    "appimage_sha256": "60c48bcec5e278bf3e8ca8e77da356b2b2bf054eca9c61ebaf09728e0ad0c5f9",
+    "appimage_bytes": 89344504,
+    "installed_binary_sha256": "3d568a8c6a74ba99d807fb3716b5a1d9c492bbf9864e7a35a16429b76e078330",
+    "installed_binary_bytes": 39689664,
+    "installed_size_kib": 38966,
+    "architecture": "amd64",
+    "appimage_model_payload_matches": 0
+  },
+  "build_measurement": {
+    "aggregate_cgroup_peak_bytes": 4027662336,
+    "single_process_max_rss_kib": 2577408,
+    "swap_peak_bytes": 0,
+    "memory_limit_events": 0,
+    "oom_events": 0,
+    "oom_kill_events": 0,
+    "measurement_scope": "The fresh child cgroup contained the build command and all descendants. The 8 GiB guest root cgroup had swap disabled."
+  },
+  "first_run_measurement": {
+    "visible_window_upper_bound_ms": 582,
+    "aggregate_cgroup_peak_bytes": 687190016,
+    "swap_peak_bytes": 0,
+    "memory_limit_events": 0,
+    "oom_events": 0,
+    "oom_kill_events": 0,
+    "final_process_count": 3,
+    "measurement_scope": "The fresh child cgroup contained only JobSentinel and its descendants. Xvfb, AT-SPI, the launch poller, D-Bus, and the disposable Secret Service stayed outside the app cgroup."
+  },
+  "persistence_relaunch_measurement": {
+    "visible_window_upper_bound_ms": 277,
+    "aggregate_cgroup_peak_bytes": 717479936,
+    "swap_peak_bytes": 0,
+    "memory_limit_events": 0,
+    "oom_events": 0,
+    "oom_kill_events": 0,
+    "first_run": false,
+    "database_integrity": "passed"
+  },
+  "journey": {
+    "install": "pass",
+    "launch": "pass",
+    "setup": "pass",
+    "source_check": {
+      "result": "pass",
+      "source": "Greenhouse",
+      "ui_result": "Worked",
+      "duration_label": "under 1s",
+      "user_triggered": true
+    },
+    "resume_import": {
+      "result": "pass",
+      "format": "plain text",
+      "synthetic": true,
+      "military_evidence": "Explicit United States Army 25B occupation and responsibilities were present in the synthetic resume. No veteran status, eligibility, clearance, credential, or civilian equivalence was inferred."
+    },
+    "deterministic_match": {
+      "result": "pass",
+      "fit": "Mixed evidence",
+      "requirement_reviews": 6,
+      "hard_requirements_to_check": 1,
+      "external_ai": false,
+      "local_model": false
+    },
+    "tracker_update": {
+      "result": "pass",
+      "from": "To Apply",
+      "to": "Applied"
+    },
+    "pay_review": {
+      "result": "pass",
+      "outcome": "No pay range found",
+      "interpretation": "The UI abstained and suggested a broader title, nearby metro area, or different role stage instead of inventing evidence."
+    },
+    "support_report": {
+      "result": "pass",
+      "bytes": 4741,
+      "sha256": "2000444c271aaa3acc801a597225f04e51c2f9363ccc4e75ece46f407f5893f0",
+      "tested_private_marker_matches": 0,
+      "tested_markers": [
+        "local home path",
+        "resume file name",
+        "synthetic candidate name",
+        "saved job links",
+        "salary values",
+        "military branch",
+        "military occupation code"
+      ]
+    },
+    "restart_persistence": "pass"
+  },
+  "setup_regression": {
+    "observed_failure_before_fix": "complete_setup attempted a second Database::connect while the running application held the exclusive owner lock, so installed first-run setup failed before reaching the dashboard.",
+    "correction": "complete_setup now reuses AppState.database and the existing save path. The redundant reconnect, credential lookup, and migration were deleted.",
+    "installed_result_after_fix": "Setup completed and the dashboard loaded from the rebuilt package. The same profile relaunched with first-run false and preserved local data."
+  },
+  "gate_4_status": {
+    "state": "open",
+    "proved": [
+      "Default Linux amd64 Debian and AppImage size and checksum baseline, Debian installation, and zero AppImage model-payload matches.",
+      "Model-free package build and installed runtime stayed below an enforced 8 GiB memory limit with swap disabled and zero memory-limit or OOM events.",
+      "Complete installed Essentials journey from setup through a support report with zero tested private-marker matches.",
+      "Installed local-data persistence and integrity after restart.",
+      "The setup completion path reuses the already-owned database without a second credential-backed connection."
+    ],
+    "not_proved": [
+      "Approved numeric release thresholds.",
+      "Windows 11 and macOS 26 installed journey and runtime matrix.",
+      "Installed stronger-local model setup, update, and removal.",
+      "Production-wide and cross-platform Qwen3 calibration.",
+      "Employer-intelligence and regional-pack evaluation coverage.",
+      "Signed, notarized, and public release artifacts."
+    ],
+    "next_trigger": "Extend the installed package and runtime matrix, approve numeric thresholds, and close the remaining stronger-local, employer, regional, and cross-platform Gate 4 evidence."
+  },
+  "privacy_and_network": {
+    "real_user_data_used": false,
+    "synthetic_data_used": true,
+    "external_ai_used": false,
+    "host_credentials_used": false,
+    "host_keychain_accessed": false,
+    "guest_local_secret_service_used": true,
+    "guest_local_secret_service_purpose": "Store the disposable profile's local database key through the normal Linux desktop credential path.",
+    "model_files_downloaded": false,
+    "live_sources_contacted": [
+      "Greenhouse"
+    ],
+    "live_source_contact_explicitly_triggered": true,
+    "support_report_reviewed_for_private_markers": true
+  }
+}

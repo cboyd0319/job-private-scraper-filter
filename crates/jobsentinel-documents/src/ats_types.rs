@@ -1,6 +1,39 @@
 //! Resume readability analyzer result types.
 
+use jobsentinel_domain::ResumeEvidenceCitation;
 use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ProfessionMatchingProfile {
+    Technical,
+    Content,
+    Operations,
+    Healthcare,
+    Service,
+    Trades,
+    Education,
+    Sales,
+    EarlyCareer,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RegionalMatchingProfile {
+    #[serde(rename = "us")]
+    UnitedStates,
+    #[serde(rename = "uk")]
+    UnitedKingdom,
+    #[serde(rename = "eu")]
+    EuropeanUnion,
+    India,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ResumeMatchingProfile {
+    pub profession: ProfessionMatchingProfile,
+    pub region: RegionalMatchingProfile,
+}
 
 /// Complete readability analysis result for a resume
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -27,6 +60,9 @@ pub struct AtsAnalysisResult {
     pub hard_constraint_risks: Vec<HardConstraintRisk>,
     /// Improvement suggestions
     pub suggestions: Vec<AtsSuggestion>,
+    /// Explicit caller-selected matching context. Never inferred from resume content.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub matching_profile: Option<ResumeMatchingProfile>,
 }
 
 /// A keyword found in the resume
@@ -77,8 +113,14 @@ pub struct RequirementReview {
     pub match_state: RequirementMatchState,
     /// Resume areas where evidence was found
     pub evidence_sections: Vec<String>,
+    /// Opaque references to exact local resume fields that support the match
+    #[serde(default)]
+    pub evidence_citations: Vec<ResumeEvidenceCitation>,
     /// Whether this looks like a hard requirement to verify before tailoring
     pub hard_constraint: bool,
+    /// Whether exact evidence appears in a section preferred by the selected profile.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub profile_preferred_section: Option<bool>,
     /// Plain next step for the job seeker
     pub recommendation: String,
 }

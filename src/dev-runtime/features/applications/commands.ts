@@ -1,3 +1,5 @@
+/** Implements browser-development application and interview commands. */
+
 import {
   mockApplicationStats,
   mockStatistics,
@@ -106,11 +108,34 @@ export function handleMockApplicationsCommand(
         ].filter((bucket) => bucket.count > 0),
       );
 
-    case "get_upcoming_interviews":
-      return withoutSave(state, state.interviews);
+    case "get_upcoming_interviews": {
+      const now = Date.now();
+      const inThirtyDays = now + 30 * 24 * 60 * 60 * 1000;
+      return withoutSave(
+        state,
+        state.interviews
+          .filter(
+            (interview) =>
+              !interview.completed && Date.parse(interview.scheduled_at) <= inThirtyDays,
+          )
+          .sort(
+            (left, right) =>
+              Math.abs(Date.parse(left.scheduled_at) - now) -
+              Math.abs(Date.parse(right.scheduled_at) - now),
+          ),
+      );
+    }
 
     case "get_past_interviews":
-      return withoutSave(state, []);
+      return withoutSave(
+        state,
+        state.interviews
+          .filter((interview) => interview.completed)
+          .sort(
+            (left, right) =>
+              Date.parse(right.scheduled_at) - Date.parse(left.scheduled_at),
+          ),
+      );
 
     case "schedule_interview":
       return scheduleInterview(args, state);
@@ -127,6 +152,7 @@ export function handleMockApplicationsCommand(
                   ...interview,
                   completed: true,
                   outcome: getArg(args, "outcome") as string,
+                  post_interview_notes: (getArg(args, "notes") as string | null) ?? null,
                 }
               : interview,
           ),
@@ -261,9 +287,14 @@ function scheduleInterview(
   state: MockApplicationsCommandState,
 ): MockApplicationsCommandResult {
   const id = Math.max(...state.interviews.map((interview) => interview.id), 0) + 1;
+  const applicationId = getArg(args, "applicationId") as number;
+  const application = Object.values(state.applications)
+    .flat()
+    .find((candidate) => candidate.id === applicationId);
   const interview: MockInterview = {
     id,
-    application_id: getArg(args, "applicationId") as number,
+    application_id: applicationId,
+    job_hash: application?.job_hash ?? `mock-${applicationId}`,
     interview_type: getArg(args, "interviewType") as string,
     scheduled_at: getArg(args, "scheduledAt") as string,
     duration_minutes: getArg(args, "durationMinutes") as number,
@@ -273,8 +304,9 @@ function scheduleInterview(
     notes: (getArg(args, "notes") as string) || null,
     completed: false,
     outcome: null,
-    job_title: "Mock Job",
-    company: "Mock Company",
+    post_interview_notes: null,
+    job_title: application?.job_title ?? "Mock Job",
+    company: application?.company ?? "Mock Company",
   };
 
   return {

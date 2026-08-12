@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n        UPDATE scraper_runs\n        SET finished_at = ?,\n            duration_ms = ?,\n            status = 'timeout',\n            error_message = 'Request timed out'\n        WHERE id = ? AND status = 'running'\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "10f308ee52b2071a6e61dbd8c279a822400bef3903de005b97a5dfe1ab105b02"
+}

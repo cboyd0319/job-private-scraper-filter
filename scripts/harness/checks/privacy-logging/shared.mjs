@@ -244,10 +244,12 @@ export const importBookmarkletCommandPrivacyPaths = new Set([
 ]);
 
 export const rawBookmarkletLoggingPaths = new Set([
-  "crates/jobsentinel-assistance/src/bookmarklet/server.rs",
+    "crates/jobsentinel-assistance/src/bookmarklet/server.rs",
+    "crates/jobsentinel-assistance/src/bookmarklet/server/imports.rs",
+    "crates/jobsentinel-assistance/src/bookmarklet/server/pairing_state.rs",
 ]);
 export const bookmarkletGeneratorPaths = new Set([
-  "src/features/settings/sources/browser-import/BrowserImportSection.tsx",
+    "src-tauri/src/ipc/bookmarklet.rs",
 ]);
 
 export const userDataPrivacyLoggingPaths = new Set([

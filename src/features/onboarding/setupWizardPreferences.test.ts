@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
   applyReviewVolumePreference,
-  buildSetupSourceQuery,
   buildSetupSearchSummary,
   createDefaultSetupConfig,
   formatSetupPayFloorSummary,
@@ -75,24 +74,6 @@ describe("Setup Wizard preference helpers", () => {
       "Data entry",
       "Front desk",
     ]);
-  });
-
-  it("builds source queries from distinct reviewed search words", () => {
-    const config = {
-      ...createDefaultSetupConfig(),
-      title_allowlist: ["Office Manager", " office manager "],
-      keywords_boost: [
-        "Scheduling",
-        "scheduling",
-        "Client service",
-        "Excel",
-        "Inventory",
-      ],
-    };
-
-    expect(buildSetupSourceQuery(config)).toBe(
-      "Office Manager Scheduling Client service Excel",
-    );
   });
 
   it("builds plain-language search summaries from config", () => {
@@ -185,22 +166,20 @@ describe("Setup Wizard preference helpers", () => {
     });
   });
 
-  it("suggests a broad public source for non-technical searches without selecting it", () => {
+  it("does not suggest a retired scheduled source for non-technical searches", () => {
     const config = {
       ...createDefaultSetupConfig(),
       title_allowlist: ["Office Manager"],
       keywords_boost: ["Scheduling"],
     };
 
-    expect(getSuggestedJobSourceOptions(config).map((source) => source.key)).toEqual([
-      "simplyhired",
-    ]);
+    expect(getSuggestedJobSourceOptions(config)).toEqual([]);
     expect(buildSetupSearchSummary(config, "balanced", "balanced")).toMatchObject({
       jobSources: "No outside job sources selected; add reviewed sources in Settings.",
     });
   });
 
-  it("summarizes only sources the user selected", () => {
+  it("does not summarize a retired source from legacy config", () => {
     const config = {
       ...createDefaultSetupConfig(),
       title_allowlist: ["Software Engineer"],
@@ -216,7 +195,7 @@ describe("Setup Wizard preference helpers", () => {
     };
 
     expect(buildSetupSearchSummary(config, "balanced", "balanced")).toMatchObject({
-      jobSources: "Remote OK, SimplyHired selected.",
+      jobSources: "Remote OK selected.",
     });
   });
 });

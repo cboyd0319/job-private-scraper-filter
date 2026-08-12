@@ -120,6 +120,21 @@ pub fn validate_external_https_url(url: &str) -> Result<Url, String> {
     Ok(parsed)
 }
 
+/// Validate a public HTTPS destination that is safe to retain as audit metadata.
+pub fn validate_credential_free_external_https_url(url: &str) -> Result<Url, String> {
+    let parsed = validate_external_https_url(url)?;
+    if !parsed.username().is_empty()
+        || parsed.password().is_some()
+        || parsed.query().is_some()
+        || parsed.fragment().is_some()
+    {
+        return Err(
+            "Blocked URL with credentials, query parameters, or a private fragment".to_string(),
+        );
+    }
+    Ok(parsed)
+}
+
 /// Return a URL label safe for logs.
 ///
 /// Removes userinfo, query strings, and fragments because user-controlled URLs

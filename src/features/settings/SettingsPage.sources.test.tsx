@@ -101,7 +101,7 @@ describe("Settings source setup", () => {
     ).toBeGreaterThan(0);
   });
 
-  it("uses plain restricted-source guidance without site-protection jargon", async () => {
+  it("does not restore retired scheduled controls from legacy config", async () => {
     const user = userEvent.setup();
     const config = makeConfig();
     config.simplyhired.enabled = true;
@@ -123,12 +123,14 @@ describe("Settings source setup", () => {
 
     await user.click(screen.getByRole("tab", { name: "Sources & Alerts" }));
 
-    expect(screen.getAllByText(/Restricted source warning/i)).toHaveLength(2);
     expect(
-      screen.getAllByText(
-        /JobSentinel will only run this scheduled check from this computer/i,
+      screen.queryByText(/Restricted source warning/i),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /Scheduled access to Built In, Dice, SimplyHired, and Glassdoor is unavailable after provider policy review/i,
       ),
-    ).toHaveLength(2);
+    ).toBeInTheDocument();
     expect(
       screen.getByText("See which sources are working and what to try next"),
     ).toBeInTheDocument();
@@ -173,6 +175,12 @@ describe("Settings source setup", () => {
         name: /Turn startup and tech hiring post checks on or off/i,
       }),
     ).toBeInTheDocument();
+    await user.click(screen.getByText("More Job Boards"));
+    expect(
+      screen.queryByRole("checkbox", {
+        name: /Turn YC Startup scheduled job checks on or off/i,
+      }),
+    ).not.toBeInTheDocument();
   });
 
   it("labels USAJobs source setup as optional scheduled checks", async () => {
@@ -248,5 +256,4 @@ describe("Settings source setup", () => {
       screen.queryByText(/Advanced federal monitoring/i),
     ).not.toBeInTheDocument();
   });
-
 });

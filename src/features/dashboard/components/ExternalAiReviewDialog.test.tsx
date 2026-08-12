@@ -7,19 +7,18 @@ import type { ExternalAiRequest } from "../../../shared/externalAi/externalAiTyp
 
 const publicRequest: ExternalAiRequest = {
   feature: "job-description-summary",
+  sourceJobId: 42,
   labels: ["External AI optional", "Public-data only"],
   dataCategories: ["job_posting", "public_metadata"],
   payload: {
     title: "Operations Manager",
     company: "Example Co",
     description: "Lead scheduling and vendor coordination.",
-    sourceUrl: "https://jobs.example.test/operations-manager",
   },
   redactedPayload: {
     title: "Operations Manager",
     company: "Example Co",
     description: "Lead scheduling and vendor coordination.",
-    sourceUrl: "https://jobs.example.test/operations-manager",
   },
   previewShown: false,
   userApproved: false,
@@ -58,7 +57,22 @@ describe("ExternalAiReviewDialog", () => {
     expect(onApprove).not.toHaveBeenCalled();
   });
 
-  it("approves the edited reviewed details", async () => {
+  it("allows cancellation while an approved request is in flight", async () => {
+    const user = userEvent.setup();
+    const onApprove = vi.fn(() => new Promise<void>(() => undefined));
+    const { onCancel } = renderDialog(publicRequest, { onApprove });
+
+    await user.click(
+      screen.getByRole("button", { name: "Send Reviewed Details" }),
+    );
+    const cancelButton = screen.getByRole("button", { name: "Cancel" });
+
+    expect(cancelButton).toBeEnabled();
+    await user.click(cancelButton);
+    expect(onCancel).toHaveBeenCalledTimes(1);
+  });
+
+  it("approves removing a stored public field", async () => {
     const user = userEvent.setup();
     const { onApprove } = renderDialog();
     const textarea = screen.getByLabelText("Details to send");
@@ -69,8 +83,6 @@ describe("ExternalAiReviewDialog", () => {
           {
             title: "Operations Manager",
             company: "Example Co",
-            description: "Reviewed summary.",
-            sourceUrl: "https://jobs.example.test/operations-manager",
           },
           null,
           2,
@@ -85,11 +97,35 @@ describe("ExternalAiReviewDialog", () => {
       expect.objectContaining({
         previewShown: true,
         userApproved: true,
-        redactedPayload: expect.objectContaining({
-          description: "Reviewed summary.",
-        }),
+        redactedPayload: {
+          title: "Operations Manager",
+          company: "Example Co",
+        },
       }),
     );
+  });
+
+  it("blocks adding or rewriting a stored public value", async () => {
+    const user = userEvent.setup();
+    const { onApprove } = renderDialog();
+
+    fireEvent.change(screen.getByLabelText("Details to send"), {
+      target: {
+        value: JSON.stringify({
+          title: "Operations Manager",
+          company: "Example Co",
+          description: "I am a protected veteran.",
+        }),
+      },
+    });
+    expect(
+      screen.getByText(/adding or rewriting values is blocked/i),
+    ).toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole("button", { name: "Send Reviewed Details" }),
+    );
+    expect(onApprove).not.toHaveBeenCalled();
   });
 
   it("blocks invalid edited details", async () => {
@@ -111,6 +147,26 @@ describe("ExternalAiReviewDialog", () => {
       screen.getByRole("button", { name: "Send Reviewed Details" }),
     );
     expect(onApprove).not.toHaveBeenCalled();
+  });
+
+  it("blocks a duplicate send after an ambiguous provider outcome", async () => {
+    const user = userEvent.setup();
+    const onApprove = vi.fn().mockRejectedValue(
+      new Error(
+        "The Outside AI outcome is unknown. Check durable activity. Do not retry.",
+      ),
+    );
+    renderDialog(publicRequest, { onApprove });
+
+    const sendButton = screen.getByRole("button", {
+      name: "Send Reviewed Details",
+    });
+    await user.click(sendButton);
+
+    expect(await screen.findByText(/Do not retry/)).toBeInTheDocument();
+    expect(sendButton).toBeDisabled();
+    await user.click(sendButton);
+    expect(onApprove).toHaveBeenCalledTimes(1);
   });
 
   it("requires explicit confirmation for private details", async () => {

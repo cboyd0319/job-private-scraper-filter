@@ -1,0 +1,82 @@
+{
+  "schema": "jobsentinel.v3.source-manifest.v1",
+  "source_id": "lever",
+  "display_name": "Lever",
+  "source_class": "public_ats",
+  "endpoint_patterns": ["https://api.lever.co/v0/postings/"],
+  "documentation_url": "https://github.com/lever/postings-api",
+  "auth_requirement": "none",
+  "policy_ref": "jobsentinel.source-policy.lever.public-postings-api",
+  "policy_revision": 1,
+  "actions": [
+    {
+      "operation": "scheduled_check",
+      "permission": "none"
+    },
+    {
+      "operation": "connectivity_check",
+      "permission": "none"
+    }
+  ],
+  "terms_review": {
+    "status": "reviewed",
+    "reference": "source-review.lever.public-postings-api",
+    "reviewed_on": "2026-08-12"
+  },
+  "robots_review": {
+    "status": "reviewed",
+    "reference": "source-review.lever.api-robots",
+    "reviewed_on": "2026-08-12"
+  },
+  "parser_id": "lever-postings-api-v0",
+  "fixtures": [
+    {
+      "fixture_id": "lever-list-v1",
+      "kind": "list",
+      "path": "crates/jobsentinel-sources/src/fixtures/lever_list_v1.json",
+      "payload_sha256": "f4c64a8b8f9b8bd58c19afd328f15b69d7ed397d9761c585c7f5217c330dfa52"
+    },
+    {
+      "fixture_id": "lever-policy-review-v1",
+      "kind": "policy",
+      "path": "crates/jobsentinel-domain/src/fixtures/source_reviews/lever_v1.json",
+      "payload_sha256": "4e3d9c2d5e3eba6a330b8d1fe7641969665cf918c8efad1546e641c5ee3f796c"
+    }
+  ],
+  "supported_fields": [
+    "title",
+    "company",
+    "location",
+    "description",
+    "application_url"
+  ],
+  "salary_coverage": "none",
+  "verified_on": "2026-08-12",
+  "max_age_days": 30,
+  "confidence_percent": 95,
+  "lineage": [
+    {
+      "link_id": "source-lineage-lever-postings-api",
+      "source_id": "lever",
+      "relation": "lineage",
+      "related_id": "lever-public-postings-api",
+      "provenance": "public_source",
+      "provenance_ref": "source-review.lever.public-postings-api"
+    }
+  ],
+  "stop_conditions": [
+    "policy_disabled",
+    "policy_changed",
+    "review_expired",
+    "rate_limit_reached",
+    "access_blocked",
+    "parser_drift",
+    "repeated_failure"
+  ],
+  "risk_note_refs": [
+    "source-risk.lever.get-only",
+    "source-risk.lever.no-application-submission",
+    "source-risk.lever.no-external-training"
+  ],
+  "incomplete_coverage": false
+}

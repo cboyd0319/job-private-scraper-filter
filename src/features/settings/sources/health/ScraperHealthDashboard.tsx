@@ -5,10 +5,7 @@ import { StatCard } from "../../../../ui/StatCard";
 import { LoadingSpinner } from "../../../../ui/LoadingSpinner";
 import { Modal } from "../../../../ui/Modal";
 import { getUserFriendlyError } from "../../../../shared/errorReporting/messages";
-import {
-  JOB_SOURCE_DISCOVERY_TAXONOMY,
-  technicalAccessForJobSource,
-} from "../../../../shared/jobSourceDiscoveryTaxonomy";
+import { isPolicyBlockedScheduledSourceId } from "../../../../shared/restrictedSourceTaxonomy";
 import {
   type HealthSummary,
   type ScraperHealthMetrics,
@@ -25,23 +22,6 @@ interface ScraperHealthDashboardProps {
   onClose: () => void;
 }
 
-type PendingRestrictedSourceCheck =
-  | { kind: "all"; sourceNames: string[] }
-  | { kind: "single"; scraperName: string; sourceNames: string[] };
-
-const RESTRICTED_SOURCE_CHECK_IDS = new Set(
-  JOB_SOURCE_DISCOVERY_TAXONOMY.filter(
-    (source) =>
-      (source.accessModel === "restricted-user-gated" ||
-        source.requiresUserAgreement === true) &&
-      technicalAccessForJobSource(source) === "public-unauthenticated",
-  ).map((source) => source.id),
-);
-
-function sourceCheckNeedsAcknowledgement(scraperName: string): boolean {
-  return RESTRICTED_SOURCE_CHECK_IDS.has(scraperName);
-}
-
 export const ScraperHealthDashboard = memo(function ScraperHealthDashboard({
   onClose,
 }: ScraperHealthDashboardProps) {
@@ -55,17 +35,10 @@ export const ScraperHealthDashboard = memo(function ScraperHealthDashboard({
   const [testingSingle, setTestingSingle] = useState<string | null>(null);
   const [testResults, setTestResults] = useState<SmokeTestResult[]>([]);
   const [showTestResults, setShowTestResults] = useState(false);
-  const [pendingRestrictedCheck, setPendingRestrictedCheck] =
-    useState<PendingRestrictedSourceCheck | null>(null);
   const [error, setError] = useState<string | null>(null);
   const sourceNameById = new Map(
     scrapers.map((scraper) => [scraper.scraper_name, scraper.display_name]),
   );
-  const restrictedEnabledSources = scrapers.filter(
-    (scraper) =>
-      scraper.is_enabled && sourceCheckNeedsAcknowledgement(scraper.scraper_name),
-  );
-
   // Load health data
   const loadHealthData = useCallback(async (signal?: AbortSignal) => {
     try {
@@ -88,7 +61,11 @@ export const ScraperHealthDashboard = memo(function ScraperHealthDashboard({
       if (signal?.aborted) return;
 
       setSummary(summaryData);
-      setScrapers(scrapersData);
+      setScrapers(
+        scrapersData.filter(
+          (scraper) => !isPolicyBlockedScheduledSourceId(scraper.scraper_name),
+        ),
+      );
     } catch (err: unknown) {
       if (signal?.aborted) return;
       const friendly = getUserFriendlyError(err);
@@ -155,12 +132,12 @@ export const ScraperHealthDashboard = memo(function ScraperHealthDashboard({
 
   // Run source check for one source
   const runSmokeTest = useCallback(
-    async (scraperName: string, restrictedSourceAcknowledged = false) => {
+    async (scraperName: string) => {
       try {
         setTestingSingle(scraperName);
         const result = await safeInvoke<SmokeTestResult>(
           "run_scraper_smoke_test",
-          { scraperName, restrictedSourceAcknowledged },
+          { scraperName },
           {
             logContext: "Run source check",
           },
@@ -180,27 +157,18 @@ export const ScraperHealthDashboard = memo(function ScraperHealthDashboard({
 
   const requestSmokeTest = useCallback(
     (scraper: ScraperHealthMetrics) => {
-      if (sourceCheckNeedsAcknowledgement(scraper.scraper_name)) {
-        setPendingRestrictedCheck({
-          kind: "single",
-          scraperName: scraper.scraper_name,
-          sourceNames: [scraper.display_name],
-        });
-        return;
-      }
-
       void runSmokeTest(scraper.scraper_name);
     },
     [runSmokeTest],
   );
 
   // Run source checks for all sources
-  const runAllSmokeTests = useCallback(async (restrictedSourceAcknowledged = false) => {
+  const runAllSmokeTests = useCallback(async () => {
     try {
       setTestingAll(true);
       const results = await safeInvoke<SmokeTestResult[]>(
         "run_all_smoke_tests",
-        { restrictedSourceAcknowledged },
+        {},
         {
           logContext: "Run all source checks",
         },
@@ -215,33 +183,6 @@ export const ScraperHealthDashboard = memo(function ScraperHealthDashboard({
       setTestingAll(false);
     }
   }, [loadHealthData]);
-
-  const requestAllSmokeTests = useCallback(() => {
-    if (restrictedEnabledSources.length > 0) {
-      setPendingRestrictedCheck({
-        kind: "all",
-        sourceNames: restrictedEnabledSources.map((source) => source.display_name),
-      });
-      return;
-    }
-
-    void runAllSmokeTests();
-  }, [restrictedEnabledSources, runAllSmokeTests]);
-
-  const continueRestrictedSourceCheck = useCallback(() => {
-    const pending = pendingRestrictedCheck;
-    setPendingRestrictedCheck(null);
-
-    if (!pending) {
-      return;
-    }
-
-    if (pending.kind === "single") {
-      void runSmokeTest(pending.scraperName, true);
-    } else {
-      void runAllSmokeTests(true);
-    }
-  }, [pendingRestrictedCheck, runAllSmokeTests, runSmokeTest]);
 
   // Initial load
   useEffect(() => {
@@ -302,14 +243,14 @@ export const ScraperHealthDashboard = memo(function ScraperHealthDashboard({
         isOpen
         onClose={onClose}
         title="Job Sources"
-        description="Check whether job sources are available and when they last found jobs."
+        description="Check whether job sources are available and when they last found jobs. Internet is required. Checking contacts the selected source or every enabled source."
         size="wide"
       >
         <div className="space-y-6">
               <div className="flex flex-wrap items-center justify-end gap-2">
                 <Button
                   variant="secondary"
-                  onClick={requestAllSmokeTests}
+                  onClick={() => void runAllSmokeTests()}
                   disabled={testingAll}
                 >
                   {testingAll ? "Checking..." : "Check Sources Now"}
@@ -376,42 +317,6 @@ export const ScraperHealthDashboard = memo(function ScraperHealthDashboard({
               onRequestSmokeTest={requestSmokeTest}
               onToggleScraper={toggleScraper}
             />
-        </div>
-      </Modal>
-
-      <Modal
-        isOpen={pendingRestrictedCheck !== null}
-        onClose={() => setPendingRestrictedCheck(null)}
-        title="Review Source Check"
-        size="md"
-      >
-        <div className="space-y-4">
-          <p className="text-sm leading-6 text-surface-700 dark:text-surface-300">
-            Some job boards have rules about automated tools. JobSentinel will
-            only check these sources because you asked, from this computer, and
-            it will not use saved sign-in sessions.
-          </p>
-          <p className="text-sm leading-6 text-surface-700 dark:text-surface-300">
-            Sources to check:{" "}
-            <span className="font-medium">
-              {pendingRestrictedCheck?.sourceNames.join(", ")}
-            </span>
-          </p>
-          <p className="text-sm leading-6 text-surface-700 dark:text-surface-300">
-            If a site blocks the check or asks for a human review, stop there and
-            use a search link, Browser Import, pasted job link, or manual entry.
-          </p>
-          <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
-            <Button
-              variant="secondary"
-              onClick={() => setPendingRestrictedCheck(null)}
-            >
-              Cancel
-            </Button>
-            <Button onClick={continueRestrictedSourceCheck}>
-              Continue checking
-            </Button>
-          </div>
         </div>
       </Modal>
 

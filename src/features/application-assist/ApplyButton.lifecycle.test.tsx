@@ -211,6 +211,47 @@ describe("ApplyButton lifecycle behavior", () => {
         ).toBeInTheDocument();
       });
     });
+
+    it("reports voluntary or sensitive personal questions left untouched without exposing their text", async () => {
+      const user = userEvent.setup();
+
+      mockInvoke.mockImplementation((cmd) => {
+        if (cmd === "detect_ats_platform") return Promise.resolve(mockAtsDetection);
+        if (cmd === "has_application_profile") return Promise.resolve(true);
+        if (cmd === "is_browser_running") return Promise.resolve(false);
+        if (cmd === "fill_application_form") {
+          return Promise.resolve({
+            filledFields: ["name"],
+            manualReviewTopics: ["voluntary or sensitive personal questions"],
+            unfilledFields: [],
+            captchaDetected: false,
+            readyForReview: true,
+            errorMessage: null,
+            attemptId: 123,
+            durationMs: 2000,
+            atsPlatform: "greenhouse",
+          });
+        }
+        return Promise.resolve(null);
+      });
+
+      renderWithToast(<ApplyButton job={mockJob} />);
+
+      await waitFor(() => {
+        expect(screen.getByRole("button", { name: /prepare form/i })).not.toBeDisabled();
+      });
+
+      await user.click(screen.getByRole("button", { name: /prepare form/i }));
+      await user.click(screen.getByRole("button", { name: /prepare details/i }));
+
+      await waitFor(() => {
+        expect(
+          screen.getByText(/voluntary or sensitive personal questions were left untouched/i),
+        ).toBeInTheDocument();
+      });
+      expect(screen.queryByText(/protected veteran/i)).not.toBeInTheDocument();
+      expect(screen.queryByText(/decline to answer/i)).not.toBeInTheDocument();
+    });
   });
 
   describe("localStorage persistence", () => {

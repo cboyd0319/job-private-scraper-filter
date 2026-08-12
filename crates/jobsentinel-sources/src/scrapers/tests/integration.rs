@@ -7,9 +7,8 @@
 //! Integration tests focus on the scraper owner's internal trait interface.
 
 use super::{
-    linkedin::LinkedInScraper, BuiltInScraper, DiceScraper, GreenhouseCompany, GreenhouseScraper,
-    HnHiringScraper, JobScraper, LeverCompany, LeverScraper, RemoteOkScraper,
-    WeWorkRemotelyScraper, YcStartupScraper,
+    linkedin::LinkedInScraper, GreenhouseCompany, GreenhouseScraper, HnHiringScraper, JobScraper,
+    LeverCompany, LeverScraper, RemoteOkScraper, WeWorkRemotelyScraper,
 };
 
 // ============================================================================
@@ -37,38 +36,6 @@ fn test_lever_company() -> LeverCompany {
 // ============================================================================
 
 #[test]
-fn test_dice_scraper_construction() {
-    let scraper = DiceScraper::new("operations manager".to_string(), None, 20);
-    assert_eq!(scraper.name(), "dice");
-    assert_eq!(scraper.query, "operations manager");
-    assert_eq!(scraper.limit, 20);
-    assert!(scraper.location.is_none());
-}
-
-#[test]
-fn test_dice_scraper_with_location() {
-    let scraper = DiceScraper::new("accountant".to_string(), Some("Denver, CO".to_string()), 10);
-    assert_eq!(scraper.name(), "dice");
-    assert_eq!(scraper.location, Some("Denver, CO".to_string()));
-}
-
-#[test]
-fn test_yc_startup_scraper_construction() {
-    let scraper = YcStartupScraper::new(None, false, 20);
-    assert_eq!(scraper.name(), "yc_startup");
-    assert!(!scraper.remote_only);
-    assert!(scraper.query.is_none());
-}
-
-#[test]
-fn test_yc_startup_scraper_with_filters() {
-    let scraper = YcStartupScraper::new(Some("rust".to_string()), true, 10);
-    assert_eq!(scraper.name(), "yc_startup");
-    assert!(scraper.remote_only);
-    assert_eq!(scraper.query, Some("rust".to_string()));
-}
-
-#[test]
 fn test_remoteok_scraper_construction() {
     let scraper = RemoteOkScraper::new(vec!["rust".to_string(), "golang".to_string()], 10);
     assert_eq!(scraper.name(), "remoteok");
@@ -92,9 +59,12 @@ fn test_weworkremotely_scraper_construction() {
 
 #[test]
 fn test_weworkremotely_scraper_with_category() {
-    let scraper = WeWorkRemotelyScraper::new(Some("programming".to_string()), 20);
+    let scraper = WeWorkRemotelyScraper::new(Some("remote-programming-jobs".to_string()), 20);
     assert_eq!(scraper.name(), "weworkremotely");
-    assert_eq!(scraper.category, Some("programming".to_string()));
+    assert_eq!(
+        scraper.category,
+        Some("remote-programming-jobs".to_string())
+    );
 }
 
 #[test]
@@ -177,22 +147,6 @@ fn test_linkedin_scraper_construction() {
     assert_eq!(scraper.location, "Chicago");
 }
 
-#[test]
-fn test_builtin_scraper_construction() {
-    let scraper = BuiltInScraper::new(false, 50);
-    assert_eq!(scraper.name(), "builtin");
-    assert!(!scraper.remote_only);
-    assert_eq!(scraper.limit, 50);
-}
-
-#[test]
-fn test_builtin_scraper_remote_only() {
-    let scraper = BuiltInScraper::new(true, 25);
-    assert_eq!(scraper.name(), "builtin");
-    assert!(scraper.remote_only);
-    assert_eq!(scraper.limit, 25);
-}
-
 // ============================================================================
 // Scraper Trait Implementation Tests
 // ============================================================================
@@ -202,12 +156,6 @@ fn test_builtin_scraper_remote_only() {
 fn test_all_scrapers_implement_job_scraper() {
     // This test verifies at compile time that all scrapers implement JobScraper
     fn assert_job_scraper<T: JobScraper>(_: &T) {}
-
-    let dice = DiceScraper::new("test".to_string(), None, 10);
-    assert_job_scraper(&dice);
-
-    let yc = YcStartupScraper::new(None, false, 10);
-    assert_job_scraper(&yc);
 
     let remoteok = RemoteOkScraper::new(vec![], 10);
     assert_job_scraper(&remoteok);
@@ -226,24 +174,18 @@ fn test_all_scrapers_implement_job_scraper() {
 
     let linkedin = LinkedInScraper::new("query".to_string(), "location".to_string());
     assert_job_scraper(&linkedin);
-
-    let builtin = BuiltInScraper::new(false, 10);
-    assert_job_scraper(&builtin);
 }
 
 /// Verify all scrapers return distinct names
 #[test]
 fn test_scraper_names_are_unique() {
     let names = vec![
-        DiceScraper::new("test".to_string(), None, 10).name(),
-        YcStartupScraper::new(None, false, 10).name(),
         RemoteOkScraper::new(vec![], 10).name(),
         WeWorkRemotelyScraper::new(None, 10).name(),
         HnHiringScraper::new(10, false).name(),
         GreenhouseScraper::new(vec![test_greenhouse_company()]).name(),
         LeverScraper::new(vec![test_lever_company()]).name(),
         LinkedInScraper::new("q".to_string(), "l".to_string()).name(),
-        BuiltInScraper::new(false, 10).name(),
     ];
 
     // Check all names are unique (case-insensitive to catch duplicates)
@@ -264,17 +206,14 @@ fn test_scraper_names_are_unique() {
 /// Verify we have the expected number of scrapers tested
 #[test]
 fn test_scraper_count() {
-    // We test 11 scrapers:
-    // - dice, ziprecruiter, yc_startup (new)
+    // We test 8 source owners:
+    // - ziprecruiter
     // - remoteok, weworkremotely, hn_hiring
     // - greenhouse, lever
     // - linkedin, indeed
-    // - builtin
     // (wellfound, jobswithgpt have more complex constructors - tested separately)
     let names = vec![
-        "dice",
         "ziprecruiter",
-        "yc_startup",
         "remoteok",
         "weworkremotely",
         "hn_hiring",
@@ -282,7 +221,6 @@ fn test_scraper_count() {
         "lever",
         "linkedin",
         "indeed",
-        "builtin",
     ];
-    assert_eq!(names.len(), 11, "Expected 11 scrapers to be tested");
+    assert_eq!(names.len(), 8, "Expected 8 source owners to be tested");
 }

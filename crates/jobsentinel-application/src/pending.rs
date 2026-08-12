@@ -3,7 +3,7 @@ use std::sync::{Arc, RwLock};
 use chrono::{DateTime, Duration, Utc};
 use uuid::Uuid;
 
-use jobsentinel_domain::Job;
+use jobsentinel_domain::{v3_source_authorization::SourceGrantState, Job};
 
 const MAX_PENDING_URL_IMPORTS: usize = 20;
 const PENDING_URL_IMPORT_LIFETIME: Duration = Duration::minutes(30);
@@ -18,10 +18,11 @@ struct PendingUrlImport {
     id: String,
     created_at: DateTime<Utc>,
     job: Job,
+    grant: SourceGrantState,
 }
 
 impl PendingUrlImports {
-    pub(super) fn queue(&self, job: Job, now: DateTime<Utc>) -> String {
+    pub(super) fn queue(&self, job: Job, grant: SourceGrantState, now: DateTime<Utc>) -> String {
         let mut entries = self.write_entries();
         retain_current(&mut entries, now);
         entries.retain(|entry| entry.job.hash != job.hash);
@@ -34,21 +35,32 @@ impl PendingUrlImports {
             id: id.clone(),
             created_at: now,
             job,
+            grant,
         });
         id
     }
 
-    pub(super) fn find(&self, id: &str, now: DateTime<Utc>) -> Option<Job> {
+    pub(super) fn find(&self, id: &str, now: DateTime<Utc>) -> Option<(Job, SourceGrantState)> {
         let mut entries = self.write_entries();
         retain_current(&mut entries, now);
         entries
             .iter()
             .find(|entry| entry.id == id)
-            .map(|entry| entry.job.clone())
+            .map(|entry| (entry.job.clone(), entry.grant.clone()))
     }
 
     pub(super) fn remove(&self, id: &str) {
         self.write_entries().retain(|entry| entry.id != id);
+    }
+
+    pub(crate) fn current_count(&self, now: DateTime<Utc>) -> usize {
+        let mut entries = self.write_entries();
+        retain_current(&mut entries, now);
+        entries.len()
+    }
+
+    pub(crate) const fn capacity() -> usize {
+        MAX_PENDING_URL_IMPORTS
     }
 
     fn write_entries(&self) -> std::sync::RwLockWriteGuard<'_, Vec<PendingUrlImport>> {
@@ -86,8 +98,12 @@ mod tests {
     fn queue_replaces_the_same_job_and_expires_old_entries() {
         let pending = PendingUrlImports::default();
         let now = Utc::now();
-        let first_id = pending.queue(job("same"), now);
-        let replacement_id = pending.queue(job("same"), now + Duration::minutes(1));
+        let first_id = pending.queue(job("same"), SourceGrantState::Missing, now);
+        let replacement_id = pending.queue(
+            job("same"),
+            SourceGrantState::Missing,
+            now + Duration::minutes(1),
+        );
 
         assert!(pending
             .find(&first_id, now + Duration::minutes(1))
@@ -95,5 +111,17 @@ mod tests {
         assert!(pending
             .find(&replacement_id, now + Duration::minutes(31))
             .is_none());
+    }
+
+    #[test]
+    fn queued_work_count_is_bounded_and_expires_without_exposing_jobs() {
+        let pending = PendingUrlImports::default();
+        let now = Utc::now();
+        pending.queue(job("first"), SourceGrantState::Missing, now);
+        pending.queue(job("second"), SourceGrantState::Missing, now);
+
+        assert_eq!(pending.current_count(now), 2);
+        assert_eq!(PendingUrlImports::capacity(), 20);
+        assert_eq!(pending.current_count(now + Duration::minutes(30)), 0);
     }
 }

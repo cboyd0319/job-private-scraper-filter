@@ -92,6 +92,8 @@ export interface ResumeData {
   skills: SkillEntry[];
   certifications: Certification[];
   projects: Project[];
+  clearance?: string | null;
+  military_info?: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -138,6 +140,10 @@ export interface StructuredResume {
 export interface ResumeAnalysisInput {
   resume: StructuredResume;
   custom_sections: Record<string, string[]>;
+  evidence_snapshot?: {
+    source_id: string;
+    revision: string;
+  };
 }
 
 export interface JsonResumeData {

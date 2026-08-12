@@ -11,19 +11,18 @@ import {
 
 const publicJobSummaryRequest: ExternalAiRequest = {
   feature: "job-description-summary",
+  sourceJobId: 42,
   labels: ["External AI optional", "Public-data only"],
   dataCategories: ["job_posting", "public_metadata"],
   payload: {
     title: "Operations Manager",
     company: "Example Co",
     description: "Lead scheduling and vendor coordination.",
-    sourceUrl: "https://jobs.example.test/operations-manager",
   },
   redactedPayload: {
     title: "Operations Manager",
     company: "Example Co",
     description: "Lead scheduling and vendor coordination.",
-    sourceUrl: "https://jobs.example.test/operations-manager",
   },
   previewShown: true,
   userApproved: true,
@@ -280,6 +279,7 @@ describe("aiGateway", () => {
 
     expect(transport.send).toHaveBeenCalledWith({
       feature: "job-description-summary",
+      sourceJobId: 42,
       provider: "open_ai",
       labels: ["External AI optional", "Public-data only"],
       dataCategories: ["job_posting", "public_metadata"],

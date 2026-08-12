@@ -67,13 +67,6 @@ async fn test_scrape_reports_error_when_all_companies_fail() {
     ));
 }
 
-// ========================================
-// Property-Based Tests
-// ========================================
-
-#[path = "greenhouse_tests/parsing_tests.rs"]
-mod parsing_tests;
-
 #[test]
 fn test_scraper_initialization() {
     let companies = vec![

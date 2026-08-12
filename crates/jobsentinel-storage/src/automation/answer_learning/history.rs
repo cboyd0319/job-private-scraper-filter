@@ -14,6 +14,22 @@ impl AnswerLearningManager {
         job_hash: Option<&str>,
         application_attempt_id: Option<i64>,
     ) -> Result<()> {
+        if requires_user_answer(question_text) {
+            return Ok(());
+        }
+
+        if let Some(answer_id) = screening_answer_id {
+            let pattern: Option<String> =
+                sqlx::query_scalar("SELECT question_pattern FROM screening_answers WHERE id = ?")
+                    .bind(answer_id)
+                    .fetch_optional(&self.db)
+                    .await?;
+
+            if pattern.is_some_and(|pattern| requires_user_answer(&pattern)) {
+                return Ok(());
+            }
+        }
+
         let normalized = Self::normalize_question(question_text);
 
         // Insert history record

@@ -1,0 +1,78 @@
+{
+  "schema": "jobsentinel.feature_evidence.v1",
+  "feature_id": "v3-milestone-8-employer-intelligence",
+  "slice": "milestone-8-completion",
+  "behavior": "Guidance stays sourced.",
+  "result": "passing",
+  "verified_at": "2026-08-12T22:02:23Z",
+  "revision": "bff5632d5d38c06518ac93b4fdff0b6db851ae0b",
+  "revision_scope": "The committed local employer dossier, exact-name local history aggregation, Rust-owned projection, fail-closed renderer decoder, Opportunity Case and company-research surfaces, source revalidation, privacy label, mixed-evidence evaluator, complete browser journey, and repository gate through bff5632d.",
+  "platform": "local macOS 27.0 arm64 host; no Windows 11 machine was available for live verification",
+  "commands": [
+    {
+      "command": "npm run verify:full",
+      "exit_status": 0,
+      "relevant_result": "Harness, environment diagnosis, architecture, security, bloat, dependency, action, SQLx, duplication, test-quality, Tauri-command, documentation, language, TypeScript, lint, 867 script tests, 3,158 frontend tests, production and Storybook builds, the 10-journey smoke budget, Rust formatting, production clippy with warnings denied, workspace tests, integrations, and doctests passed at the exact evidence revision.",
+      "caveat": "Environment diagnosis retained only the known local Node 26 and npm 11 version warnings against the repository pins. Generated build and test directories were moved to a recoverable temporary directory after verification."
+    },
+    {
+      "command": "npm run test:e2e:all:budget",
+      "exit_status": 0,
+      "relevant_result": "All 320 browser journeys completed with 320 expected outcomes and zero unexpected, flaky, or skipped outcomes in 150,544.241 ms, below the 240,000 ms budget.",
+      "caveat": "Playwright proves the maintained browser state matrix at desktop and 390-pixel widths; it does not replace installed native accessibility proof."
+    },
+    {
+      "command": "node scripts/dev/run-cargo.mjs test --workspace --all-features",
+      "exit_status": 0,
+      "relevant_result": "The all-features Rust workspace passed, including 195 domain tests and 5 doctests, 677 application tests with one explicit ignore, 801 storage tests plus integrations, and the remaining crate suites and doctests.",
+      "caveat": "Explicit environment-, model-, private-path-, and platform-dependent ignored tests remain visible; this command was run on macOS arm64, not Windows 11."
+    },
+    {
+      "command": "curl -fsS against the official Greenhouse Job Board documentation and robots policy and the official Lever developer support, postings API repository, and robots policy",
+      "exit_status": 0,
+      "relevant_result": "All five official endpoints returned HTTP 200 on 2026-08-12. The reviewed source records bind Greenhouse and Lever to those dated primary-source facts and retain their explicit expiry and policy boundaries.",
+      "caveat": "Vendor documentation and robots policy remain volatile. The source graph must re-review them after expiry; this evidence does not grant unrestricted crawling authority."
+    },
+    {
+      "command": "Fresh independent Milestone 8 adversarial review",
+      "exit_status": 0,
+      "relevant_result": "The final strict-ATS-host review returned SOUND after checking the local-only data boundary, exact source identity, provenance, freshness, uncertainty, safe next actions, and absence of employer, scam, legal, or composite verdicts.",
+      "caveat": "The verdict applies to the shipped minimum dossier and does not claim comprehensive employer or regional coverage."
+    }
+  ],
+  "completion": {
+    "minimum_dossier": "Opportunity Case and company research expose a progressive local employer dossier keyed by the exact job. It shows reviewed official posting status, posting history, pay clarity, application channel, bounded local outcome counts, source dates, freshness, uncertainty, and one safe next action.",
+    "privacy": "Local observations remain local and are aggregated by exact employer name as counts and latest outcome only. Raw notes, contacts, resumes, protected answers, and unrelated history do not enter the projection. Opening the dossier performs no network request.",
+    "trust_boundary": "Only exact reviewed Greenhouse and Lever evidence can supply official-source links in the minimum host path. Missing, stale, conflicting, malformed, oversized, or unsupported facts remain explicit or fail closed. Employer identity, safety, legality, and quality are never inferred from name-only history.",
+    "evaluation": "The frozen mixed-evidence evaluator requires source, date, uncertainty, a safe next action, and separate attribution of stale or conflicting evidence. It forbids published or centralized local observations and employer, scam, legal, or composite verdicts.",
+    "user_experience": "Desktop and narrow browser journeys cover current, partial, offline, stale-failure, and missing-source dossier states. Stored evidence remains usable offline, errors are sanitized and retryable, links are bounded, status is conveyed in text, and request identity guards prevent cross-job races."
+  },
+  "red_green": {
+    "initial_red": "Fail-first application, storage, domain-evaluator, decoder, component, and browser tests proved the dossier projection, exact-name history, mixed-evidence assertions, bounded renderer contract, and user-visible states were absent before implementation.",
+    "review_red": "Independent completion and security reviews found missing privacy ownership, weak provenance and source identity, incomplete decoder bounds, insufficient state coverage, and broad-gate regressions. Each finding received the smallest focused regression and correction before the full gate.",
+    "green": "Focused owner tests, the mixed-evidence evaluator, full browser budget, all-features Rust workspace, and exact-revision full repository gate passed."
+  },
+  "retained_gaps": [
+    {
+      "owner": "Milestone 11",
+      "gap": "No Windows 11 machine was available. Native installed layout, keyboard, screen-reader, and platform integration remain unverified live; the user explicitly accepted this risk."
+    },
+    {
+      "owner": "Milestone 11",
+      "gap": "The host was macOS 27.0 arm64. Exact installed macOS 26 accessibility and release-matrix proof remains open."
+    },
+    {
+      "owner": "Milestone 9",
+      "gap": "The minimum dossier intentionally validates only the already-governed official ATS host path. Regional starter coverage, taxonomy bridges, and edition delivery remain Milestone 9 work and must not be inferred from this milestone."
+    }
+  ],
+  "privacy_and_network": {
+    "external_ai_used": false,
+    "central_private_reviews_created": false,
+    "raw_private_observations_projected": false,
+    "background_network_on_open": false,
+    "live_user_data_used": false,
+    "official_public_source_policy_revalidated": true
+  },
+  "source": "docs/plans/v3/master-exec-plan.md"
+}

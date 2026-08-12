@@ -15,6 +15,7 @@ import type {
   ContactInfo,
   Education,
   Experience,
+  ResumeData,
   SkillEntry,
   Template,
   TemplateId,
@@ -31,6 +32,7 @@ interface ResumeBuilderWorkspaceProps {
   importingSkills: boolean;
   newSkill: SkillEntry;
   previewHtml: string;
+  resumeData: ResumeData | null;
   saving: boolean;
   selectedTemplate: TemplateId;
   showContactValidation: boolean;
@@ -67,6 +69,7 @@ export function ResumeBuilderWorkspace({
   importingSkills,
   newSkill,
   previewHtml,
+  resumeData,
   saving,
   selectedTemplate,
   showContactValidation,
@@ -169,8 +172,9 @@ export function ResumeBuilderWorkspace({
         <div className="lg:col-span-1 space-y-4">
           <AtsLiveScorePanel
             resumeData={
-              contact.name
+              contact.name && resumeData
                 ? {
+                    ...resumeData,
                     contact,
                     summary,
                     experience: experiences,

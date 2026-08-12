@@ -44,7 +44,7 @@ describe("ApplicationPreview", () => {
           return Promise.resolve(mockProfile);
         }
 
-        if (command === "get_screening_answers") {
+        if (command === "get_application_screening_answer_previews") {
           return Promise.resolve([
             {
               questionPattern: "background check",
@@ -70,7 +70,7 @@ describe("ApplicationPreview", () => {
         expect(screen.getByText("Jordan Lee")).toBeInTheDocument();
       });
       expect(screen.queryByText("Hard Question Review")).not.toBeInTheDocument();
-      expect(mockInvoke).not.toHaveBeenCalledWith("get_screening_answers");
+      expect(mockInvoke).not.toHaveBeenCalledWith("get_application_screening_answer_previews");
 
       rerender(
         <ApplicationPreview
@@ -84,7 +84,7 @@ describe("ApplicationPreview", () => {
 
       expect(await screen.findByText("Hard Question Review")).toBeInTheDocument();
       expect(screen.getByText("Background check or drug screen")).toBeInTheDocument();
-      expect(mockInvoke).toHaveBeenCalledWith("get_screening_answers");
+      expect(mockInvoke).toHaveBeenCalledWith("get_application_screening_answer_previews");
       expect(profileLoadCount).toBeGreaterThanOrEqual(2);
     });
 

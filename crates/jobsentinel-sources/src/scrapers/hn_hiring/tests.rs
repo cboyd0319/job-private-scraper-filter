@@ -218,24 +218,24 @@ fn test_extract_title_no_match() {
 }
 
 #[test]
-fn test_parse_comments_with_realistic_json() {
+fn test_parse_thread_children_with_realistic_json() {
     let scraper = HnHiringScraper::new(10, false);
     let json_data = serde_json::json!({
-        "hits": [
+        "children": [
             {
-                "objectID": "12345",
-                "comment_text": "Acme Corp (YC S21) | Senior Backend Engineer | Remote | Full-time\n\nWe're building the future of AI. Looking for experienced engineers to join our team. Must have 5+ years experience with Rust or Go. Remote work available anywhere in the US.\n\nApply at: https://acmecorp.com/jobs"
+                "id": 12345,
+                "text": "Acme Corp (YC S21) | Senior Backend Engineer | Remote | Full-time\n\nWe're building the future of AI. Looking for experienced engineers to join our team. Must have 5+ years experience with Rust or Go. Remote work available anywhere in the US.\n\nApply at: https://acmecorp.com/jobs"
             },
             {
-                "objectID": "67890",
-                "comment_text": "TechStartup | Full Stack Engineer | San Francisco | $150k-$200k\n\nJoin our small team working on cutting-edge web tech. We use React, Node.js, and PostgreSQL."
+                "id": 67890,
+                "text": "TechStartup | Full Stack Engineer | San Francisco | $150k-$200k\n\nJoin our small team working on cutting-edge web tech. We use React, Node.js, and PostgreSQL."
             }
         ]
     });
 
     let jobs = scraper
-        .parse_comments(&json_data)
-        .expect("parse_comments should succeed");
+        .parse_thread_children(&json_data)
+        .expect("parse_thread_children should succeed");
 
     assert_eq!(jobs.len(), 2);
     assert_eq!(jobs[0].company, "Acme Corp (YC S21)");
@@ -245,114 +245,114 @@ fn test_parse_comments_with_realistic_json() {
 }
 
 #[test]
-fn test_parse_comments_respects_limit() {
+fn test_parse_thread_children_respects_limit() {
     let scraper = HnHiringScraper::new(2, false);
     let json_data = serde_json::json!({
-        "hits": [
+        "children": [
             {
-                "objectID": "1",
-                "comment_text": "Company A | Senior Engineer | Remote\n\nWe're hiring experienced engineers with deep knowledge of distributed systems."
+                "id": 1,
+                "text": "Company A | Senior Engineer | Remote\n\nWe're hiring experienced engineers with deep knowledge of distributed systems."
             },
             {
-                "objectID": "2",
-                "comment_text": "Company B | Backend Developer | San Francisco\n\nLooking for backend developers with Python experience."
+                "id": 2,
+                "text": "Company B | Backend Developer | San Francisco\n\nLooking for backend developers with Python experience."
             },
             {
-                "objectID": "3",
-                "comment_text": "Company C | Frontend Developer | New York\n\nSeeking frontend developers who know React."
+                "id": 3,
+                "text": "Company C | Frontend Developer | New York\n\nSeeking frontend developers who know React."
             }
         ]
     });
 
     let jobs = scraper
-        .parse_comments(&json_data)
-        .expect("parse_comments should succeed");
+        .parse_thread_children(&json_data)
+        .expect("parse_thread_children should succeed");
 
     assert_eq!(jobs.len(), 2);
 }
 
 #[test]
-fn test_parse_comments_filters_remote_only() {
+fn test_parse_thread_children_filters_remote_only() {
     let scraper = HnHiringScraper::new(10, true);
     let json_data = serde_json::json!({
-        "hits": [
+        "children": [
             {
-                "objectID": "1",
-                "comment_text": "RemoteCo | Senior Engineer | Remote\n\nFully remote position available for experienced engineers."
+                "id": 1,
+                "text": "RemoteCo | Senior Engineer | Remote\n\nFully remote position available for experienced engineers."
             },
             {
-                "objectID": "2",
-                "comment_text": "OnSiteCo | Backend Developer | San Francisco\n\nOnsite only position in downtown SF."
+                "id": 2,
+                "text": "OnSiteCo | Backend Developer | San Francisco\n\nOnsite only position in downtown SF."
             },
             {
-                "objectID": "3",
-                "comment_text": "HybridCo | Frontend Developer | WFH\n\nWork from home position available."
+                "id": 3,
+                "text": "HybridCo | Frontend Developer | WFH\n\nWork from home position available."
             }
         ]
     });
 
     let jobs = scraper
-        .parse_comments(&json_data)
-        .expect("parse_comments should succeed");
+        .parse_thread_children(&json_data)
+        .expect("parse_thread_children should succeed");
 
     assert_eq!(jobs.len(), 1);
     assert!(jobs.iter().all(|j| j.remote == Some(true)));
 }
 
 #[test]
-fn test_parse_comments_skips_short_comments() {
+fn test_parse_thread_children_skips_short_comments() {
     let scraper = HnHiringScraper::new(10, false);
     let json_data = serde_json::json!({
-        "hits": [
+        "children": [
             {
-                "objectID": "1",
-                "comment_text": "Too short"
+                "id": 1,
+                "text": "Too short"
             },
             {
-                "objectID": "2",
-                "comment_text": "ValidCorp | Senior Engineer | Remote\n\nThis is a longer comment with sufficient detail about the job posting."
+                "id": 2,
+                "text": "ValidCorp | Senior Engineer | Remote\n\nThis is a longer comment with sufficient detail about the job posting."
             }
         ]
     });
 
     let jobs = scraper
-        .parse_comments(&json_data)
-        .expect("parse_comments should succeed");
+        .parse_thread_children(&json_data)
+        .expect("parse_thread_children should succeed");
 
     assert_eq!(jobs.len(), 1);
     assert_eq!(jobs[0].company, "ValidCorp");
 }
 
 #[test]
-fn test_parse_comments_empty_hits() {
+fn test_parse_thread_children_empty_hits() {
     let scraper = HnHiringScraper::new(10, false);
     let json_data = serde_json::json!({
-        "hits": []
+        "children": []
     });
 
     let jobs = scraper
-        .parse_comments(&json_data)
-        .expect("parse_comments should succeed");
+        .parse_thread_children(&json_data)
+        .expect("parse_thread_children should succeed");
 
     assert_eq!(jobs.len(), 0);
 }
 
 #[test]
-fn test_parse_comments_truncates_long_description() {
+fn test_parse_thread_children_truncates_long_description() {
     let scraper = HnHiringScraper::new(10, false);
     let long_text = format!("BigCorp | Engineer | Remote\n\n{}", "A".repeat(600));
     let json_data = serde_json::json!({
-        "hits": [
+        "children": [
             {
-                "objectID": "1",
-                "comment_text": long_text
+                "id": 1,
+                "text": long_text
             }
         ]
     });
 
     let jobs = scraper
-        .parse_comments(&json_data)
-        .expect("parse_comments should succeed");
+        .parse_thread_children(&json_data)
+        .expect("parse_thread_children should succeed");
 
     assert_eq!(jobs.len(), 1);
     let description = jobs[0].description.as_ref().unwrap();
@@ -361,3 +361,4 @@ fn test_parse_comments_truncates_long_description() {
 }
 
 mod additional_tests;
+mod governance_tests;

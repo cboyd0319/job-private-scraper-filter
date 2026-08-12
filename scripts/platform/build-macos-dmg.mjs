@@ -33,6 +33,10 @@ import {
   assertDeveloperIdSignature,
   extractTeamIdFromSigningIdentity,
 } from "./macos-signature.mjs";
+import {
+  getMacosRuntimeProfile,
+  macosRuntimeProfileTauriArgs,
+} from "./macos-runtime-profile.mjs";
 
 export {
   prependPathDir,
@@ -67,11 +71,15 @@ export function getArgValue(args, name) {
   return prefixed ? prefixed.slice(name.length + 1) : undefined;
 }
 
-export function buildTauriArgs(args) {
-  const tauriArgs = ["build", ...args];
+export { getMacosRuntimeProfile as getRuntimeProfile } from "./macos-runtime-profile.mjs";
 
-  if (!hasArg(tauriArgs, "--bundles")) {
-    tauriArgs.push("--bundles", "app");
+export function buildTauriArgs(args) {
+  const tauriArgs = ["build", ...macosRuntimeProfileTauriArgs(args)];
+  const separatorIndex = tauriArgs.indexOf("--");
+  const tauriArgsEnd = separatorIndex === -1 ? tauriArgs.length : separatorIndex;
+
+  if (!hasArg(tauriArgs.slice(0, tauriArgsEnd), "--bundles")) {
+    tauriArgs.splice(tauriArgsEnd, 0, "--bundles", "app");
   }
 
   return tauriArgs;
@@ -351,9 +359,11 @@ function writeDmgChecksum(dmgPath) {
 
 export function getMacBuildPaths(root, args, metadata = readBuildMetadata(root), env = process.env) {
   const target = getArgValue(args, "--target");
+  const runtimeProfile = getMacosRuntimeProfile(args);
   const releaseDir = getReleaseDir(root, args);
   const appPath = join(releaseDir, "bundle", "macos", `${metadata.productName}.app`);
-  const baseDmgName = `${metadata.productName}_${metadata.version}_${getArchSuffix(target)}.dmg`;
+  const profileLabel = runtimeProfile === "stronger-local" ? "_stronger-local" : "";
+  const baseDmgName = `${metadata.productName}_${metadata.version}${profileLabel}_${getArchSuffix(target)}.dmg`;
   const dmgName = env.JOBSENTINEL_MACOS_NO_ACCOUNT === "true"
     ? noAccountDmgArtifactName(baseDmgName) ?? baseDmgName
     : baseDmgName;
@@ -367,6 +377,7 @@ export function getMacBuildPaths(root, args, metadata = readBuildMetadata(root),
     dmgPath,
     macosDir: join(releaseDir, "bundle", "macos"),
     releaseDir,
+    runtimeProfile,
     target,
   };
 }
@@ -380,6 +391,7 @@ export function main({ root = defaultRoot, args = process.argv.slice(2) } = {}) 
   const paths = getMacBuildPaths(root, args, metadata);
   const tauriBin = join(root, "node_modules", ".bin", "tauri");
 
+  console.log(`macOS runtime profile: ${paths.runtimeProfile}`);
   removeStaleDmgArtifacts([paths.dmgDir, paths.macosDir], paths.dmgName);
   run(tauriBin, buildTauriArgs(args), { cwd: root, env: buildMacosTauriEnv() });
 

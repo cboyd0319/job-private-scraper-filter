@@ -277,6 +277,43 @@ Model regional and public-service workflows directly:
 The bridge should be source and guidance metadata, not a claim of full regional
 coverage.
 
+#### Veteran And Military-Transition Research Inputs
+
+Use these sources as research inputs with explicit authority and freshness
+labels. A listing or suggested civilian equivalent is never user evidence by
+itself.
+
+| Source | Research role | Required handling |
+| --- | --- | --- |
+| [O*NET Crosswalk Files](https://www.onetcenter.org/crosswalks.html) | Primary machine-readable military-to-civilian occupation crosswalk candidate. It combines Defense Manpower Data Center mappings with Department of Labor analysis and supplemental COOL data. | Pin the retrieved release, checksum it, retain attribution and license metadata, and show source date and mapping type. Revalidate before each release. |
+| [DOD COOL Military Occupations Explorer](https://www.cool.osd.mil/research-military-occupations.htm) | Primary manual reference for military occupations and related credentials. | Automated access returned `403` during the 2026-07-18 review. Do not make this page a runtime dependency; use manual review and the downloadable COOL-derived O*NET data where permitted. |
+| [MOS Directory](https://mos.directory/) | Independent six-branch directory covering MOS, Rating, AFSC, and SFSC codes, skills, certifications, and civilian role families. | Use for coverage comparison and plain-language UX research. Verify every mapping against official data because the site is not government-affiliated. |
+| [Military Money MOS Lists](https://www.militarymoney.com/careers/mos-lists/) | Broad secondary MOS taxonomy and terminology reference. | The page was last updated in 2022. Use only for gap discovery and historical terminology; do not import mappings or current claims without primary-source confirmation. |
+| [From Service to Sector](https://coeccc.net/from-service-to-sector-mapping-military-skills-to-civilian-careers/) | 2025 regional labor-market study showing a skills, duties, qualifications, wage, and demand mapping method. | Use its method and evaluation questions, not its San Diego and Imperial results as national claims. Revalidate labor-market data by region and date. |
+| [Best Military Resume MOS-to-Civilian Chart](https://bestmilitaryresume.com/blog/career-transition/mos-to-civilian-job-chart-all-branches-2026) | Current commercial comparison for occupation translation, salary presentation, federal series, and resume workflow. | Treat mappings, salaries, testimonials, and product claims as untrusted comparison inputs. Verify them against O*NET, BLS, official federal data, and user evidence. |
+| [Military Transition Toolkit MOS Translator](https://www.militarytransitiontoolkit.com/mos) | Independent comparison for six-branch navigation, career paths, certifications, salary display, and transition sequencing. | The site states that it is not government-affiliated. Use for coverage and UX comparison only; verify mappings, salary figures, eligibility, and benefit guidance independently. |
+| [VetSec Remote Security Companies](https://github.com/VetSec/companies-hiring-security-remote) | Community-curated discovery seed for remote security employers. | The repository is a fork and warns that company remote posture changes. Verify every employer and opening against an official careers source before display; never represent the list as veteran-specific hiring proof. |
+| [VetSec AI/ML Resume Guides](https://github.com/VetSec/AI-ML/tree/main/resume/ChatGPT) | Veteran-focused resume and cybersecurity-transition comparison material. | Use for adversarial and UX evaluation only. Do not copy its prompts into product behavior, infer tools or credentials, or send resume content to ChatGPT by default. JobSentinel requires user-confirmed evidence and its privacy-first AI gateway. |
+
+Evaluation requirements:
+
+- Normalize Army and Marine Corps MOS, Navy and Coast Guard Rating, Air Force
+  AFSC, and Space Force SFSC identifiers without collapsing branch meaning.
+- Present multiple plausible civilian paths with provenance, mapping type,
+  date, uncertainty, and the user evidence needed to support each path.
+- Never infer veteran status, service history, discharge character,
+  preference or benefit eligibility, certifications, current clearance, or
+  civilian-tool experience from an occupation code.
+- Preserve exact user wording and evidence before proposing civilian-friendly
+  language. A crosswalk can suggest investigation, not authorize a resume claim.
+- Keep employer, salary, credential, federal-series, and policy data volatile.
+  Refresh or clearly date it and provide a manual verification path.
+- Keep resume content local by default. External AI remains optional,
+  redacted, previewed, approved, and gateway-routed.
+- Include fixtures for multiple branches, ranks, occupation-code variants,
+  direct and skill-related mappings, no-match cases, stale sources, and users
+  who do not want to disclose veteran status.
+
 ### 5. Safety Response Center
 
 Move beyond "this may be a scam" into safe action:

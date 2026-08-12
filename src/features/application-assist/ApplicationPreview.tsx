@@ -32,7 +32,7 @@ export const ApplicationPreview = memo(function ApplicationPreview({ job, atsPla
       }
 
       try {
-        const answers = await invoke<ScreeningAnswerPreview[]>("get_screening_answers");
+        const answers = await invoke<ScreeningAnswerPreview[]>("get_application_screening_answer_previews");
         if (signal?.aborted) return;
         setScreeningAnswers(Array.isArray(answers) ? answers : []);
       } catch (error: unknown) {

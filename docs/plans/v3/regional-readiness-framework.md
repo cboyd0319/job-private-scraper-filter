@@ -150,6 +150,26 @@ V3 should expose:
 - "This region pack is starter coverage" labels when coverage is incomplete.
 - feedback button for missing sources, formats, or terms.
 
+## Gate 4 Delivery Decisions
+
+- Deliver optional user-selected region data as signed static `Region` packs.
+  Static packs receive no executable action, credential, external AI, or
+  network authority.
+- Keep every live source behind its separate reviewed source manifest and exact
+  operation grant. Installing a region pack cannot authorize a request.
+- Keep region packs out of Essentials defaults and make them independently
+  installable, disableable, removable, and upgradeable in Milestone 9.
+- Treat `reviewed_on` as visible provenance for static taxonomy and CV guidance,
+  not as source authorization or a universal expiry. Reuse each runtime source
+  manifest's evidence-backed `max_age_days`; stale source policy stops network
+  actions without deleting dated static guidance.
+- Keep GOV.UK Find a job and UK SOC 2020, EURES, ESCO and Europass, and India's
+  National Career Service, NCO 2015 and NSQF/NOS as research seeds until their
+  regional fixtures and source-specific reviews pass.
+
+These decisions do not label a region pack ready. Current manifests remain
+English-only starter research metadata with incomplete-coverage labels.
+
 ## Regional Evaluation
 
 Each region pack needs tests for:

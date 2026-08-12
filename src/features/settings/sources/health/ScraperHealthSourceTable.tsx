@@ -167,6 +167,7 @@ export function ScraperHealthSourceTable({
               const statusConfig = healthStatusConfig[scraper.health_status];
               const selectorConfig = selectorHealthConfig[scraper.selector_health];
               const recentStatus = getRecentStatus(scraper);
+              const providerReviewPending = scraper.scraper_name === "jobswithgpt";
 
               return (
                 <tr
@@ -262,7 +263,9 @@ export function ScraperHealthSourceTable({
                     <div className="flex items-center justify-end gap-2">
                       <button
                         aria-label={
-                          scraper.is_enabled
+                          providerReviewPending
+                            ? "JobsWithGPT provider review pending"
+                            : scraper.is_enabled
                             ? `Turn ${scraper.display_name} off`
                             : `Turn ${scraper.display_name} on`
                         }
@@ -272,13 +275,18 @@ export function ScraperHealthSourceTable({
                             !scraper.is_enabled,
                           )
                         }
+                        disabled={providerReviewPending}
                         className={`min-w-20 rounded px-2.5 py-1.5 text-xs font-medium transition-colors ${
                           scraper.is_enabled
                             ? "bg-green-100 text-green-700 hover:bg-green-200 dark:bg-green-900/30 dark:text-green-300"
                             : "bg-surface-100 text-surface-600 hover:bg-surface-200 dark:bg-surface-700 dark:text-surface-300"
                         }`}
                       >
-                        {scraper.is_enabled ? "Turn Off" : "Turn On"}
+                        {providerReviewPending
+                          ? "Review Pending"
+                          : scraper.is_enabled
+                            ? "Turn Off"
+                            : "Turn On"}
                       </button>
                       <button
                         aria-label={`Check ${scraper.display_name} now`}

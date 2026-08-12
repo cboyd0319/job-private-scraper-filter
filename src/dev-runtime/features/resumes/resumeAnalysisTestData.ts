@@ -20,6 +20,7 @@ export type AtsAnalysisResult = {
     match_state: "Direct" | "Strong" | "Partial" | "Implied" | "Missing";
     evidence_sections: string[];
     hard_constraint: boolean;
+    profile_preferred_section?: boolean;
     recommendation: string;
   }>;
   hard_constraint_risks: Array<{
@@ -49,6 +50,19 @@ export type AtsAnalysisResult = {
     suggestion: string;
     impact: string;
   }>;
+  matching_profile?: {
+    profession:
+      | "technical"
+      | "content"
+      | "operations"
+      | "healthcare"
+      | "service"
+      | "trades"
+      | "education"
+      | "sales"
+      | "early_career";
+    region: "us" | "uk" | "eu" | "india";
+  };
 };
 
 export const atsResume = {

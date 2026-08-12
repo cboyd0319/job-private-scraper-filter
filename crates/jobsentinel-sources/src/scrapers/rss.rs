@@ -45,10 +45,6 @@ impl RssItem {
 }
 
 pub(super) fn parse_rss_items(xml: &str, limit: usize) -> Result<Vec<RssItem>, RssParseError> {
-    if limit == 0 {
-        return Ok(Vec::new());
-    }
-
     let mut reader = Reader::from_str(xml);
     reader.config_mut().trim_text(false);
 
@@ -58,9 +54,38 @@ pub(super) fn parse_rss_items(xml: &str, limit: usize) -> Result<Vec<RssItem>, R
     let mut in_item = false;
     let mut active_field: Option<String> = None;
     let mut active_text = String::new();
+    let mut element_depth = 0_usize;
 
     loop {
-        match reader.read_event_into(&mut buf)? {
+        let event = reader.read_event_into(&mut buf)?;
+        match &event {
+            Event::Start(_) => {
+                element_depth = element_depth.checked_add(1).ok_or_else(|| {
+                    std::io::Error::new(
+                        std::io::ErrorKind::InvalidData,
+                        "RSS element depth overflowed",
+                    )
+                })?;
+            }
+            Event::End(_) => {
+                element_depth = element_depth.checked_sub(1).ok_or_else(|| {
+                    std::io::Error::new(
+                        std::io::ErrorKind::InvalidData,
+                        "RSS closed an unopened element",
+                    )
+                })?;
+            }
+            Event::Eof if element_depth != 0 => {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::UnexpectedEof,
+                    "RSS ended before all elements closed",
+                )
+                .into());
+            }
+            _ => {}
+        }
+
+        match event {
             Event::Start(element) if is_local_name(element.name().as_ref(), b"item") => {
                 in_item = true;
                 current_item = RssItem::default();
@@ -76,11 +101,8 @@ pub(super) fn parse_rss_items(xml: &str, limit: usize) -> Result<Vec<RssItem>, R
                     current_item.insert_once(&field, &active_text);
                     active_text.clear();
                 }
-                if !current_item.is_empty() {
+                if !current_item.is_empty() && items.len() < limit {
                     items.push(current_item.clone());
-                    if items.len() >= limit {
-                        break;
-                    }
                 }
                 in_item = false;
             }
@@ -230,5 +252,20 @@ mod tests {
 
         assert_eq!(items[0].get("georss:point"), Some("39.7392 -104.9903"));
         assert_eq!(items[0].get("point"), Some("39.7392 -104.9903"));
+    }
+
+    #[test]
+    fn parse_rss_items_rejects_a_truncated_tail_after_the_result_limit() {
+        let xml = r#"
+            <rss>
+                <channel>
+                    <item>
+                        <title>Company: Complete Role</title>
+                        <link>https://example.com/job/1</link>
+                    </item>
+                    <item><title>Truncated Role
+        "#;
+
+        assert!(parse_rss_items(xml, 1).is_err());
     }
 }

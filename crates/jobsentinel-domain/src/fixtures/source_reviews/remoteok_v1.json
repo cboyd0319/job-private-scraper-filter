@@ -1,0 +1,38 @@
+{
+  "source_id": "remoteok",
+  "reviewed_on": "2026-07-19",
+  "reference_ids": [
+    "source-review.remoteok.api-terms",
+    "source-review.remoteok.robots"
+  ],
+  "evidence": [
+    {
+      "url": "https://remoteok.com/api",
+      "observed": "The API notice requires a followed attribution link to each Remote OK listing and prohibits unapproved logo use."
+    },
+    {
+      "url": "https://remoteok.com/legal",
+      "observed": "The published terms repeat the API and site attribution requirement."
+    },
+    {
+      "url": "https://remoteok.com/robots.txt",
+      "observed": "The wildcard robots policy allows ordinary public paths with a one-second crawl delay, restricts query paths, and reserves model-training use; named AI crawler groups also exclude profile paths."
+    }
+  ],
+  "local_policy": {
+    "operation": "public API GET job-list checks only",
+    "request_limit_per_hour": 500,
+    "basis": "JobSentinel ceiling stays below the reviewed one-second crawl-delay boundary.",
+    "burst": 1,
+    "automatic_retries": false,
+    "attribution_link_required": true,
+    "logo_use": false,
+    "external_model_training": false
+  },
+  "change_triggers": [
+    "API attribution notice changes",
+    "legal or robots policy changes",
+    "rate-limit or access rejection",
+    "response schema drift"
+  ]
+}

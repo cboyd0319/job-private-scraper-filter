@@ -1,14 +1,14 @@
+/** Verifies macOS package parsing, signature, checksum, and launch-smoke helpers. */
+
 import assert from "node:assert/strict";
 import { chmodSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
-import {
-  developerIdSignatureViolations,
-  parseCodesignDetails,
-} from "../../platform/macos-signature.mjs";
+import { developerIdSignatureViolations, parseCodesignDetails } from "../../platform/macos-signature.mjs";
 import {
   buildGatekeeperAssessArgs,
+  buildMacosCoalitionKillArgs,
   bundleIconResourceNames,
   buildMacosOpenArgs,
   buildStaplerValidateArgs,
@@ -23,21 +23,17 @@ import {
   parseArgs,
   parseCgWindowSmokeOutput,
   parseLipoArchitectures,
+  parseLsappinfoCoalition,
+  parsePsRssSample,
   parseSha256Checksum,
   smokeDataPermissionViolations,
   verifyLocalDmgChecksum,
 } from "../../release/verify-macos-package.mjs";
 
-test("macOS verifier resolves bundle icon resource names", () => {
-  assert.deepEqual(bundleIconResourceNames("icon.icns"), ["icon.icns"]);
-  assert.deepEqual(bundleIconResourceNames("AppIcon"), ["AppIcon", "AppIcon.icns"]);
-  assert.deepEqual(bundleIconResourceNames(""), []);
-});
-
-test("macOS verifier parses positional and flagged DMG arguments", () => {
-  assert.deepEqual(parseArgs(["build.dmg"], "arm64"), {
+function expectedParsedArgs(dmgPath, verifyChecksum) {
+  return {
     appName: "JobSentinel.app",
-    dmgPath: "build.dmg",
+    dmgPath,
     expectedBundleMetadata: {
       bundleIdentifier: undefined,
       iconFile: undefined,
@@ -50,9 +46,20 @@ test("macOS verifier parses positional and flagged DMG arguments", () => {
     launchSmoke: false,
     requireChecksum: false,
     requireGatekeeper: false,
-    verifyChecksum: true,
+    runtimeProfile: "essentials",
+    verifyChecksum,
     smokeSeconds: 12,
-  });
+  };
+}
+
+test("macOS verifier resolves bundle icon resource names", () => {
+  assert.deepEqual(bundleIconResourceNames("icon.icns"), ["icon.icns"]);
+  assert.deepEqual(bundleIconResourceNames("AppIcon"), ["AppIcon", "AppIcon.icns"]);
+  assert.deepEqual(bundleIconResourceNames(""), []);
+});
+
+test("macOS verifier parses positional and flagged DMG arguments", () => {
+  assert.deepEqual(parseArgs(["build.dmg"], "arm64"), expectedParsedArgs("build.dmg", true));
 
   assert.deepEqual(
     parseArgs([
@@ -92,34 +99,71 @@ test("macOS verifier parses positional and flagged DMG arguments", () => {
       launchSmoke: true,
       requireChecksum: true,
       requireGatekeeper: true,
+      runtimeProfile: "essentials",
       verifyChecksum: true,
       smokeSeconds: 3,
     },
   );
 
-  assert.deepEqual(parseArgs(["--dmg", "build.dmg", "--no-checksum"], "arm64"), {
-    appName: "JobSentinel.app",
-    dmgPath: "build.dmg",
-    expectedBundleMetadata: {
-      bundleIdentifier: undefined,
-      iconFile: undefined,
-      minimumSystemVersion: undefined,
-      productName: undefined,
-      version: undefined,
-    },
-    expectedArchitectures: ["arm64"],
-    installSmoke: false,
-    launchSmoke: false,
-    requireChecksum: false,
-    requireGatekeeper: false,
-    verifyChecksum: false,
-    smokeSeconds: 12,
-  });
+  assert.deepEqual(
+    parseArgs(["--dmg", "build.dmg", "--no-checksum"], "arm64"),
+    expectedParsedArgs("build.dmg", false),
+  );
 });
 
 test("macOS verifier maps local Node architectures to Mach-O architectures", () => {
   assert.deepEqual(defaultArchitectures("arm64"), ["arm64"]);
   assert.deepEqual(defaultArchitectures("x64"), ["x86_64"]);
+});
+
+test("macOS verifier binds the selected main process to its exact launch coalition", () => {
+  const output = `
+75) "JobSentinel" ASN:0x0-0x4062060:
+    bundleID="com.jobsentinel.main"
+    pid = 78020
+    coalition: 1001  { 78020 78021 }
+77) "JobSentinel" ASN:0x0-0x4064060:
+    bundleID="com.jobsentinel.main"
+    pid = 78038
+    coalition: 1002  { 78038 78057 78058 78059 }
+`;
+
+  assert.deepEqual(parseLsappinfoCoalition(output, 78038), {
+    asn: "ASN:0x0-0x4064060:",
+    pids: [78038, 78057, 78058, 78059],
+  });
+  assert.deepEqual(parseLsappinfoCoalition("", 78038), {
+    asn: undefined,
+    pids: [78038],
+  });
+});
+
+test("macOS verifier shuts down by launch ASN instead of historical process IDs", () => {
+  assert.deepEqual(buildMacosCoalitionKillArgs("ASN:0x0-0x4064060:", false), [
+    "kill",
+    "-coalition",
+    "ASN:0x0-0x4064060:",
+  ]);
+  assert.deepEqual(buildMacosCoalitionKillArgs("ASN:0x0-0x4064060:", true), [
+    "kill",
+    "-coalition",
+    "-hard",
+    "ASN:0x0-0x4064060:",
+  ]);
+});
+
+test("macOS verifier sums RSS only for the selected process IDs", () => {
+  assert.deepEqual(
+    parsePsRssSample("78038 115072\n78057 29392\n78058 63104\n99999 900000\n", [
+      78038,
+      78057,
+      78058,
+    ]),
+    {
+      processCount: 3,
+      rssKib: 207568,
+    },
+  );
 });
 
 test("macOS verifier parses lipo output for universal and thin binaries", () => {

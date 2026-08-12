@@ -1,0 +1,147 @@
+{
+  "schema": "jobsentinel.feature_evidence.v1",
+  "feature_id": "v3-milestone-7-agent-pack-runtime",
+  "slice": "milestone-7-completion",
+  "behavior": "Packs stay bounded.",
+  "result": "passing",
+  "verified_at": "2026-08-12T18:06:23Z",
+  "revision": "a11e6097393c0cdf51bac34769a413f84960192b",
+  "revision_scope": "The committed production publisher trust, startup reconciliation, local signer, official Agent Skills validation, source-pack staging and lifecycle, reviewed static Skill, Evidence Reviewer and Packet Builder surfaces, deterministic G19 evaluation, and browser-development parity through a11e6097.",
+  "platform": "local macOS 27.0 arm64 host; Windows production code and metadata compile evidence is retained from the Milestone 7 Windows source checkpoint, but no Windows 11 machine was available for live verification",
+  "commands": [
+    {
+      "command": "1Password MCP Developer Environment provisioning followed by concealed child-process validation",
+      "exit_status": 0,
+      "relevant_result": "Created one dedicated JobSentinel Production Pack Signing environment with five distinct Ed25519 PKCS#8 private identities and validated all derived public identities without writing private material to the repository or command output.",
+      "caveat": "The environment and account identifiers and every concealed value remain outside repository evidence. Rotation or deletion is an operator action and was not performed."
+    },
+    {
+      "command": "for skill_dir in skills/*(/); do uv run --directory ../agentskills/skills-ref skills-ref validate \"$PWD/$skill_dir\"; done",
+      "exit_status": 0,
+      "relevant_result": "The official upstream Agent Skills reference validator accepted all eight shipped skill directories.",
+      "caveat": "The validator proves specification conformance, not free-form output quality. JobSentinel separately proves bounded static-package readiness and the selected handoff target."
+    },
+    {
+      "command": "npm run lint:skills",
+      "exit_status": 0,
+      "relevant_result": "The JobSentinel secure static-skill profile accepted every shipped package, including real YAML frontmatter, complete referenced resources, traversal rejection, safe text, and the local compatibility contract.",
+      "caveat": "The local profile intentionally narrows the broader official format for static signed content."
+    },
+    {
+      "command": "npm run test:run",
+      "exit_status": 0,
+      "relevant_result": "All 271 frontend test files and 3,147 tests passed, including pack lifecycle, replay copy, target-release approval facts, reviewed task receipts, focus, availability, input races, and browser-development parity.",
+      "caveat": "Component and contract tests do not replace installed Windows or macOS assistive-technology journeys."
+    },
+    {
+      "command": "npm run test:scripts",
+      "exit_status": 0,
+      "relevant_result": "All 866 script contract tests passed, including official skill-profile parsing and the secret-safe local release signer.",
+      "caveat": "Script contracts do not exercise the 1Password graphical interface or an installed application."
+    },
+    {
+      "command": "npm run verify:rust",
+      "exit_status": 0,
+      "relevant_result": "Workspace formatting, clippy with warnings denied, all Rust unit and integration tests, and doctests passed across the full workspace.",
+      "caveat": "Platform-specific Windows runtime behavior was not live-run on this macOS host."
+    },
+    {
+      "command": "npm run build",
+      "exit_status": 0,
+      "relevant_result": "The TypeScript and Vite production build completed successfully.",
+      "caveat": "Existing ineffective-dynamic-import optimization warnings remain non-blocking and unrelated to the pack runtime."
+    },
+    {
+      "command": "npm run harness:check",
+      "exit_status": 0,
+      "relevant_result": "Canonical feature state, revision-bound evidence, architecture ownership, and repository structure passed after Milestone 8 became the sole active feature.",
+      "caveat": "Static repository checks do not replace installed application or release-platform proof."
+    },
+    {
+      "command": "npm run lint:architecture; npm run lint:security; npm run lint:file-size; npm run lint:file-description; npm run lint:tauri-invokes; npm run lint; npm run typecheck; git diff --check",
+      "exit_status": 0,
+      "relevant_result": "Architecture, security sensors, secret scan, hard file limits, responsibility descriptions, Tauri command parity, lint, types, and patch whitespace passed.",
+      "caveat": "Twenty changed files reached the non-blocking modularization review threshold; every governed file remained below the hard limit."
+    },
+    {
+      "command": "cargo deny check",
+      "exit_status": 0,
+      "relevant_result": "Rust advisories, bans, licenses, and sources passed.",
+      "caveat": "This is dependency-policy evidence, not runtime behavior evidence."
+    },
+    {
+      "command": "Fresh independent M7 UI and security completion review",
+      "exit_status": 0,
+      "relevant_result": "The final verdict was APPROVE with no material findings after every target-release, pre-start cancellation, case identity, replay, receipt, keyboard, focus, availability, and development-parity issue was regression-protected.",
+      "caveat": "The reviewer retained live Windows 11 and installed macOS 26 accessibility behavior as release-proof scope."
+    }
+  ],
+  "production_signing": {
+    "environment_name": "JobSentinel Production Pack Signing",
+    "private_key_storage": "Five concealed base64 PKCS#8 DER Ed25519 values in one 1Password Developer Environment; no private key, environment ID, item reference, or secret is stored in the repository.",
+    "local_route": "1Password injects one selected private identity only into the local release-signing child process. The signer binds the expected public key, signs exact release bytes, self-verifies, and creates a new envelope without overwrite.",
+    "revocation_policy": "Omission from the compiled production registry means revoked and quarantines affected active artifacts. A rotated identity always receives a new publisher key ID.",
+    "identities": [
+      {
+        "publisher_key_id": "jobsentinel-source-publisher-v1",
+        "public_key_sha256": "e95ab6838ec2cc62459ce81c629fcd98ba3a9e3c5179149c8ac0d47ba2a0ff88",
+        "ceiling": "Source, StaticContent, LocalOnly, with no data, task, action, approval-gate, destination, gateway, or external-AI authority"
+      },
+      {
+        "publisher_key_id": "jobsentinel-skill-publisher-v1",
+        "public_key_sha256": "a1e608db96c70bde06f45b1584ca2de039995afe7ba6ad19eb93d593d8af0188",
+        "ceiling": "Skill, StaticContent, LocalOnly, with no data, task, action, approval-gate, destination, gateway, or external-AI authority"
+      },
+      {
+        "publisher_key_id": "jobsentinel-evaluation-publisher-v1",
+        "public_key_sha256": "ed5ba053d83a263ee9cff4374598ba64d981257f63a53907a79db2f4dbc36010",
+        "ceiling": "Evaluation, StaticContent, LocalOnly, with no data, task, action, approval-gate, destination, gateway, or external-AI authority"
+      },
+      {
+        "publisher_key_id": "jobsentinel-evidence-reviewer-publisher-v1",
+        "public_key_sha256": "1a1d3845cc74254f0397d4955ea75fd074e8e27710bfd4f9dbe49ef047185297",
+        "ceiling": "Agent, ReviewedTypedWorkflow, LocalOnly and Sensitive, ResumeEvidence, EvidenceReview, ReadSelectedResumeEvidence and WriteLocalEvent, PerExecutionReview, with no external-AI authority"
+      },
+      {
+        "publisher_key_id": "jobsentinel-packet-builder-publisher-v1",
+        "public_key_sha256": "7a78e4dc5fd257f494d6c9d94948aa4a5169d0e3a1e41248c90acb2b0979d5c3",
+        "ceiling": "Agent, ReviewedTypedWorkflow, LocalOnly and Sensitive, PublicJobPosting and ResumeEvidence, DraftPacket, selected case, resume, public posting, local draft and event actions, PerExecutionReview, with no external-AI authority"
+      }
+    ]
+  },
+  "completion": {
+    "trust_and_startup": "Only five immutable public identities and exact ceilings are compiled. Raw caller-supplied trust APIs are crate-private. Normal startup reconciles reviewed tasks and re-verifies active artifacts before services or the scheduler become available; missing trust is classified as revoked and fails closed.",
+    "lifecycle_and_ui": "Users can verify and stage one bounded regular .jspack file, review immutable publisher and release facts, activate or roll back against exact target permissions, disable, re-enable, remove, retry cleanup, and follow truthful recovery guidance. Unknown or contradictory renderer projections fail closed.",
+    "reviewed_execution": "Static Skills are reloaded and reverified before display. Evidence Reviewer and Packet Builder preparation and execution bind exact current pack generation, context, approval, input digest, fixed local plan, single-use task, and durable bounded receipt. No shell, arbitrary filesystem, network, credential, external send, answer fill, or submission path exists.",
+    "g19_quality_bar": "The user approved a composed v3.0 bar: official Agent Skills specification conformance, deterministic static-package readiness, complete safe resources, a validated advisory Evidence Reviewer handoff, and an independently evaluated deterministic Evidence Reviewer target. Both evaluators expose only fixed target names and aggregate counts.",
+    "signing_route": "The Node standard-library signer consumes an environment or standard-input private key, derives and checks the exact public identity, preserves signed release bytes, self-verifies the Ed25519 signature, never overwrites output, and has a Rust interoperability vector."
+  },
+  "red_green": {
+    "initial_red": "Fail-first Rust, TypeScript, and script tests proved missing production trust, startup reconciliation, signer, official YAML validation, staging, lifecycle, reviewed execution, receipt, accessibility, and G19 handoff behavior before implementation.",
+    "review_red": "Independent reviews found caller-injectable public trust APIs, incorrect target-release facts, stranded pending approvals, case identity races, replay copy drift, weak receipt decoding, missing keyboard and focus routes, silent availability states, static dev-profile drift, and a production compile lint. Each received the smallest focused regression and correction.",
+    "green": "The corrected implementation passed focused regressions, the complete frontend and script suites, full Rust workspace gate, official upstream validator, production build, and all repository policy checks."
+  },
+  "retained_gaps": [
+    {
+      "owner": "Milestone 11",
+      "gap": "No Windows 11 machine was available. Native ACL ownership and privacy, reparse rejection, pack persistence and rollback, chooser behavior, and installed focus behavior remain unverified live. The user explicitly accepted this risk for Milestone 7."
+    },
+    {
+      "owner": "Milestone 11",
+      "gap": "The native chooser, drop, and approval-focus paths have contract and component evidence on macOS 27, but still require installed macOS 26 accessibility and release-matrix proof."
+    },
+    {
+      "owner": "Milestone 13",
+      "gap": "Generic scripts and dynamic pack adapters remain deferred. Transition-only v3 names and pre-v3 compatibility machinery remain owned by line closure."
+    }
+  ],
+  "privacy_and_network": {
+    "external_ai_used": false,
+    "onepassword_accessed_for_authorized_signing_setup": true,
+    "private_key_material_written_to_repository": false,
+    "private_key_material_printed": false,
+    "user_resume_data_used": false,
+    "live_job_sources_contacted": false
+  },
+  "source": "docs/plans/v3/master-exec-plan.md"
+}

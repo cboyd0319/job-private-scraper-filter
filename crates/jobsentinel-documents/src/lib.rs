@@ -14,12 +14,14 @@ mod types;
 pub use ats_analyzer::AtsAnalyzer;
 pub use ats_types::{
     AtsAnalysisResult, AtsSuggestion, FormatIssue, HardConstraintCategory, HardConstraintRisk,
-    IssueSeverity, KeywordImportance, KeywordMatch, MissingKeyword, RequirementMatchState,
-    RequirementReview, SuggestionCategory,
+    IssueSeverity, KeywordImportance, KeywordMatch, MissingKeyword, ProfessionMatchingProfile,
+    RegionalMatchingProfile, RequirementMatchState, RequirementReview, ResumeMatchingProfile,
+    SuggestionCategory,
 };
 pub use export::ResumeExporter;
+pub use jobsentinel_domain::{ResumeEvidenceCitation, ResumeEvidenceSnapshot};
 pub use parser::ResumeParser;
-pub use resume_match_score::calculate_resume_match_score;
+pub use resume_match_score::{calculate_resume_match_score, ResumeMatchScore};
 pub use skills::{ExtractedSkill, SkillExtractor};
 pub use structured_resume::{
     ResumeAnalysisInput, ResumeCertification, ResumeEducation, ResumeExperience,
@@ -29,5 +31,6 @@ pub use structured_resume::{
 pub use templates::{Template, TemplateRenderer};
 pub use types::{
     DegreeLevel, EducationRequirement, ExperienceRequirement, JobSkill, MatchResult,
-    MatchResultWithJob, NewSkill, NullableFieldUpdate, Resume, SkillUpdate, UserSkill,
+    MatchResultWithJob, NewSkill, NullableFieldUpdate, Resume, ResumeMatchFeedback,
+    ResumeMatchFeedbackLabel, SkillUpdate, UserSkill,
 };

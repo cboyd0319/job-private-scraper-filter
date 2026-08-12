@@ -29,7 +29,11 @@ import {
   verifyLocalDmgChecksum,
   bundleMetadataViolations,
 } from "./macos-package-contract.mjs";
-
+import {
+  assertMacosRuntimeProfileArtifact,
+  normalizeMacosRuntimeProfile,
+  verifyMacosRuntimeProfile,
+} from "../platform/macos-runtime-profile.mjs";
 export {
   getArgValue,
   hasArg,
@@ -50,12 +54,27 @@ export {
   parseSha256Checksum,
   verifyLocalDmgChecksum,
   bundleMetadataViolations,
+  modelPayloadFiles,
+  runtimeProfileArtifactViolations,
+  runtimeProfileCommandViolations,
 } from "./macos-package-contract.mjs";
 
 import {
   assertDeveloperIdSignature,
   parseCodesignDetails,
 } from "../platform/macos-signature.mjs";
+import {
+  createLaunchRssMetrics,
+  recordLaunchRssSample,
+  sampleMacosAppRss,
+  stopMacosAppCoalition,
+} from "./macos-package-performance.mjs";
+
+export {
+  buildMacosCoalitionKillArgs,
+  parseLsappinfoCoalition,
+  parsePsRssSample,
+} from "./macos-package-performance.mjs";
 
 const scriptPath = fileURLToPath(import.meta.url);
 const defaultRoot = resolve(dirname(scriptPath), "../..");
@@ -215,6 +234,10 @@ async function smokeLaunch({ appPath, seconds }) {
   const smokeRoot = mkdtempSync(join(tmpdir(), "jobsentinel-macos-smoke-"));
   const stdoutPath = join(smokeRoot, "stdout.log");
   const stderrPath = join(smokeRoot, "stderr.log");
+  let deadline;
+  const rssMetrics = createLaunchRssMetrics();
+  let startedAt;
+  let visibleWindowUpperBoundMs;
   let child;
   let pid;
   const smokeDatabaseKeyHex = createSmokeDatabaseKeyHex();
@@ -234,11 +257,28 @@ async function smokeLaunch({ appPath, seconds }) {
       smokeRoot,
     });
     console.log(`$ open ${formatMacosOpenArgsForLog(openArgs).join(" ")}`);
+    startedAt = performance.now();
+    deadline = startedAt + (seconds * 1000);
     child = spawn("open", openArgs, {
       stdio: ["ignore", "pipe", "pipe"],
     });
 
-    await sleep(seconds * 1000);
+    while (performance.now() < deadline) {
+      pid ??= findMacosAppProcess(appPath, getBundleExecutable(appPath));
+      if (pid) {
+        const sample = sampleMacosAppRss(pid);
+        recordLaunchRssSample(rssMetrics, sample, performance.now(), startedAt);
+        if (visibleWindowUpperBoundMs === undefined) {
+          try {
+            assertLaunchWindowVisible(pid);
+            visibleWindowUpperBoundMs = Math.ceil(performance.now() - startedAt);
+          } catch {
+            // Retry until the smoke deadline so slow first-run windows get the full allowance.
+          }
+        }
+      }
+      await sleep(Math.min(100, Math.max(0, deadline - performance.now())));
+    }
 
     if (child.exitCode !== null) {
       if (child.exitCode !== 0) {
@@ -246,22 +286,30 @@ async function smokeLaunch({ appPath, seconds }) {
       }
     }
 
-    pid = findMacosAppProcess(appPath, getBundleExecutable(appPath));
-    if (!pid) {
+    const runningPid = findMacosAppProcess(appPath, getBundleExecutable(appPath));
+    if (!runningPid) {
       const stdout = readFileSync(stdoutPath, "utf8");
       const stderr = readFileSync(stderrPath, "utf8");
       throw new Error(
         `Launch smoke did not find a running app process.\nstdout:\n${stdout}\nstderr:\n${stderr}`,
       );
     }
-    assertLaunchWindowVisible(pid);
-
-    try {
-      process.kill(pid, "SIGTERM");
-    } catch {
-      // The process can exit between window verification and shutdown.
+    pid = runningPid;
+    if (visibleWindowUpperBoundMs === undefined) {
+      assertLaunchWindowVisible(pid);
+      visibleWindowUpperBoundMs = Math.ceil(performance.now() - startedAt);
     }
-    await sleep(500);
+    const finalSample = sampleMacosAppRss(pid);
+    recordLaunchRssSample(rssMetrics, finalSample, performance.now(), startedAt);
+    if (rssMetrics.sampleCount === 0) {
+      throw new Error("Launch smoke could not measure main-process RSS.");
+    }
+    console.log(
+      `Launch performance sample: visible_window_upper_bound_ms=${visibleWindowUpperBoundMs} aggregate_observed_max_rss_kib=${rssMetrics.observedMaxRssKib} max_process_count=${rssMetrics.maxProcessCount} rss_sample_count=${rssMetrics.sampleCount} max_rss_sample_gap_ms=${rssMetrics.maxSampleGapMs}.`,
+    );
+
+    await stopMacosAppCoalition(pid);
+    pid = undefined;
 
     const stderr = readFileSync(stderrPath, "utf8");
     if (stderr.trim()) {
@@ -276,11 +324,7 @@ async function smokeLaunch({ appPath, seconds }) {
     console.log(`Launch smoke passed: app stayed running for ${seconds} seconds with empty stderr.`);
   } finally {
     if (pid) {
-      try {
-        process.kill(pid, "SIGTERM");
-      } catch {
-        // Already stopped.
-      }
+      await stopMacosAppCoalition(pid);
     }
     rmSync(smokeRoot, { recursive: true, force: true });
   }
@@ -300,6 +344,7 @@ async function verifyAppBundle({
   expectedArchitectures,
   launchSmoke,
   requireGatekeeper,
+  runtimeProfile,
   smokeSeconds,
   bundleLabel = "App bundle",
 }) {
@@ -308,6 +353,7 @@ async function verifyAppBundle({
 
   const executable = join(appPath, "Contents", "MacOS", getBundleExecutable(appPath));
   assertPathExists(executable, "App executable");
+  verifyMacosRuntimeProfile(appPath, executable, runtimeProfile);
 
   const lipoOutput = runChecked("lipo", ["-info", executable]);
   const architectures = parseLipoArchitectures(lipoOutput);
@@ -337,6 +383,7 @@ async function verifyInstalledApp({
   expectedBundleMetadata,
   expectedArchitectures,
   requireGatekeeper,
+  runtimeProfile,
   smokeSeconds,
 }) {
   const installRoot = mkdtempSync(join(tmpdir(), "jobsentinel-macos-install-"));
@@ -351,6 +398,7 @@ async function verifyInstalledApp({
       expectedArchitectures,
       launchSmoke: true,
       requireGatekeeper,
+      runtimeProfile,
       smokeSeconds,
     });
     console.log(`Install smoke passed: copied app launched from ${installedAppPath}.`);
@@ -361,7 +409,9 @@ async function verifyInstalledApp({
 
 export async function verifyMacosPackage(options) {
   requireMacos();
+  const runtimeProfile = normalizeMacosRuntimeProfile(options.runtimeProfile);
   assertPathExists(options.dmgPath, "DMG");
+  assertMacosRuntimeProfileArtifact(options.dmgPath, runtimeProfile);
   verifyLocalDmgChecksum(options.dmgPath, {
     requireChecksum: options.requireChecksum,
     verifyChecksum: options.verifyChecksum,
@@ -399,6 +449,7 @@ export async function verifyMacosPackage(options) {
       expectedArchitectures: options.expectedArchitectures,
       launchSmoke: options.launchSmoke,
       requireGatekeeper: options.requireGatekeeper,
+      runtimeProfile,
       smokeSeconds: options.smokeSeconds,
     });
 
@@ -409,6 +460,7 @@ export async function verifyMacosPackage(options) {
         expectedBundleMetadata: options.expectedBundleMetadata,
         expectedArchitectures: options.expectedArchitectures,
         requireGatekeeper: options.requireGatekeeper,
+        runtimeProfile,
         smokeSeconds: options.smokeSeconds,
       });
     }
@@ -429,12 +481,11 @@ export async function verifyMacosPackage(options) {
 export async function main({ args = process.argv.slice(2) } = {}) {
   const options = parseArgs(args);
   if (!options.dmgPath) {
-    throw new Error("Usage: verify-macos-package.mjs --dmg <path-to-dmg> [--expected-architectures x86_64,arm64] [--expected-bundle-id com.example.app] [--expected-product-name AppName] [--expected-version X.Y.Z] [--expected-icon-file icon.icns] [--expected-minimum-system-version 13.0] [--launch-smoke] [--install-smoke] [--require-checksum] [--require-gatekeeper]");
+    throw new Error("Usage: verify-macos-package.mjs --dmg <path-to-dmg> [--runtime-profile essentials|stronger-local] [--expected-architectures x86_64,arm64] [--expected-bundle-id com.example.app] [--expected-product-name AppName] [--expected-version X.Y.Z] [--expected-icon-file icon.icns] [--expected-minimum-system-version 13.0] [--launch-smoke] [--install-smoke] [--require-checksum] [--require-gatekeeper]");
   }
   if (!Number.isFinite(options.smokeSeconds) || options.smokeSeconds < 1) {
     throw new Error(`Invalid --smoke-seconds value: ${options.smokeSeconds}`);
   }
-
   await verifyMacosPackage(options);
 }
 

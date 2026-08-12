@@ -1,3 +1,5 @@
+# Defines the Rust workspace members, shared package metadata, dependencies, and lints.
+
 [workspace]
 members = [
   "crates/jobsentinel-ai",
@@ -19,7 +21,7 @@ members = [
 resolver = "2"
 
 [workspace.package]
-version = "2.9.5"
+version = "3.0.0"
 edition = "2021"
 authors = ["Chad Boyd"]
 license = "MIT"
@@ -44,22 +46,23 @@ futures = "=0.3.32"
 futures-util = "=0.3.32"
 hex = "=0.4.3"
 hf-hub = { version = "=1.0.0", default-features = false, features = ["rustls-tls"] }
-jobsentinel-credentials = { path = "crates/jobsentinel-credentials", version = "=2.9.5" }
-jobsentinel-ai = { path = "crates/jobsentinel-ai", version = "=2.9.5" }
-jobsentinel-documents = { path = "crates/jobsentinel-documents", version = "=2.9.5" }
-jobsentinel-application = { path = "crates/jobsentinel-application", version = "=2.9.5" }
-jobsentinel-assistance = { path = "crates/jobsentinel-assistance", version = "=2.9.5" }
-jobsentinel-domain = { path = "crates/jobsentinel-domain", version = "=2.9.5" }
-jobsentinel-intelligence = { path = "crates/jobsentinel-intelligence", version = "=2.9.5" }
-jobsentinel-local-ai = { path = "crates/jobsentinel-local-ai", version = "=2.9.5" }
-jobsentinel-network = { path = "crates/jobsentinel-network", version = "=2.9.5" }
-jobsentinel-notifications = { path = "crates/jobsentinel-notifications", version = "=2.9.5" }
-jobsentinel-platform = { path = "crates/jobsentinel-platform", version = "=2.9.5" }
-jobsentinel-security = { path = "crates/jobsentinel-security", version = "=2.9.5" }
-jobsentinel-sources = { path = "crates/jobsentinel-sources", version = "=2.9.5" }
-jobsentinel-storage = { path = "crates/jobsentinel-storage", version = "=2.9.5" }
+jobsentinel-credentials = { path = "crates/jobsentinel-credentials", version = "=3.0.0" }
+jobsentinel-ai = { path = "crates/jobsentinel-ai", version = "=3.0.0" }
+jobsentinel-documents = { path = "crates/jobsentinel-documents", version = "=3.0.0" }
+jobsentinel-application = { path = "crates/jobsentinel-application", version = "=3.0.0" }
+jobsentinel-assistance = { path = "crates/jobsentinel-assistance", version = "=3.0.0" }
+jobsentinel-domain = { path = "crates/jobsentinel-domain", version = "=3.0.0" }
+jobsentinel-intelligence = { path = "crates/jobsentinel-intelligence", version = "=3.0.0" }
+jobsentinel-local-ai = { path = "crates/jobsentinel-local-ai", version = "=3.0.0" }
+jobsentinel-network = { path = "crates/jobsentinel-network", version = "=3.0.0" }
+jobsentinel-notifications = { path = "crates/jobsentinel-notifications", version = "=3.0.0" }
+jobsentinel-platform = { path = "crates/jobsentinel-platform", version = "=3.0.0" }
+jobsentinel-security = { path = "crates/jobsentinel-security", version = "=3.0.0" }
+jobsentinel-sources = { path = "crates/jobsentinel-sources", version = "=3.0.0" }
+jobsentinel-storage = { path = "crates/jobsentinel-storage", version = "=3.0.0" }
 keyring = "=4.1.5"
 lettre = { version = "=0.11.22", default-features = false, features = ["tokio1-rustls-tls", "builder", "smtp-transport"] }
+libc = "=0.2.186"
 libsqlite3-sys = { version = "=0.37.0", default-features = false, features = ["bundled-sqlcipher-vendored-openssl"] }
 objc2 = "=0.6.4"
 objc2-foundation = { version = "=0.3.2", default-features = false, features = ["std", "NSString"] }
@@ -69,11 +72,13 @@ proptest = "=1.11.0"
 quick-xml = "=0.41.0"
 regex = "=1.13.1"
 reqwest = { version = "=0.13.4", default-features = false, features = ["json", "query", "rustls", "system-proxy"] }
-scopeguard = "=1.2.0"
+ring = "=0.17.14"
+rustix = { version = "=1.1.4", features = ["fs"] }
 scraper = "=0.27.0"
 security-framework = "=3.7.0"
 serde = { version = "=1.0.228", features = ["derive"] }
 serde_json = "=1.0.150"
+serde-saphyr = { version = "=1.0.1", default-features = false, features = ["deserialize"] }
 sha2 = "=0.11.0"
 sqlx = { version = "=0.9.0", default-features = false, features = ["runtime-tokio", "tls-rustls", "sqlite", "migrate", "chrono", "macros"] }
 tauri = { version = "=2.11.5", features = ["tray-icon"] }
@@ -90,6 +95,7 @@ tracing-subscriber = { version = "=0.3.23", features = ["env-filter"] }
 url = "=2.5.8"
 urlencoding = "=2.1.3"
 uuid = { version = "=1.24.0", features = ["v4"] }
+windows-sys = { version = "=0.61.2", features = ["Wdk_Foundation", "Wdk_Storage_FileSystem", "Win32_Foundation", "Win32_Security", "Win32_Security_Authorization", "Win32_Storage_FileSystem", "Win32_System_IO", "Win32_System_Threading"] }
 wiremock = "=0.6.5"
 zeroize = "=1.9.0"
 zip = { version = "=8.6.0", default-features = false, features = ["deflate"] }

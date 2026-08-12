@@ -126,12 +126,14 @@ mod tests {
     }
 
     // Integration tests - require model download
-    // These should be run manually with: cargo test --features embedded-ml -- --ignored
+    // Run manually, one at a time:
+    // cargo test --features embedded-ml -- --ignored --test-threads=1
 
     #[test]
     #[ignore]
     fn test_download_model() {
         let cache_dir = get_test_cache_dir();
+        crate::model::set_download_policy_env(cache_dir.path());
         let manager = ModelManager::new(cache_dir.path().to_path_buf());
 
         // Download model
@@ -146,7 +148,7 @@ mod tests {
     #[ignore]
     fn test_embedding_generation() {
         let cache_dir = get_test_cache_dir();
-
+        crate::model::set_download_policy_env(cache_dir.path());
         let generator = EmbeddingGenerator::new(cache_dir.path().to_path_buf()).unwrap();
 
         let text = "Machine learning engineer with Python experience";
@@ -164,6 +166,7 @@ mod tests {
     #[ignore]
     fn test_batch_embeddings() {
         let cache_dir = get_test_cache_dir();
+        crate::model::set_download_policy_env(cache_dir.path());
         let generator = EmbeddingGenerator::new(cache_dir.path().to_path_buf()).unwrap();
 
         let texts = vec!["Python programming", "Machine Learning", "Data Science"];
@@ -178,6 +181,7 @@ mod tests {
     #[ignore]
     fn test_semantic_matching() {
         let cache_dir = get_test_cache_dir();
+        crate::model::set_download_policy_env(cache_dir.path());
         let matcher = SemanticMatcher::new(cache_dir.path().to_path_buf()).unwrap();
 
         let user_skills = vec![
@@ -216,6 +220,7 @@ mod tests {
     #[ignore]
     fn test_semantic_similarity() {
         let cache_dir = get_test_cache_dir();
+        crate::model::set_download_policy_env(cache_dir.path());
         let matcher = SemanticMatcher::new(cache_dir.path().to_path_buf()).unwrap();
 
         let candidates = vec![
@@ -240,6 +245,7 @@ mod tests {
     #[ignore]
     fn test_semantic_vs_keyword_matching() {
         let cache_dir = get_test_cache_dir();
+        crate::model::set_download_policy_env(cache_dir.path());
         let matcher = SemanticMatcher::new(cache_dir.path().to_path_buf()).unwrap();
 
         // These should match semantically but not by exact string

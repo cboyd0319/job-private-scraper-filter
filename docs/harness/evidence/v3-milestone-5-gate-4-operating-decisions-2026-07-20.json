@@ -1,0 +1,122 @@
+{
+  "schema": "jobsentinel.feature_evidence.v1",
+  "feature_id": "v3-milestone-5-local-evidence-resume-matching",
+  "slice": "gate-4-operating-decisions",
+  "behavior": "Gate 4 uses model-free defaults, approves only wired local matching providers, and keeps employer and regional data behind existing local, pack, and source-policy owners.",
+  "result": "partial",
+  "verified_at": "2026-07-20T10:55:19Z",
+  "revision": "d7f0c2a4dad46976e9586017697d70b3b7987826",
+  "revision_scope": "The committed model-provider lock and the Gate 4 model, setup, employer-data, regional-delivery, expiry, and Essentials operating decisions.",
+  "platform": "local macOS arm64 host",
+  "commands": [
+    {
+      "command": "env -u JOBSENTINEL_LIVE_KEYRING_TESTS cargo test -p jobsentinel-local-ai --features embedded-ml qwen3_lock_approves_only_wired_candle_backends --lib",
+      "exit_status": 0,
+      "relevant_result": "The fail-first test rejected the speculative FastEmbed, local HTTP, sequence-classification, and Python-sidecar compatibility list, then passed with no alternative Qwen3 backend approved.",
+      "caveat": "The primary qwen3-candle and qwen3-reranker-candle backends remain accepted through each model's canonical backend field."
+    },
+    {
+      "command": "env -u JOBSENTINEL_LIVE_KEYRING_TESTS cargo test -p jobsentinel-local-ai --features embedded-ml --lib; env -u JOBSENTINEL_LIVE_KEYRING_TESTS cargo test -p jobsentinel-domain --lib",
+      "exit_status": 0,
+      "relevant_result": "All 75 default embedded local-AI tests passed with 10 explicit model-download tests ignored, and all 151 domain tests passed.",
+      "caveat": "No model file was downloaded or loaded, and no live provider, source, credential, Keychain, or Tauri process ran."
+    },
+    {
+      "command": "env -u JOBSENTINEL_LIVE_KEYRING_TESTS cargo clippy -p jobsentinel-local-ai --features embedded-ml --lib -- -D warnings; env -u JOBSENTINEL_LIVE_KEYRING_TESTS cargo clippy -p jobsentinel-domain --lib -- -D warnings",
+      "exit_status": 0,
+      "relevant_result": "Strict production-library Clippy passed for both affected Rust owners.",
+      "caveat": "Focused production-library checks were used instead of unrelated legacy test lint."
+    },
+    {
+      "command": "cargo fmt --all -- --check; npm run lint:docs; npm run lint:security; npm run lint:file-size -- --hard; npm run harness:check; git diff --check",
+      "exit_status": 0,
+      "relevant_result": "Formatting, documentation, links, prose, security sensors, secret scanning, hard file limits, harness state, and diff validation passed.",
+      "caveat": "Static repository checks do not replace installed-app, package, performance, or cross-platform proof."
+    },
+    {
+      "command": "Read-only model, data, and adversarial Gate 4 reviews",
+      "exit_status": 0,
+      "relevant_result": "Independent audits separated supported operating decisions from missing release evidence. Final adversarial review returned APPROVE for the committed boundary.",
+      "caveat": "The reviewers explicitly kept Gate 4 open."
+    }
+  ],
+  "model_lock": {
+    "sha256": "13876d65c8cfcb361ad01f877554891e86d6218c38b4e9ce0c5b042a7a73ab69",
+    "resume_requirement_retrieval": 0.3,
+    "resume_requirement_reranker_acceptance": 3.0,
+    "status": "revision-bound seed baseline",
+    "unapproved_user_facing_thresholds": [
+      "resume_requirement weak, medium, and strong bands",
+      "job_search bands and retrieval",
+      "MiniLM similarity threshold"
+    ]
+  },
+  "runtime_and_setup_decisions": {
+    "default": "Deterministic model-free local matching.",
+    "stronger_local": "Exact checksum-verified Qwen3 Candle embedding and reranker pair after explicit user setup.",
+    "legacy_fallback": "Verified MiniLM Candle cache only; never a new default or automatic download.",
+    "unapproved_matching_providers": [
+      "FastEmbed",
+      "local HTTP",
+      "Python sidecar",
+      "OS-native helper",
+      "local LLM server",
+      "external AI"
+    ],
+    "external_ai_default": "Disabled with provider none. It is not a matching provider."
+  },
+  "employer_data_decisions": {
+    "mode": "Live-first and source-specific, with local user history and user-approved official employer or ATS evidence.",
+    "minimum_dossier": [
+      "official domain",
+      "role status",
+      "pay clarity",
+      "provenance date",
+      "uncertainty",
+      "next action"
+    ],
+    "optional_bulk_data": "A separately removable static Source pack only when no suitable live path exists and license, size, cadence, provenance, and expiry pass review.",
+    "excluded": "No broad bundled employer database, central private review corpus, hidden lookup, or restricted-page harvesting."
+  },
+  "regional_decisions": {
+    "delivery": "Optional user-selected static Region packs with no executable, credential, external AI, or network authority.",
+    "source_authority": "Every live source requires its own current SourceManifest and exact operation grant.",
+    "essentials_default": "No region pack is installed by default.",
+    "coverage": "UK, EU, and India inputs remain incomplete English-only research seeds, not ready region packs."
+  },
+  "expiry_decisions": {
+    "network_sources": "Reuse each source manifest's verified_on plus max_age_days owner.",
+    "static_region_data": "Keep reviewed_on as visible provenance. It does not authorize a source or create a universal static-content expiry.",
+    "history": "Staleness blocks refresh or labels evidence stale; it does not delete user-owned or dated observations."
+  },
+  "essentials_decisions": {
+    "profile": "lighter",
+    "default_components": [
+      "deterministic_matching",
+      "public_sources",
+      "safe_support"
+    ],
+    "automatic_model_downloads": false,
+    "bundled_models": false,
+    "numeric_footprint_approved": false
+  },
+  "gate_4_status": {
+    "state": "open",
+    "blocked_release_claims": [
+      "Production-wide Qwen3 calibration and cross-platform score stability.",
+      "Model-free 8 GiB package, startup, memory, and core-journey measurements.",
+      "Installed stronger-local setup, consent, progress, cancel, retry, removal, and fallback.",
+      "Employer dossier accuracy, conflict, freshness, uncertainty, and novice-task evaluation.",
+      "Regional pay, location, CV, taxonomy, deterministic, Qwen3, lifecycle, and manual-review evaluation.",
+      "Windows 11, macOS 26 and later, and Linux package and runtime matrix."
+    ]
+  },
+  "privacy_and_network": {
+    "user_data_used": false,
+    "external_ai_used": false,
+    "credentials_used": false,
+    "keychain_accessed": false,
+    "model_files_downloaded": false,
+    "live_sources_contacted": false
+  }
+}

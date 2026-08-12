@@ -83,14 +83,6 @@ fn test_remote_flag_always_true() {
 }
 
 #[test]
-fn test_extract_tag_with_malformed_cdata() {
-    let xml = "<item><title><![CDATA[Test without closing]]></title></item>";
-    // Should fall back to regular tag extraction
-    let result = WeWorkRemotelyScraper::extract_tag(xml, "title");
-    assert!(result.is_some() || result.is_none()); // Depends on parsing
-}
-
-#[test]
 fn test_extract_tag_start_after_end() {
     let xml = "<item></title><title></item>";
     let result = WeWorkRemotelyScraper::extract_tag(xml, "title");
@@ -180,8 +172,8 @@ fn test_parse_rss_no_description_tag() {
 
 #[test]
 fn test_new_constructor() {
-    let scraper = WeWorkRemotelyScraper::new(Some("design".to_string()), 25);
+    let scraper = WeWorkRemotelyScraper::new(Some("remote-design-jobs".to_string()), 25);
 
-    assert_eq!(scraper.category, Some("design".to_string()));
+    assert_eq!(scraper.category, Some("remote-design-jobs".to_string()));
     assert_eq!(scraper.limit, 25);
 }

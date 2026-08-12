@@ -17,7 +17,6 @@ interface ApplicationsHeaderProps {
   onOpenInterviews: () => void;
   onOpenSummary: () => void;
   onOpenTemplates: () => void;
-  onReviewNoResponses: () => void;
   stats: ApplicationStats | null;
 }
 
@@ -26,7 +25,6 @@ export function ApplicationsHeader({
   onOpenInterviews,
   onOpenSummary,
   onOpenTemplates,
-  onReviewNoResponses,
   stats,
 }: ApplicationsHeaderProps) {
   return (
@@ -64,9 +62,6 @@ export function ApplicationsHeader({
               <Button onClick={() => onOpenSummary()} variant="secondary" className="min-w-0">
                 <AnalyticsIcon />
                 Summary
-              </Button>
-              <Button onClick={onReviewNoResponses} variant="secondary" className="min-w-0 whitespace-normal">
-                Review No Responses
               </Button>
             </div>
           </div>

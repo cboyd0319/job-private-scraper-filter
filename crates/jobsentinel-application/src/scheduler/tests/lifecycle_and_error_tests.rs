@@ -182,8 +182,7 @@ async fn test_scraping_cycle_lever_error_path() {
 }
 
 #[tokio::test]
-async fn test_scraping_cycle_jobswithgpt_error_path() {
-    // Tests lines 246-250 (JobsWithGPT error logging)
+async fn test_scraping_cycle_jobswithgpt_stops_before_request_while_provider_review_is_pending() {
     let mut config = create_test_config();
     config.title_allowlist = vec!["Security Engineer".to_string()];
     config.jobswithgpt_endpoint = "not-a-url".to_string();
@@ -197,26 +196,20 @@ async fn test_scraping_cycle_jobswithgpt_error_path() {
 
     let scheduler = Scheduler::new(Arc::clone(&config), Arc::clone(&database));
 
-    // Run cycle - JobsWithGPT will fail
     let result = scheduler.run_scraping_cycle().await.unwrap();
 
-    // Should have errors from JobsWithGPT scraper
     assert!(
-        result.errors.iter().any(|e| e.contains("JobsWithGPT")),
-        "Should have JobsWithGPT error"
+        result
+            .errors
+            .iter()
+            .any(|error| error.contains("provider policy requires review")),
+        "provider review should be visible"
     );
-
-    let source_request = crate::health::get_latest_source_request(&database, "jobswithgpt")
-        .await
-        .unwrap()
-        .unwrap();
-    assert_eq!(source_request.title_count, 1);
-    assert!(!source_request.has_location);
-    assert!(source_request.remote_only);
-    assert_eq!(source_request.result_limit, 100);
-    assert_eq!(
-        source_request.outcome,
-        crate::health::SourceRequestOutcome::Failure
+    assert!(
+        crate::health::get_latest_source_request(&database, "jobswithgpt")
+            .await
+            .unwrap()
+            .is_none()
     );
 }
 

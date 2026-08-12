@@ -5,10 +5,6 @@ import {
   validateTeamsWebhook,
 } from "./notificationConnectionValidation";
 import {
-  RESTRICTED_SCHEDULED_JOB_SOURCES,
-  restrictedScheduledJobSourceLabel,
-} from "../../../shared/restrictedSourceTaxonomy";
-import {
   EXTERNAL_AI_PROVIDER_CREDENTIAL_KEYS,
   EXTERNAL_AI_PROVIDER_LABELS,
   type ExternalAiCredentialKey,
@@ -324,51 +320,6 @@ export function getCredentialValidationError(
         };
       }
     }
-  }
-
-  if (config?.dice?.enabled && !config.dice.query.trim()) {
-    return {
-      title: "Add Dice search words",
-      message:
-        "Add at least one job title or search word before saving Dice scheduled checks.",
-    };
-  }
-
-  if (config?.simplyhired?.enabled && !config.simplyhired.query.trim()) {
-    return {
-      title: "Add SimplyHired search words",
-      message:
-        "Add at least one job title or search word before saving SimplyHired scheduled checks.",
-    };
-  }
-
-  if (config?.glassdoor?.enabled && !config.glassdoor.query.trim()) {
-    return {
-      title: "Add Glassdoor search words",
-      message:
-        "Add at least one job title or search word before saving Glassdoor scheduled checks.",
-    };
-  }
-
-  const enabledRestrictedSources = RESTRICTED_SCHEDULED_JOB_SOURCES.filter(
-    (source) => {
-      const sourceConfig = config?.[source.id] as
-        { enabled?: boolean } | undefined;
-      return (
-        sourceConfig?.enabled === true &&
-        config?.restricted_source_acknowledgements?.[source.id] !== true
-      );
-    },
-  );
-
-  if (enabledRestrictedSources.length > 0) {
-    const labels = enabledRestrictedSources
-      .map((source) => restrictedScheduledJobSourceLabel(source.id))
-      .join(", ");
-    return {
-      title: "Review restricted source risk",
-      message: `Check the acknowledgement box for ${labels}, or turn those scheduled checks off.`,
-    };
   }
 
   return null;

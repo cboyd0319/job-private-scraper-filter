@@ -1,5 +1,5 @@
 import type { ComponentProps } from "react";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { ResumeMatchResultsPanel } from "./ResumeMatchResultsPanel";
@@ -294,6 +294,72 @@ describe("ResumeMatchResultsPanel", () => {
       screen.getByText("Found in: current role experience, recent role experience, skills list"),
     ).toBeInTheDocument();
     expect(screen.getByText("No clear resume evidence found")).toBeInTheDocument();
+  });
+
+  it("shows safe evidence locations without exposing citation internals", () => {
+    const evidenceId = "a".repeat(64);
+    const sourceRevision = "private-revision";
+    renderPanel({
+      ...baseAnalysis,
+      requirement_reviews: [
+        {
+          keyword: "scheduling",
+          importance: "Required",
+          match_state: "Direct",
+          evidence_sections: ["current experience"],
+          evidence_citations: [
+            {
+              evidence_id: evidenceId,
+              source_revision: sourceRevision,
+              field_path: "experience.0.achievements.0",
+            },
+            {
+              evidence_id: "b".repeat(64),
+              source_revision: sourceRevision,
+              field_path: "clearance",
+            },
+            {
+              evidence_id: "c".repeat(64),
+              source_revision: sourceRevision,
+              field_path: "military_info",
+            },
+            {
+              evidence_id: "d".repeat(64),
+              source_revision: sourceRevision,
+              field_path: "private.unsupported.path",
+            },
+          ],
+          hard_constraint: false,
+          recommendation: "Keep the wording tied to your real experience.",
+        },
+      ],
+    });
+
+    const locations = screen.getByRole("list", {
+      name: "Evidence locations for scheduling",
+    });
+    expect(locations.parentElement?.closest(".overflow-y-auto")).toBeNull();
+    expect(within(locations).getByText("Work experience 1, bullet 1")).toBeInTheDocument();
+    expect(
+      within(locations).getByText("Clearance details, current status not verified"),
+    ).toBeInTheDocument();
+    expect(
+      within(locations).getByText(
+        "Military service details, civilian equivalence not verified",
+      ),
+    ).toBeInTheDocument();
+    expect(within(locations).getByText("Saved resume field")).toBeInTheDocument();
+    expect(
+      screen.getByText("These locations show matching wording, not verification of a claim."),
+    ).toBeInTheDocument();
+    for (const internal of [
+      evidenceId,
+      sourceRevision,
+      "experience.0.achievements.0",
+      "private.unsupported.path",
+    ]) {
+      expect(screen.queryByText(internal)).not.toBeInTheDocument();
+    }
   });
 
   it("renders safe format issue and suggestion labels", () => {

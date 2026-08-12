@@ -1,0 +1,26 @@
+{
+  "@context": "https://schema.org",
+  "@type": "JobPosting",
+  "title": "Office Manager",
+  "description": "Coordinate office operations and support staff.",
+  "hiringOrganization": {
+    "name": "Example Services"
+  },
+  "jobLocation": {
+    "address": {
+      "addressLocality": "Denver",
+      "addressRegion": "CO"
+    }
+  },
+  "baseSalary": {
+    "currency": "USD",
+    "value": {
+      "minValue": 25,
+      "maxValue": 30,
+      "unitText": "HOUR"
+    }
+  },
+  "datePosted": "2026-07-01T00:00:00Z",
+  "validThrough": "2026-08-01T00:00:00Z",
+  "employmentType": "FULL_TIME"
+}

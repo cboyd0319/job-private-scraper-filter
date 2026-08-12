@@ -107,8 +107,7 @@ export interface SetupSearchSummary {
 export type SetupJobSourceKey =
   | "remoteok"
   | "weworkremotely"
-  | "hn_hiring"
-  | "simplyhired";
+  | "hn_hiring";
 
 export interface SuggestedJobSourceOption {
   key: SetupJobSourceKey;

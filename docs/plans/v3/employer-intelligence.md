@@ -384,18 +384,28 @@ Do not build:
 - private-data exchange with third-party salary or review services by default
 - defamatory labels that exceed the evidence shown
 
-## Open Decisions
+## Gate 4 Operating Decisions
 
-- Should official public datasets be downloaded as signed data packs, queried
-  live, or both?
-- Which state WARN and salary-transparency sources are reliable enough for v3
-  starter packs?
-- How much employer context belongs in Essentials without increasing download
-  size or setup complexity?
-- Should review-site links be stored only as user notes, or can v3 support a
-  manual "record what I observed" form with stronger provenance fields?
-- Which employer signals expire quickly enough to require freshness warnings?
-- What is the smallest dossier that materially improves a user's decision?
+- Use a live-first, source-specific model. The minimum dossier combines local
+  user history with user-approved official employer, careers-page, Greenhouse,
+  or Lever evidence. It shows role status, pay clarity, provenance date,
+  uncertainty, and a next action.
+- Add an optional static source pack only when an official bulk dataset lacks a
+  suitable live path and its license, size, cadence, provenance, and expiry
+  have passed review. Do not build both modes for one source without evidence.
+- Keep dataset packs out of Essentials defaults and independently removable.
+- Keep review-site observations as dated local user notes. Never publish them
+  as ratings or harvest restricted pages.
+- Reuse each source manifest's `verified_on + max_age_days` freshness owner.
+  Staleness blocks a refresh or marks evidence stale; it does not delete
+  historical observations.
+- Keep SEC, DOL OFLC, USCIS, WARN, Companies House, EU registry, and India
+  company datasets as research candidates until each has source-specific
+  policy, license, fixture, parser, and freshness evidence.
+
+These decisions freeze delivery and ownership, not a release claim. Milestone 8
+still must implement the dossier and prove source accuracy, conflicts,
+freshness, safe uncertainty, and novice task completion.
 
 ## Sources
 

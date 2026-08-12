@@ -1,8 +1,16 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { listen } from "../../../platform/tauri/events";
 import { SettingsSymbol } from "../shared/SettingsIcons";
+import { SemanticMatchingModelControls } from "./SemanticMatchingModelControls";
 import {
+  cancelSemanticMatchingModelDownload,
+  downloadSemanticMatchingModels,
+  formatSemanticMatchingBytes,
   getSemanticMatchingDiagnostics,
+  removeSemanticMatchingModels,
+  repairSemanticMatchingModelCache,
   type SemanticMatchingDiagnostics,
+  type ModelCacheHealth,
   type SemanticMatchingModelDiagnostic,
   type SemanticMatchingRuntimeStatus,
 } from "./semanticMatchingDiagnostics";
@@ -29,12 +37,26 @@ const STATUS_COPY: Record<
   },
 };
 
+const HEALTH_LABELS: Record<ModelCacheHealth, string> = {
+  missing: "Not downloaded",
+  incomplete: "Incomplete",
+  integrity_mismatch: "Integrity check failed",
+  ready: "Ready",
+};
+
 export function SemanticMatchingDiagnosticsPanel() {
   const [diagnostics, setDiagnostics] =
     useState<SemanticMatchingDiagnostics | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [repairingModelId, setRepairingModelId] = useState<string | null>(null);
+  const [modelAction, setModelAction] = useState<
+    "downloading" | "removing" | null
+  >(null);
+  const [downloadProgress, setDownloadProgress] = useState<{
+    completed_bytes: number;
+    total_bytes: number;
+  } | null>(null);
   const [error, setError] = useState<string | null>(null);
-
   const refresh = useCallback(async () => {
     setIsLoading(true);
     setError(null);
@@ -54,7 +76,99 @@ export function SemanticMatchingDiagnosticsPanel() {
   useEffect(() => {
     void refresh();
   }, [refresh]);
-
+  useEffect(() => {
+    const unlisten = listen<{
+      completed_bytes: number;
+      total_bytes: number;
+    }>("local-model-download-progress", ({ payload }) => {
+      setDownloadProgress(payload);
+    });
+    return () => {
+      void unlisten.then((stopListening) => stopListening());
+    };
+  }, []);
+  const repair = useCallback(
+    async (modelId: string) => {
+      setRepairingModelId(modelId);
+      setError(null);
+      try {
+        if (await repairSemanticMatchingModelCache(modelId)) {
+          await refresh();
+        }
+      } catch (repairError) {
+        setError(
+          repairError instanceof Error
+            ? repairError.message
+            : "Local model repair could not be completed.",
+        );
+      } finally {
+        setRepairingModelId(null);
+      }
+    },
+    [refresh],
+  );
+  const downloadModels = useCallback(async () => {
+    setModelAction("downloading");
+    setDownloadProgress(null);
+    setError(null);
+    try {
+      await downloadSemanticMatchingModels();
+      await refresh();
+    } catch (downloadError) {
+      const canceledOrphan = await cancelSemanticMatchingModelDownload().catch(
+        () => false,
+      );
+      setError(
+        canceledOrphan
+          ? "A previous model download was still running and has been canceled. Try again."
+          : downloadError instanceof Error
+            ? downloadError.message
+            : "Local model download could not be completed.",
+      );
+    } finally {
+      setModelAction(null);
+    }
+  }, [refresh]);
+  const removeModels = useCallback(async () => {
+    setModelAction("removing");
+    setError(null);
+    try {
+      if (await removeSemanticMatchingModels()) {
+        await refresh();
+      }
+    } catch (removeError) {
+      setError(
+        removeError instanceof Error
+          ? removeError.message
+          : "Local models could not be removed.",
+      );
+    } finally {
+      setModelAction(null);
+    }
+  }, [refresh]);
+  const cancelDownload = useCallback(async () => {
+    try {
+      await cancelSemanticMatchingModelDownload();
+    } catch (cancelError) {
+      setError(
+        cancelError instanceof Error
+          ? cancelError.message
+          : "Local model download could not be canceled.",
+      );
+    }
+  }, []);
+  const modelActionRef = useRef(modelAction);
+  useEffect(() => {
+    modelActionRef.current = modelAction;
+  }, [modelAction]);
+  useEffect(
+    () => () => {
+      if (modelActionRef.current === "downloading") {
+        void cancelSemanticMatchingModelDownload().catch(() => {});
+      }
+    },
+    [],
+  );
   return (
     <section className="mb-6">
       <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -85,7 +199,24 @@ export function SemanticMatchingDiagnosticsPanel() {
           </p>
         ) : null}
 
-        {diagnostics ? <DiagnosticsSummary diagnostics={diagnostics} /> : null}
+        {diagnostics ? (
+          <DiagnosticsSummary
+            diagnostics={diagnostics}
+            repairingModelId={repairingModelId}
+            modelLifecycleBusy={modelAction !== null}
+            onRepair={repair}
+          />
+        ) : null}
+        {diagnostics ? (
+          <SemanticMatchingModelControls
+            diagnostics={diagnostics}
+            modelAction={modelAction}
+            downloadProgress={downloadProgress}
+            onDownload={downloadModels}
+            onCancel={cancelDownload}
+            onRemove={removeModels}
+          />
+        ) : null}
       </div>
     </section>
   );
@@ -93,8 +224,14 @@ export function SemanticMatchingDiagnosticsPanel() {
 
 function DiagnosticsSummary({
   diagnostics,
+  repairingModelId,
+  modelLifecycleBusy,
+  onRepair,
 }: {
   diagnostics: SemanticMatchingDiagnostics;
+  repairingModelId: string | null;
+  modelLifecycleBusy: boolean;
+  onRepair: (modelId: string) => Promise<void>;
 }) {
   const status = STATUS_COPY[diagnostics.runtime_status];
   const highlightedModels = diagnostics.models.filter(
@@ -141,13 +278,28 @@ function DiagnosticsSummary({
         </p>
       ) : null}
 
-      <ModelList models={highlightedModels} />
+      <ModelList
+        models={highlightedModels}
+        repairingModelId={repairingModelId}
+        modelLifecycleBusy={modelLifecycleBusy}
+        onRepair={onRepair}
+      />
       <SignalList diagnostics={diagnostics} />
     </div>
   );
 }
 
-function ModelList({ models }: { models: SemanticMatchingModelDiagnostic[] }) {
+function ModelList({
+  models,
+  repairingModelId,
+  modelLifecycleBusy,
+  onRepair,
+}: {
+  models: SemanticMatchingModelDiagnostic[];
+  repairingModelId: string | null;
+  modelLifecycleBusy: boolean;
+  onRepair: (modelId: string) => Promise<void>;
+}) {
   if (models.length === 0) {
     return (
       <p className="text-sm text-surface-600 dark:text-surface-400">
@@ -179,18 +331,31 @@ function ModelList({ models }: { models: SemanticMatchingModelDiagnostic[] }) {
                 {model.backend} - {formatRevision(model.revision)}
                 {model.dimension ? ` - ${model.dimension} dims` : ""}
                 {model.locked_size_bytes
-                  ? ` - ${formatBytes(model.locked_size_bytes)}`
+                  ? ` - ${formatSemanticMatchingBytes(model.locked_size_bytes)}`
                   : ""}
               </div>
             </div>
             <div className="text-left sm:text-right">
               <div className="text-sm font-semibold text-surface-900 dark:text-white">
-                {model.downloaded ? "Ready" : "Not downloaded"}
+                {HEALTH_LABELS[model.health]}
               </div>
               <div className="text-xs text-surface-500 dark:text-surface-400">
                 {model.required_files_present}/{model.required_files} files
                 present
               </div>
+              {model.health === "integrity_mismatch" &&
+              model.required_for_qwen3_runtime ? (
+                <button
+                  type="button"
+                  onClick={() => void onRepair(model.id)}
+                  disabled={modelLifecycleBusy || repairingModelId !== null}
+                  className="mt-2 rounded-md border border-danger/40 px-2 py-1 text-xs font-medium text-danger disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {repairingModelId === model.id
+                    ? "Reviewing repair..."
+                    : "Review local model repair"}
+                </button>
+              ) : null}
             </div>
           </div>
         ))}
@@ -251,10 +416,4 @@ function SignalList({
 
 function formatRevision(revision: string): string {
   return revision.length > 12 ? revision.slice(0, 12) : revision;
-}
-
-function formatBytes(bytes: number): string {
-  if (!Number.isFinite(bytes) || bytes <= 0) return "0 MB";
-  const mb = bytes / 1_000_000;
-  return `${mb.toFixed(mb >= 100 ? 0 : 1)} MB`;
 }

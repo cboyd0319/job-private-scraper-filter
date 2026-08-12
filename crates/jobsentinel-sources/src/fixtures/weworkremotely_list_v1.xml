@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>Synthetic We Work Remotely jobs</title>
+    <link>https://weworkremotely.com/remote-jobs.rss</link>
+    <item>
+      <title>Example Cooperative: Distributed Systems Engineer</title>
+      <link>https://weworkremotely.com/remote-jobs/example-cooperative-distributed-systems-engineer</link>
+      <description><![CDATA[
+        Build reliable local-first systems with a distributed team. Work from anywhere.
+      ]]></description>
+    </item>
+    <item>
+      <title>Example Clinic: Patient Support Coordinator</title>
+      <link>https://weworkremotely.com/remote-jobs/example-clinic-patient-support-coordinator</link>
+      <description><![CDATA[
+        Support patients across the United States. USA only position.
+      ]]></description>
+    </item>
+  </channel>
+</rss>

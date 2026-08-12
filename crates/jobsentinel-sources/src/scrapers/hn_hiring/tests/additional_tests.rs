@@ -206,15 +206,10 @@ fn test_strip_html_with_all_entities() {
 #[test]
 fn test_parse_job_comment_with_short_company() {
     let scraper = HnHiringScraper::new(10, false);
-    let comment_data = serde_json::json!({
-        "objectID": "123",
-        "comment_text": ""
-    });
-
     let text =
         "X | Senior Engineer | Remote\n\nGreat company, great culture, great benefits.".repeat(1);
 
-    let result = scraper.parse_job_comment(&text, &comment_data);
+    let result = scraper.parse_job_text(&text, 123);
     // Company name "X" is too short (< 2 chars)
     assert!(result.is_none());
 }
@@ -222,13 +217,9 @@ fn test_parse_job_comment_with_short_company() {
 #[test]
 fn test_parse_job_comment_with_valid_data() {
     let scraper = HnHiringScraper::new(10, false);
-    let comment_data = serde_json::json!({
-        "objectID": "123456"
-    });
-
     let text = "TechCorp | Senior Software Engineer | Remote\n\nWe're looking for experienced engineers to join our team. Must have 5+ years of experience with distributed systems.";
 
-    let result = scraper.parse_job_comment(&text, &comment_data);
+    let result = scraper.parse_job_text(text, 123_456);
     assert!(result.is_some());
 
     let job = result.unwrap();
@@ -241,12 +232,8 @@ fn test_parse_job_comment_with_valid_data() {
 #[test]
 fn test_parse_job_comment_description_truncation() {
     let scraper = HnHiringScraper::new(10, false);
-    let comment_data = serde_json::json!({
-        "objectID": "789"
-    });
-
     let long_description = format!("BigCompany | Engineer | SF\n\n{}", "X".repeat(600));
-    let result = scraper.parse_job_comment(&long_description, &comment_data);
+    let result = scraper.parse_job_text(&long_description, 789);
 
     assert!(result.is_some());
     let job = result.unwrap();
@@ -258,12 +245,8 @@ fn test_parse_job_comment_description_truncation() {
 #[test]
 fn test_parse_job_comment_description_not_truncated_when_short() {
     let scraper = HnHiringScraper::new(10, false);
-    let comment_data = serde_json::json!({
-        "objectID": "999"
-    });
-
     let short_text = "Company | Engineer | Remote\n\nShort description here.";
-    let result = scraper.parse_job_comment(&short_text, &comment_data);
+    let result = scraper.parse_job_text(short_text, 999);
 
     assert!(result.is_some());
     let job = result.unwrap();
@@ -303,57 +286,12 @@ fn test_compute_hash_location_variations() {
 }
 
 #[test]
-fn test_parse_comments_takes_more_than_limit() {
-    let scraper = HnHiringScraper::new(2, false);
-    let json_data = serde_json::json!({
-        "hits": [
-            {
-                "objectID": "1",
-                "comment_text": "CompanyA | Engineer | Remote\n\nGreat company with excellent culture and competitive benefits."
-            },
-            {
-                "objectID": "2",
-                "comment_text": "CompanyB | Developer | SF\n\nLooking for talented developers to join our growing team."
-            },
-            {
-                "objectID": "3",
-                "comment_text": "CompanyC | Designer | NYC\n\nSeeking creative designers with strong portfolio and experience."
-            }
-        ]
-    });
-
-    let jobs = scraper
-        .parse_comments(&json_data)
-        .expect("parse_comments should succeed");
-
-    // Should take up to limit * 2 comments and then filter, but respect final limit
-    assert!(jobs.len() <= 2);
-}
-
-#[test]
 fn test_new_scraper_initialization() {
     let scraper = HnHiringScraper::new(25, true);
 
     assert_eq!(scraper.limit, 25);
     assert!(scraper.remote_only);
     assert_eq!(scraper.name(), "hn_hiring");
-}
-
-#[test]
-fn test_parse_job_comment_empty_objectid() {
-    let scraper = HnHiringScraper::new(10, false);
-    let comment_data = serde_json::json!({
-        "objectID": ""
-    });
-
-    let text = "Company | Engineer | Remote\n\nGood job description here with enough text to pass validation.";
-    let result = scraper.parse_job_comment(&text, &comment_data);
-
-    // Empty objectID results in a URL with empty ID
-    // The function still returns a job because URL formatting doesn't check for empty ID
-    if let Some(job) = result {
-        assert_eq!(job.url, "https://news.ycombinator.com/item?id=");
-    }
 }
 
 #[test]

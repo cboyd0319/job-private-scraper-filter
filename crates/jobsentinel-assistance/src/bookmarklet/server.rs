@@ -6,27 +6,28 @@ use super::pending::{
     new_pending_bookmarklet_imports, pending_bookmarklet_import_previews,
     PendingBookmarkletImportPreview, PendingBookmarkletImports,
 };
-use super::BookmarkletRepository;
-use chrono::{DateTime, TimeDelta, Utc};
+use super::{BookmarkletRepository, CompanionPairing};
+use chrono::Utc;
 #[cfg(test)]
 use jobsentinel_domain::calculate_job_hash;
+use jobsentinel_security::validate_credential_free_external_https_url;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
 use std::time::Duration;
 use thiserror::Error;
 use tokio::sync::{OwnedSemaphorePermit, Semaphore};
 use tokio::task::JoinHandle;
-use uuid::Uuid;
 
 mod imports;
 mod listener;
+mod pairing_state;
 
 use imports::handle_import_request;
 pub use imports::{confirm_pending_bookmarklet_imports, discard_pending_bookmarklet_imports};
 use listener::bind_bookmarklet_listener;
+use pairing_state::*;
 
-const BOOKMARKLET_TOKEN_HEADER: &str = "x-jobsentinel-token";
 const CONTENT_LENGTH_HEADER: &str = "content-length";
 const HEADER_BODY_SEPARATOR: &[u8] = b"\r\n\r\n";
 const MAX_BOOKMARKLET_REQUEST_BYTES: usize = 24 * 1024;
@@ -36,7 +37,6 @@ const MAX_BOOKMARKLET_JOBS_PER_REQUEST: usize = 12;
 const BOOKMARKLET_READ_TIMEOUT: Duration = Duration::from_secs(3);
 #[cfg(test)]
 const BOOKMARKLET_READ_TIMEOUT: Duration = Duration::from_millis(50);
-const BOOKMARKLET_TOKEN_LIFETIME_MINUTES: i64 = 60;
 const MAX_BOOKMARKLET_TITLE_LENGTH: usize = 500;
 const MAX_BOOKMARKLET_COMPANY_LENGTH: usize = 200;
 const MAX_BOOKMARKLET_URL_LENGTH: usize = 2000;
@@ -48,74 +48,18 @@ const BOOKMARKLET_DATABASE_FAILURE_MESSAGE: &str =
     "JobSentinel could not save this job. Restart the app and try again.";
 const BOOKMARKLET_UNAUTHORIZED_MESSAGE: &str =
     "Browser import code expired. Copy the browser button again and retry.";
+const BOOKMARKLET_AUTHORIZATION_FAILURE_MESSAGE: &str =
+    "Browser Import authorization changed. Copy a fresh browser button and try again.";
 
 /// Bookmarklet server configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BookmarkletConfig {
     pub port: u16,
-    pub auth_token: String,
-    pub auth_token_expires_at: DateTime<Utc>,
 }
 
 impl Default for BookmarkletConfig {
     fn default() -> Self {
-        Self {
-            port: 4321,
-            auth_token: Uuid::new_v4().to_string(),
-            auth_token_expires_at: bookmarklet_auth_expiry(),
-        }
-    }
-}
-
-impl BookmarkletConfig {
-    pub fn refresh_auth_token(&mut self) {
-        self.auth_token = Uuid::new_v4().to_string();
-        self.auth_token_expires_at = bookmarklet_auth_expiry();
-    }
-
-    #[must_use]
-    pub fn auth_token_is_current(&self, now: DateTime<Utc>) -> bool {
-        !self.auth_token.is_empty() && now <= self.auth_token_expires_at
-    }
-}
-
-fn bookmarklet_auth_expiry() -> DateTime<Utc> {
-    Utc::now() + TimeDelta::minutes(BOOKMARKLET_TOKEN_LIFETIME_MINUTES)
-}
-
-#[derive(Debug, Clone)]
-struct BookmarkletAuthState {
-    auth_token: String,
-    auth_token_expires_at: DateTime<Utc>,
-}
-
-impl From<&BookmarkletConfig> for BookmarkletAuthState {
-    fn from(config: &BookmarkletConfig) -> Self {
-        Self {
-            auth_token: config.auth_token.clone(),
-            auth_token_expires_at: config.auth_token_expires_at,
-        }
-    }
-}
-
-#[cfg(test)]
-fn current_bookmarklet_auth(
-    auth_state: &Arc<RwLock<BookmarkletAuthState>>,
-) -> BookmarkletAuthState {
-    match auth_state.read() {
-        Ok(state) => state.clone(),
-        Err(poisoned) => poisoned.into_inner().clone(),
-    }
-}
-
-fn sync_bookmarklet_auth(
-    auth_state: &Arc<RwLock<BookmarkletAuthState>>,
-    config: &BookmarkletConfig,
-) {
-    let next = BookmarkletAuthState::from(config);
-    match auth_state.write() {
-        Ok(mut state) => *state = next,
-        Err(poisoned) => *poisoned.into_inner() = next,
+        Self { port: 4321 }
     }
 }
 
@@ -141,7 +85,7 @@ pub enum BookmarkletError {
 /// HTTP server for receiving bookmarklet data
 pub struct BookmarkletServer {
     config: BookmarkletConfig,
-    auth_state: Arc<RwLock<BookmarkletAuthState>>,
+    active_pairing: ActiveCompanionPairing,
     pending_imports: PendingBookmarkletImports,
     server_handle: Option<JoinHandle<()>>,
     shutdown_tx: Option<tokio::sync::oneshot::Sender<()>>,
@@ -150,10 +94,9 @@ pub struct BookmarkletServer {
 impl BookmarkletServer {
     /// Create a new bookmarklet server
     pub fn new(config: BookmarkletConfig) -> Self {
-        let auth_state = Arc::new(RwLock::new(BookmarkletAuthState::from(&config)));
         Self {
             config,
-            auth_state,
+            active_pairing: new_active_pairing(),
             pending_imports: new_pending_bookmarklet_imports(),
             server_handle: None,
             shutdown_tx: None,
@@ -168,14 +111,21 @@ impl BookmarkletServer {
     /// Set new configuration (only when server is stopped)
     pub fn set_config(&mut self, config: BookmarkletConfig) {
         self.config = config;
-        sync_bookmarklet_auth(&self.auth_state, &self.config);
+        revoke_active_pairing(&self.active_pairing);
     }
 
-    /// Update only the local browser import safety code.
-    pub fn update_auth_token(&mut self, auth_token: String, auth_token_expires_at: DateTime<Utc>) {
-        self.config.auth_token = auth_token;
-        self.config.auth_token_expires_at = auth_token_expires_at;
-        sync_bookmarklet_auth(&self.auth_state, &self.config);
+    /// Replace the only active local browser pairing.
+    pub fn replace_pairing(&mut self, pairing: CompanionPairing) -> Result<(), BookmarkletError> {
+        if !self.is_running() {
+            return Err(BookmarkletError::NotRunning);
+        }
+        replace_active_pairing(&self.active_pairing, pairing);
+        Ok(())
+    }
+
+    /// Report whether a usable browser pairing is active.
+    pub fn pairing_is_current(&self) -> bool {
+        active_pairing_is_current(&self.active_pairing, Utc::now())
     }
 
     /// Clone the in-memory review queue for command handlers.
@@ -204,12 +154,11 @@ impl BookmarkletServer {
         }
 
         self.config = config;
-        self.config.refresh_auth_token();
         let requested_port = self.config.port;
         let (listener, port) = bind_bookmarklet_listener(requested_port).await?;
         self.config.port = port;
-        sync_bookmarklet_auth(&self.auth_state, &self.config);
-        let auth_state = self.auth_state.clone();
+        revoke_active_pairing(&self.active_pairing);
+        let active_pairing = self.active_pairing.clone();
         let pending_imports = self.pending_imports.clone();
 
         // Create shutdown channel
@@ -219,7 +168,7 @@ impl BookmarkletServer {
         let handle = tokio::spawn(async move {
             if let Err(e) = run_server(
                 listener,
-                auth_state,
+                active_pairing,
                 pending_imports,
                 repository,
                 shutdown_rx,
@@ -252,6 +201,7 @@ impl BookmarkletServer {
         if let Some(handle) = self.server_handle.take() {
             let _ = handle.await;
         }
+        revoke_active_pairing(&self.active_pairing);
 
         tracing::info!("Bookmarklet server stopped");
         Ok(())
@@ -266,7 +216,7 @@ impl Default for BookmarkletServer {
 
 async fn run_server(
     listener: tokio::net::TcpListener,
-    auth_state: Arc<RwLock<BookmarkletAuthState>>,
+    active_pairing: ActiveCompanionPairing,
     pending_imports: PendingBookmarkletImports,
     repository: Arc<dyn BookmarkletRepository>,
     mut shutdown_rx: tokio::sync::oneshot::Receiver<()>,
@@ -290,12 +240,12 @@ async fn run_server(
                             continue;
                         };
                         let repository = repository.clone();
-                        let auth = auth_state.clone();
+                        let pairing = active_pairing.clone();
                         let pending = pending_imports.clone();
                         tokio::spawn(async move {
                             let _connection_permit = connection_permit;
                             if let Err(_e) =
-                                handle_connection(stream, auth, pending, repository).await
+                                handle_connection(stream, pairing, pending, repository).await
                             {
                                 tracing::error!("Bookmarklet connection failed");
                             }
@@ -328,7 +278,7 @@ fn try_bookmarklet_connection_permit(
 /// Handle a single HTTP connection
 async fn handle_connection(
     stream: tokio::net::TcpStream,
-    auth_state: Arc<RwLock<BookmarkletAuthState>>,
+    active_pairing: ActiveCompanionPairing,
     pending_imports: PendingBookmarkletImports,
     repository: Arc<dyn BookmarkletRepository>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
@@ -349,7 +299,7 @@ async fn handle_connection(
             "application/json".to_string(),
         )
     } else if is_bookmarklet_import_request(&request) {
-        handle_import_request(&request, &auth_state, pending_imports, repository).await
+        handle_import_request(&request, &active_pairing, pending_imports, repository).await
     } else if request.starts_with("OPTIONS") {
         ("OK".to_string(), "text/plain".to_string())
     } else {

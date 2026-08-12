@@ -19,6 +19,10 @@ impl Scheduler {
         use std::time::Instant;
 
         let _scrape_guard = self.scrape_lock.lock().await;
+        anyhow::ensure!(
+            !self.is_shutdown_requested(),
+            "Scraping cycle stopped before external work"
+        );
         let cycle_start = Instant::now();
         tracing::info!("Starting full scraping cycle");
 
@@ -30,12 +34,22 @@ impl Scheduler {
         // 1. Run all scrapers
         let stage1_start = Instant::now();
         tracing::info!("Pipeline stage 1/3: Running scrapers");
-        let (all_jobs, mut errors) = run_scrapers(&config, &self.database, &self.credentials).await;
+        let (all_jobs, mut errors) = run_scrapers(
+            &config,
+            &self.database,
+            &self.credentials,
+            &self.shutdown_requested,
+        )
+        .await;
         let stage1_duration = stage1_start.elapsed();
         tracing::info!(
             job_count = all_jobs.len(),
             elapsed_ms = stage1_duration.as_millis(),
             "Stage 1 complete: Scrapers finished"
+        );
+        anyhow::ensure!(
+            !self.is_shutdown_requested(),
+            "Scraping cycle stopped after source audit completion"
         );
 
         // 2. Score all jobs and run ghost detection
@@ -47,6 +61,10 @@ impl Scheduler {
             job_count = scored_jobs.len(),
             elapsed_ms = stage2_duration.as_millis(),
             "Stage 2 complete: Scoring and ghost detection finished"
+        );
+        anyhow::ensure!(
+            !self.is_shutdown_requested(),
+            "Scraping cycle stopped before persistence and notifications"
         );
 
         // 3. Store in database and send notifications

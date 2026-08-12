@@ -1,14 +1,20 @@
-//! Bookmarklet server module
-//!
-//! Provides a local HTTP server that receives job data from browser bookmarklets.
-//! This allows users to import jobs from any website by clicking a bookmark.
+//! Owns paired local bookmarklet imports and explicit pending-job review.
 
+mod pairing;
+#[cfg(test)]
+mod pairing_test_support;
 mod pending;
 mod server;
 
 use async_trait::async_trait;
-use jobsentinel_domain::Job;
+use jobsentinel_domain::{v3_source_authorization::SourceGrantState, Job};
 
+pub use pairing::{
+    CompanionPairing, CompanionPairingCode, CompanionPairingError, CompanionRequest,
+    COMPANION_PROTOCOL_VERSION,
+};
+#[cfg(test)]
+pub(crate) use pairing_test_support::companion_request_for_test;
 pub use pending::{
     BookmarkletImportConfirmResult, PendingBookmarkletImportPreview, PendingBookmarkletImports,
 };
@@ -19,8 +25,10 @@ pub use server::{
 
 #[async_trait]
 pub trait BookmarkletRepository: Send + Sync {
+    async fn authorize_browser_action(&self, grant: &SourceGrantState) -> Result<bool, String>;
     async fn job_exists_by_hash(&self, hash: &str) -> Result<bool, String>;
     async fn upsert_job(&self, job: &Job) -> Result<i64, String>;
+    async fn mark_job_applied(&self, hash: &str) -> Result<(), String>;
 }
 
 #[async_trait]
@@ -28,6 +36,10 @@ impl<T> BookmarkletRepository for std::sync::Arc<T>
 where
     T: BookmarkletRepository + ?Sized,
 {
+    async fn authorize_browser_action(&self, grant: &SourceGrantState) -> Result<bool, String> {
+        self.as_ref().authorize_browser_action(grant).await
+    }
+
     async fn job_exists_by_hash(&self, hash: &str) -> Result<bool, String> {
         self.as_ref().job_exists_by_hash(hash).await
     }
@@ -35,9 +47,26 @@ where
     async fn upsert_job(&self, job: &Job) -> Result<i64, String> {
         self.as_ref().upsert_job(job).await
     }
+
+    async fn mark_job_applied(&self, hash: &str) -> Result<(), String> {
+        self.as_ref().mark_job_applied(hash).await
+    }
 }
 
 use serde::{Deserialize, Serialize};
+
+pub(super) fn constant_time_ascii_eq(left: &str, right: &str) -> bool {
+    let left_bytes = left.as_bytes();
+    let right_bytes = right.as_bytes();
+    let mut diff = left_bytes.len() ^ right_bytes.len();
+    for index in 0..left_bytes.len().max(right_bytes.len()) {
+        diff |= usize::from(
+            left_bytes.get(index).copied().unwrap_or(0)
+                ^ right_bytes.get(index).copied().unwrap_or(0),
+        );
+    }
+    diff == 0
+}
 
 /// Job data received from bookmarklet
 #[derive(Debug, Clone, Serialize, Deserialize)]

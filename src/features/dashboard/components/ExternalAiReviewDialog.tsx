@@ -49,6 +49,19 @@ function formatList(values: readonly string[]): string {
   return values.length ? values.join(", ") : "None";
 }
 
+function changesStoredValue(
+  request: ExternalAiRequest | null,
+  payload: Record<string, unknown> | null,
+): boolean {
+  if (!request || !payload || Object.keys(payload).length === 0) return true;
+  const original = request.redactedPayload ?? request.payload;
+  return Object.entries(payload).some(
+    ([key, value]) =>
+      !(key in original) ||
+      JSON.stringify(value) !== JSON.stringify(original[key]),
+  );
+}
+
 export function ExternalAiReviewDialog({
   isOpen,
   providerLabel,
@@ -62,6 +75,7 @@ export function ExternalAiReviewDialog({
   );
   const [sensitiveConfirmed, setSensitiveConfirmed] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [retryBlocked, setRetryBlocked] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const initialReviewText = useMemo(() => stringifyReviewPayload(request), [
     request,
@@ -78,11 +92,17 @@ export function ExternalAiReviewDialog({
   const sensitiveBlocked = includesSensitiveDetails && !allowSensitivePayloads;
   const needsSensitiveConfirmation =
     includesSensitiveDetails && allowSensitivePayloads && !sensitiveConfirmed;
+  const hasChangedStoredValue = changesStoredValue(
+    request,
+    parsedDetails.payload,
+  );
   const sendDisabled =
     !request ||
     Boolean(parsedDetails.error) ||
+    hasChangedStoredValue ||
     sensitiveBlocked ||
     needsSensitiveConfirmation ||
+    retryBlocked ||
     isSubmitting;
 
   useEffect(() => {
@@ -91,6 +111,7 @@ export function ExternalAiReviewDialog({
     setReviewText(initialReviewText);
     setSensitiveConfirmed(false);
     setSubmitError(null);
+    setRetryBlocked(false);
     setIsSubmitting(false);
   }, [initialReviewText, isOpen]);
 
@@ -113,11 +134,12 @@ export function ExternalAiReviewDialog({
           undefined,
       });
     } catch (error) {
-      setSubmitError(
+      const message =
         error instanceof Error
           ? error.message
-          : "JobSentinel could not send these details.",
-      );
+          : "JobSentinel could not send these details.";
+      setSubmitError(message);
+      if (/do not retry/i.test(message)) setRetryBlocked(true);
     } finally {
       setIsSubmitting(false);
     }
@@ -181,6 +203,14 @@ export function ExternalAiReviewDialog({
             </p>
           )}
 
+          {!parsedDetails.error && hasChangedStoredValue && (
+            <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-200">
+              Remove fields you do not want to share. Adding or rewriting
+              values is blocked because only stored public job fields can be
+              sent.
+            </p>
+          )}
+
           {includesSensitiveDetails && (
             <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-100">
               <p className="font-medium">These details include private data.</p>
@@ -219,7 +249,6 @@ export function ExternalAiReviewDialog({
               type="button"
               variant="secondary"
               onClick={onCancel}
-              disabled={isSubmitting}
             >
               Cancel
             </Button>

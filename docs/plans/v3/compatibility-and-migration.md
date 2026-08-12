@@ -1,10 +1,10 @@
 # Compatibility And Migration
 
-V3 is the first JobSentinel release line that should make long-term backward
-compatibility a product promise. Earlier releases can migrate forward, but they
-do not need durable rollback or schema compatibility guarantees. V3 is the line
-where architecture, data contracts, package identity, and migration discipline
-become stable enough for users to rely on.
+V3.0.0 is the first JobSentinel release that makes backward compatibility a
+product promise. Releases before v3.0.0 have no supported forward-migration,
+rollback, or schema-compatibility guarantee. V3 is the line where architecture,
+data contracts, package identity, and migration discipline become stable enough
+for users to rely on.
 
 Rust remains the base runtime for this compatibility line. Compatibility
 contracts may expose CLI, browser companion, MCP, source-pack, model-pack, or UI
@@ -15,7 +15,7 @@ boundaries should stay Rust-owned.
 
 | Release range | Compatibility posture |
 | --- | --- |
-| Before v3 | Best-effort forward migration only. No supported rollback promise. No durable plugin, source-pack, model-pack, or database compatibility contract. |
+| Before v3.0.0 | Unsupported as an upgrade source. No forward-migration, rollback, or durable plugin, source-pack, model-pack, database, settings, API, or artifact compatibility promise. |
 | v3.0.0 and later v3.x | Stable long-term contracts inside the v3 compatibility line, documented migrations, backup-before-upgrade, and supported rollback where the data contract allows it. |
 | Future major versions | Explicit migration plan from the previous long-term line, with compatibility breaks documented before release. |
 
@@ -60,7 +60,7 @@ Rollback support should be explicit and limited:
 
 ## Migration Rules
 
-V3 migrations should:
+Migrations from v3.0.0 onward should:
 
 - be versioned and deterministic
 - run locally
@@ -71,20 +71,12 @@ V3 migrations should:
 - include tests for fresh install, upgrade, failed migration, retry, backup
   restore, and unsupported-newer-data handling
 
-## Pre-V3 Upgrade Path
+## Pre-V3 Boundary
 
-Users upgrading from v2.9 or earlier should get:
-
-- plain-language explanation that v3 starts the long-term compatibility line
-- local backup before migration
-- migration summary
-- source and model pack compatibility check
-- browser companion permission reset if the protocol changes
-- external AI settings verification
-- safe support report option if migration fails
-
-No pre-v3 install should be treated as permanently compatible. The promise is
-safe forward migration into v3, not indefinite two-way compatibility.
+JobSentinel v3.0.0 does not read, migrate, restore, or roll back databases,
+settings, APIs, packs, or artifacts created before v3.0.0. Release closure must
+remove pre-v3 readers, migration shims, fixtures, and user-facing claims rather
+than carry unsupported compatibility code into the long-term line.
 
 ## Architecture Implications
 
@@ -111,9 +103,8 @@ v3.0.0 ships. After v3.0.0, the bar for breaking changes should be much higher.
 Before v3.0.0 release:
 
 - fresh install works
-- v2.9-to-v3 migration works
-- migration creates a backup
-- failed migration can retry or restore
+- v3.0.0 establishes the first supported data and settings baseline
+- no pre-v3 compatibility reader, shim, fixture, or release claim remains
 - v3 patch rollback works for a compatible migration
 - unsupported-newer-data detection works
 - source packs survive compatible upgrades

@@ -39,6 +39,11 @@
     ".yaml",
     ".yml"
   ],
+  "file_descriptions": {
+    "binary_extensions": [".icns", ".ico", ".png"],
+    "commentless_extensions": [".csv", ".json"],
+    "commentless_paths": [".nvmrc", "LICENSE"]
+  },
   "file_size": {
     "baseline": {
       "measured_on": "2026-07-17",

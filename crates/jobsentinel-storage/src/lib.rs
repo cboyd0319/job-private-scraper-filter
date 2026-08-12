@@ -12,9 +12,16 @@ pub mod application_tracking;
 pub mod automation;
 pub mod health;
 pub mod market_intelligence;
+pub mod outside_ai;
+pub mod pack_tasks;
 pub mod resume;
 pub mod salary;
 pub mod user_data;
+pub mod v3_foundation;
+pub mod v3_pack_lifecycle;
+pub mod v3_source_consent;
+pub mod v3_source_manifest;
+pub mod v3_vectors;
 
 // Internal modules
 mod analytics;
@@ -29,18 +36,30 @@ mod types;
 
 // Tests
 #[cfg(test)]
+mod outside_ai_tests;
+#[cfg(test)]
+mod pack_tasks_tests;
+#[cfg(test)]
 pub(crate) mod test_support;
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod v3_pack_lifecycle_tests;
+#[cfg(test)]
+mod v3_source_manifest_tests;
 
 // Re-export public types
 pub use types::{DuplicateGroup, GhostStatistics, Statistics};
 
 // Re-export Database struct
-pub use connection::Database;
+pub use connection::{
+    Database, PortableBackupHistory, PortableBackupInfo, PortableRestoreStatus, ReviewedExportInfo,
+    ReviewedExportPlan, ReviewedExportSelection, StorageHealth, StorageMaintenanceReport,
+};
 pub use credentials::{
     CredentialKeyWrapRecord, CredentialRepository, CredentialSecretRecord, CredentialStorageError,
 };
+pub use v3_pack_lifecycle::pack_lifecycle_error_kind;
 
 /// Stable, non-sensitive classification for storage errors used by callers.
 pub fn database_error_kind(error: &sqlx::Error) -> &'static str {

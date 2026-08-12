@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Button } from "../../../ui/Button";
 import { ExternalAiReviewDialog } from "./ExternalAiReviewDialog";
 import { Modal, ModalFooter } from "../../../ui/Modal";
@@ -7,10 +7,10 @@ import {
   createBackendExternalAiGateway,
   loadExternalAiRuntimeConfig,
   providerLabel,
+  type BackendExternalAiGateway,
   type ExternalAiRuntimeConfig,
 } from "../../../shared/externalAi/externalAiBackendTransport";
 import type { ExternalAiRequest } from "../../../shared/externalAi/externalAiTypes";
-import { formatSalaryRange } from "../jobDisplayFormatting";
 
 interface ExternalAiSummaryJob {
   id: number;
@@ -49,19 +49,10 @@ function buildPublicJobPayload(job: ExternalAiSummaryJob): Record<string, unknow
   const payload: Record<string, unknown> = {
     title: job.title,
     company: job.company,
-    sourceUrl: job.url,
-    source: job.source,
-    jobId: String(job.id),
-    firstSeenAt: job.created_at,
   };
-  const salaryRange = formatSalaryRange(job.salary_min, job.salary_max);
 
   appendString(payload, "location", job.location);
   appendString(payload, "description", job.description);
-  appendString(payload, "salaryRange", salaryRange);
-  if (typeof job.remote === "boolean") {
-    payload.jobType = job.remote ? "Remote" : "Location listed";
-  }
 
   return payload;
 }
@@ -71,6 +62,7 @@ function buildJobSummaryRequest(job: ExternalAiSummaryJob): ExternalAiRequest {
 
   return {
     feature: "job-description-summary",
+    sourceJobId: job.id,
     labels: ["External AI optional", "Public-data only"],
     dataCategories: ["job_posting", "public_metadata"],
     payload,
@@ -92,6 +84,7 @@ function explainSetupGap(config: ExternalAiRuntimeConfig): string | null {
 
 export function ExternalAiJobSummary({ job }: ExternalAiJobSummaryProps) {
   const toast = useToast();
+  const activeGateway = useRef<BackendExternalAiGateway | null>(null);
   const [reviewRequest, setReviewRequest] = useState<ExternalAiRequest | null>(
     null,
   );
@@ -101,6 +94,8 @@ export function ExternalAiJobSummary({ job }: ExternalAiJobSummaryProps) {
   const [summary, setSummary] = useState<string | null>(null);
   const [isSummaryOpen, setIsSummaryOpen] = useState(false);
   const [isPreparing, setIsPreparing] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
+  const [retryBlocked, setRetryBlocked] = useState(false);
 
   const openReview = async () => {
     setIsPreparing(true);
@@ -131,11 +126,42 @@ export function ExternalAiJobSummary({ job }: ExternalAiJobSummaryProps) {
     if (!reviewContext) return;
 
     const gateway = createBackendExternalAiGateway(reviewContext.config);
-    const response = await gateway.send(request);
-    setSummary(response.text);
+    activeGateway.current = gateway;
+    try {
+      const response = await gateway.send(request);
+      if (activeGateway.current !== gateway) return;
+      setSummary(response.text);
+      setReviewRequest(null);
+      setIsSummaryOpen(true);
+      toast.success("Summary ready", "Reviewed public job details were sent.");
+    } catch (error) {
+      if (error instanceof Error && /do not retry/i.test(error.message)) {
+        setRetryBlocked(true);
+      }
+      throw error;
+    } finally {
+      if (activeGateway.current === gateway) activeGateway.current = null;
+    }
+  };
+
+  const cancelReview = async () => {
+    const gateway = activeGateway.current;
+    activeGateway.current = null;
     setReviewRequest(null);
-    setIsSummaryOpen(true);
-    toast.success("Summary ready", "Reviewed public job details were sent.");
+    if (!gateway) return;
+
+    setIsCancelling(true);
+    try {
+      await gateway.cancelActive();
+    } catch {
+      setRetryBlocked(true);
+      toast.error(
+        "Could not confirm cancellation",
+        "The request outcome is unknown. Do not retry. Open Settings > Outside AI and check durable activity.",
+      );
+    } finally {
+      setIsCancelling(false);
+    }
   };
 
   return (
@@ -145,11 +171,20 @@ export function ExternalAiJobSummary({ job }: ExternalAiJobSummaryProps) {
         onClick={() => void openReview()}
         className="p-2 text-surface-400 transition-colors opacity-40 hover:text-sentinel-600 group-hover:opacity-100 focus-visible:opacity-100 dark:hover:text-sentinel-300"
         aria-label="Summarize posting with Outside AI"
-        title="Summarize posting with Outside AI"
+        title={
+          retryBlocked
+            ? "Check durable Outside AI activity before retrying"
+            : "Summarize posting with Outside AI"
+        }
         data-testid="btn-external-ai-summary"
-        aria-busy={isPreparing || undefined}
+        aria-busy={isPreparing || isCancelling || undefined}
+        disabled={isPreparing || isCancelling || retryBlocked}
       >
-        <SparkleIcon className={isPreparing ? "motion-safe:animate-pulse" : ""} />
+        <SparkleIcon
+          className={
+            isPreparing || isCancelling ? "motion-safe:animate-pulse" : ""
+          }
+        />
       </button>
 
       <ExternalAiReviewDialog
@@ -157,7 +192,7 @@ export function ExternalAiJobSummary({ job }: ExternalAiJobSummaryProps) {
         providerLabel={reviewContext?.providerLabel ?? "Outside AI"}
         request={reviewRequest}
         allowSensitivePayloads={false}
-        onCancel={() => setReviewRequest(null)}
+        onCancel={() => void cancelReview()}
         onApprove={approveReviewedRequest}
       />
 

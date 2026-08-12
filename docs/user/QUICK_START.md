@@ -234,9 +234,7 @@ Before job checks start, JobSentinel shows the answers it will use to rank jobs:
 
 If JobSentinel suggests outside job sources for the search, check only the
 sources you want it to contact. Leave them unchecked to start with a local
-saved search and add sources later in Settings. Non-technical searches may
-offer SimplyHired as a broad public source; it is optional and stays unchecked
-until you choose it.
+saved search and add reviewed active sources later in Settings.
 
 Change anything that looks wrong, then start finding jobs.
 

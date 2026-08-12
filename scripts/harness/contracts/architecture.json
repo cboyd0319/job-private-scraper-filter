@@ -130,6 +130,7 @@
     "pdf-extract": "jobsentinel-documents",
     "quick-xml": ["jobsentinel-documents", "jobsentinel-sources"],
     "reqwest": "jobsentinel-network",
+    "ring": "jobsentinel-security",
     "scraper": "jobsentinel-sources",
     "security-framework": "jobsentinel-platform",
     "sqlx": "jobsentinel-storage",

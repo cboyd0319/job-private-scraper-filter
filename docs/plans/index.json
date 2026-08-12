@@ -1,7 +1,7 @@
 {
   "schema": "jobsentinel.plan_index.v2",
   "purpose": "Detailed plan discovery only. Root scripts/harness/state/feature-list.json owns work selection and state.",
-  "active_plan": "docs/plans/v3/README.md",
+  "active_plan": "docs/plans/v3/master-exec-plan.md",
   "architecture_reference": "docs/plans/completed/repository-refactor-blueprint.md",
   "completed_plan_directory": "docs/plans/completed",
   "archive_directory": "docs/plans/archive",

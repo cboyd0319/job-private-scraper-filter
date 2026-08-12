@@ -11,6 +11,8 @@ export interface PendingBookmarkletImport {
   location: string | null;
   description_preview: string | null;
   remote: boolean;
+  operation: "visible_page_capture" | "applied_logging";
+  missing_fields: ("title" | "company")[];
   received_at: string;
 }
 
@@ -56,6 +58,12 @@ function isPendingBookmarkletImport(
     (item.description_preview === null ||
       typeof item.description_preview === "string") &&
     typeof item.remote === "boolean" &&
+    (item.operation === "visible_page_capture" ||
+      item.operation === "applied_logging") &&
+    Array.isArray(item.missing_fields) &&
+    item.missing_fields.every(
+      (field) => field === "title" || field === "company",
+    ) &&
     typeof item.received_at === "string"
   );
 }

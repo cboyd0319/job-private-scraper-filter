@@ -1,11 +1,16 @@
 mod tray;
 
 pub(crate) use crate::application::desktop::*;
-use tauri::{Builder, Runtime, WindowEvent};
+use tauri::{Builder, Manager, Runtime, WindowEvent};
 pub(crate) use tray::{initialize_tray, show_main_window};
 
 pub(crate) fn preserve_main_window_on_close<R: Runtime>(builder: Builder<R>) -> Builder<R> {
     builder.on_window_event(|window, event| {
+        if window.label() == "main" {
+            if let WindowEvent::DragDrop(tauri::DragDropEvent::Drop { paths, .. }) = event {
+                crate::ipc::native_file_drop::capture_native_file_drop(window.app_handle(), paths);
+            }
+        }
         if let WindowEvent::CloseRequested { api, .. } = event {
             handle_close_request(window.label(), || api.prevent_close(), || window.hide());
         }

@@ -208,15 +208,6 @@ async fn test_scrape_company_infers_remote_for_each_job() {
     assert!(!remote_flags[1]); // Onsite Inventory Planner should not be remote
 }
 
-#[tokio::test]
-async fn test_scrape_returns_empty_for_non_array_json() {
-    let json_response = serde_json::json!({
-        "error": "Invalid format"
-    });
-
-    assert!(parse_test_postings(&json_response).is_empty());
-}
-
 #[test]
 fn test_job_struct_all_boolean_fields_default_false() {
     let job = default_lever_job();

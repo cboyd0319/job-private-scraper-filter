@@ -7,6 +7,13 @@ const EXPERIENCE_WEIGHT: f64 = 0.3;
 #[cfg(any(not(feature = "embedded-ml"), test))]
 const EDUCATION_WEIGHT: f64 = 0.2;
 
+#[derive(Debug, Clone, PartialEq)]
+pub struct ResumeMatchScore {
+    pub score: f64,
+    pub blocker: Option<String>,
+    pub sources: Vec<String>,
+}
+
 pub fn calculate_resume_match_score(
     matching_skills: &[String],
     missing_skills: &[String],
@@ -15,7 +22,7 @@ pub fn calculate_resume_match_score(
     experience_reqs: &[ExperienceRequirement],
     education_match_score: f64,
     education_req: Option<&EducationRequirement>,
-) -> f64 {
+) -> ResumeMatchScore {
     #[cfg(feature = "embedded-ml")]
     {
         calculate_hybrid_score(
@@ -37,11 +44,17 @@ pub fn calculate_resume_match_score(
             experience_reqs,
             education_req,
         );
-        calculate_legacy_score(
-            skills_match_score,
-            experience_match_score,
-            education_match_score,
-        )
+        ResumeMatchScore {
+            score: calculate_legacy_score(
+                skills_match_score,
+                experience_match_score,
+                education_match_score,
+            ),
+            blocker: None,
+            sources: ["skills", "experience", "education"]
+                .map(str::to_string)
+                .to_vec(),
+        }
     }
 }
 
@@ -65,7 +78,7 @@ fn calculate_hybrid_score(
     experience_reqs: &[ExperienceRequirement],
     education_match_score: f64,
     education_req: Option<&EducationRequirement>,
-) -> f64 {
+) -> ResumeMatchScore {
     use jobsentinel_local_ai::{HybridCandidate, HybridScorer, MatchBlocker};
 
     let required_coverage = required_coverage(
@@ -78,10 +91,12 @@ fn calculate_hybrid_score(
         education_req,
     );
     let mut blockers = Vec::new();
-    if !missing_skills.is_empty() && skills_match_score < 0.5 {
-        blockers.push(MatchBlocker::MissingRequiredSkill(
-            missing_skills[0].clone(),
-        ));
+    if let Some(skill) = missing_skills
+        .iter()
+        .min()
+        .filter(|_| skills_match_score < 0.5)
+    {
+        blockers.push(MatchBlocker::MissingRequiredSkill(skill.clone()));
     }
     if experience_reqs
         .iter()
@@ -113,11 +128,32 @@ fn calculate_hybrid_score(
             blockers,
         }])
         .into_iter()
-        .next()
-        .map(|score| score.score)
-        .unwrap_or_default();
+        .next();
 
-    f64::from(score)
+    score.map_or(
+        ResumeMatchScore {
+            score: 0.0,
+            blocker: None,
+            sources: Vec::new(),
+        },
+        |score| ResumeMatchScore {
+            score: f64::from(score.score),
+            blocker: score.blockers.first().map(blocker_label),
+            sources: score.provenance.sources,
+        },
+    )
+}
+
+#[cfg(feature = "embedded-ml")]
+fn blocker_label(blocker: &jobsentinel_local_ai::MatchBlocker) -> String {
+    use jobsentinel_local_ai::MatchBlocker;
+
+    match blocker {
+        MatchBlocker::MissingRequiredSkill(skill) => {
+            format!("Score limited because skill evidence was not found: {skill}")
+        }
+        _ => "Score limited by a local constraint".to_string(),
+    }
 }
 
 #[cfg(feature = "embedded-ml")]
@@ -191,12 +227,12 @@ mod tests {
         assert!((score - 0.75).abs() < f64::EPSILON);
     }
 
-    #[cfg(feature = "embedded-ml")]
+    #[cfg(not(feature = "embedded-ml"))]
     #[test]
-    fn hybrid_score_caps_missing_required_skills() {
+    fn model_free_score_does_not_claim_a_blocker_cap() {
         let score = calculate_resume_match_score(
             &[],
-            &[String::from("Kubernetes")],
+            &["Kubernetes".to_string()],
             0.0,
             1.0,
             &[],
@@ -204,7 +240,31 @@ mod tests {
             None,
         );
 
-        assert!(score <= 0.45);
+        assert!(score.blocker.is_none());
+    }
+
+    #[cfg(feature = "embedded-ml")]
+    #[test]
+    fn hybrid_score_caps_missing_required_skills() {
+        let score = calculate_resume_match_score(
+            &[],
+            &[String::from("Terraform"), String::from("Kubernetes")],
+            0.0,
+            1.0,
+            &[],
+            1.0,
+            None,
+        );
+
+        assert!(score.score <= 0.45);
+        assert_eq!(
+            score.blocker.as_deref(),
+            Some("Score limited because skill evidence was not found: Kubernetes")
+        );
+        assert_eq!(
+            score.sources,
+            ["skill_exact".to_string(), "required_coverage".to_string()]
+        );
     }
 
     #[cfg(feature = "embedded-ml")]
@@ -229,6 +289,14 @@ mod tests {
             }),
         );
 
-        assert!(score >= 0.9);
+        assert!(score.score >= 0.9);
+        assert_eq!(
+            score.sources,
+            [
+                "skill_exact".to_string(),
+                "required_coverage".to_string(),
+                "seniority".to_string(),
+            ]
+        );
     }
 }

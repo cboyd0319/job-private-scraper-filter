@@ -274,7 +274,7 @@ async fn test_scheduler_concurrent_shutdowns() {
 }
 
 #[tokio::test]
-async fn test_scheduler_subscribe_after_shutdown() {
+async fn test_scheduler_shutdown_is_sticky_for_late_subscribers() {
     let config = Arc::new(create_test_config());
     let db = Database::connect_memory().await.unwrap();
     db.migrate().await.unwrap();
@@ -288,11 +288,128 @@ async fn test_scheduler_subscribe_after_shutdown() {
     // Subscribe after shutdown
     let mut rx = scheduler.subscribe_shutdown();
 
-    // Should not receive signal (lagged)
+    // Shutdown remains observable when the receiver is created after the request.
     let result = tokio::time::timeout(Duration::from_millis(100), rx.recv()).await;
 
-    // Should timeout since signal was already sent
-    assert!(result.is_err() || result.unwrap().is_err());
+    assert_eq!(result.unwrap().unwrap(), ());
+}
+
+#[tokio::test]
+async fn test_shutdown_does_not_drop_an_active_cycle() {
+    let config = Arc::new(RwLock::new(create_test_config()));
+    let config_guard = config.write().await;
+    let db = Database::connect_memory().await.unwrap();
+    db.migrate().await.unwrap();
+    let database = Arc::new(db);
+    let scheduler = Arc::new(Scheduler::new_shared(
+        Arc::clone(&config),
+        Arc::clone(&database),
+    ));
+    let scheduler_clone = Arc::clone(&scheduler);
+    let mut handle = tokio::spawn(async move { scheduler_clone.run_scraping_cycle().await });
+
+    tokio::time::timeout(Duration::from_secs(1), async {
+        loop {
+            match scheduler.scrape_lock.try_lock() {
+                Ok(guard) => drop(guard),
+                Err(_) => break,
+            }
+            tokio::task::yield_now().await;
+        }
+    })
+    .await
+    .unwrap();
+
+    scheduler.shutdown().unwrap();
+    assert!(
+        tokio::time::timeout(Duration::from_millis(50), &mut handle)
+            .await
+            .is_err(),
+        "an active cycle must reach a safe completion boundary before shutdown"
+    );
+
+    drop(config_guard);
+    let error = tokio::time::timeout(Duration::from_secs(1), handle)
+        .await
+        .unwrap()
+        .unwrap()
+        .unwrap_err();
+    assert_eq!(
+        error.to_string(),
+        "Scraping cycle stopped after source audit completion"
+    );
+}
+
+#[tokio::test]
+async fn test_scheduler_does_not_start_a_cycle_after_shutdown() {
+    let config = Arc::new(create_test_config());
+    let db = Database::connect_memory().await.unwrap();
+    db.migrate().await.unwrap();
+    let scheduler = Scheduler::new(config, Arc::new(db));
+    let _scrape_guard = scheduler.scrape_lock.lock().await;
+
+    scheduler.shutdown().unwrap();
+
+    assert!(
+        tokio::time::timeout(Duration::from_millis(100), scheduler.start())
+            .await
+            .unwrap()
+            .is_ok()
+    );
+}
+
+#[tokio::test]
+async fn test_cycle_waiting_for_admission_stops_after_shutdown() {
+    let config = Arc::new(create_test_config());
+    let db = Database::connect_memory().await.unwrap();
+    db.migrate().await.unwrap();
+    let scheduler = Arc::new(Scheduler::new(config, Arc::new(db)));
+    let scrape_guard = scheduler.scrape_lock.lock().await;
+    let scheduler_clone = Arc::clone(&scheduler);
+    let handle = tokio::spawn(async move { scheduler_clone.run_scraping_cycle().await });
+
+    tokio::task::yield_now().await;
+    scheduler.shutdown().unwrap();
+    drop(scrape_guard);
+
+    let error = tokio::time::timeout(Duration::from_secs(1), handle)
+        .await
+        .unwrap()
+        .unwrap()
+        .unwrap_err();
+    assert_eq!(
+        error.to_string(),
+        "Scraping cycle stopped before external work"
+    );
+}
+
+#[tokio::test]
+async fn test_scheduler_start_recovers_runs_for_disabled_sources() {
+    let mut config = create_test_config();
+    config.auto_refresh.enabled = false;
+    let config = Arc::new(config);
+    let db = Database::connect_memory().await.unwrap();
+    db.migrate().await.unwrap();
+    let interrupted_run_id = crate::health::start_run(&db, "disabled-source")
+        .await
+        .unwrap();
+    let database = Arc::new(db);
+    let scheduler = Arc::new(Scheduler::new(config, Arc::clone(&database)));
+    let scheduler_clone = Arc::clone(&scheduler);
+    let handle = tokio::spawn(async move { scheduler_clone.start().await });
+
+    tokio::task::yield_now().await;
+    scheduler.shutdown().unwrap();
+    handle.await.unwrap().unwrap();
+
+    let run = crate::health::get_scraper_runs(&database, "disabled-source", 1)
+        .await
+        .unwrap()
+        .pop()
+        .unwrap();
+    assert_eq!(run.id, interrupted_run_id);
+    assert_eq!(run.status, crate::health::RunStatus::Failure);
+    assert_eq!(run.error_code.as_deref(), Some("interrupted"));
 }
 
 #[test]

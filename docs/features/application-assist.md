@@ -150,6 +150,15 @@ records.
 Suggested saved answers show the same review note before the **Use** button
 when the current question matches one of these hard screening topics.
 
+Voluntary or sensitive personal questions stay manual-only. This includes
+protected veteran status, disability, race or ethnicity, gender, sexual
+orientation, pronouns, religion, marital or family status, date of birth,
+national origin, genetic information, and voluntary self-identification. An
+answer explicitly saved in
+the local answer bank remains available there for the user's own review, but
+Application Assist does not put it in application previews, offer it as a
+suggestion, learn from its use, or prepare it in a live form.
+
 ### Hard Question Review
 
 When the saved job details mention hard screening topics, the Application Assist
@@ -226,6 +235,9 @@ When Application Assist prepares saved screening answers in the live browser, it
 returns only bounded review topics such as work authorization, education,
 transportation, or schedule. The success message uses those topics to remind the
 user what to check without showing the saved answer or exact question text.
+If the live form contains a voluntary or sensitive personal question,
+Application Assist leaves it untouched and reports only the generic review
+topic. The user reviews the employer's exact wording and answers directly.
 
 The preview also shows an **Answer Review Checklist** backed by
 `src/shared/applicationFormReviewTaxonomy.ts`. It reminds the user to compare

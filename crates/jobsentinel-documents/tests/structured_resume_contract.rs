@@ -72,6 +72,7 @@ fn analysis_accepts_the_canonical_model_with_boundary_fields() {
     let input = ResumeAnalysisInput {
         resume,
         custom_sections: Default::default(),
+        evidence_snapshot: None,
     };
 
     assert!(AtsAnalyzer::analyze_format(&input).completeness_score > 0.0);

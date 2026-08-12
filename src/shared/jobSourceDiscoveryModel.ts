@@ -127,6 +127,9 @@ export const EMPLOYER_CAREER_SYSTEM_NOTES =
 export const RESTRICTED_BOARD_NOTES =
   "Do not run silent scheduled discovery. Require explicit user agreement before automated access and prefer user-opened import paths. If the source is public and unauthenticated, do not apply authenticated-session rules. For account-backed interactive sessions, do not persist sign-in material or run background collection; use a privacy reminder instead of a hard time cap when JobSentinel is not inspecting or automating the restricted site.";
 
+export const POLICY_BLOCKED_AUTOMATION_NOTES =
+  "Current provider policy does not authorize JobSentinel automation. Local user agreement cannot enable scheduled access or pasted-URL fetching. Keep user-opened search links, visible Browser Import, and manual entry available.";
+
 export function technicalAccessForJobSource(
   entry: Pick<JobSourceDiscoveryEntry, "accessModel" | "technicalAccess">,
 ): JobSourceTechnicalAccess {

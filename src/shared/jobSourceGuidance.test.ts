@@ -8,6 +8,7 @@ describe("sourceLabels", () => {
   it("normalizes common source keys before lookup", () => {
     expect(formatJobSourceLabel("Manual Import")).toBe("Saved by you");
     expect(formatJobSourceLabel("manual_import")).toBe("Saved by you");
+    expect(formatJobSourceLabel("user-source-actions")).toBe("Saved by you");
   });
 
   it("labels employer-side hiring sources in plain language", () => {

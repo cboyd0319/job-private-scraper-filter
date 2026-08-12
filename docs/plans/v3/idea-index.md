@@ -81,8 +81,8 @@ Priority:
 | A16 | Regional manifest and taxonomy bridge contracts | 5 | 4 | Now | Lets UK, EU, and India grow through packs. |
 | A17 | Sandboxed dynamic adapter runtime | 4 | 5 | Later | Research only until sandbox denial tests pass. |
 | A18 | Vector provenance and stale-vector detector | 5 | 4 | Now | Prevents mixing incompatible model and chunker outputs. |
-| A19 | Contract-generated docs, UI, and validators | 4 | 4 | Later | Reduces drift once schemas stabilize. |
-| A20 | Local runtime kernel for typed jobs | 5 | 5 | Later | Could unify agents, source checks, model tasks, exports, and repair. |
+| A19 | Contract-derived documentation and validation | 4 | 4 | Next | Consolidates E09; generate only from stable schemas where it removes maintained duplication, without a generic code-generation framework. |
+| A20 | Local runtime kernel for typed jobs | 5 | 5 | Later | Gate 1 defaults to existing application and Tokio owners; promote a new kernel only if evidence proves those owners insufficient. |
 | A21 | Graph-native storage strategy | 4 | 5 | Later | Valuable after case files and event ledger are proven. |
 
 ## Core User Workflows
@@ -97,7 +97,7 @@ Priority:
 | U06 | Campaign simulator | 4 | 3 | Next | Compares strategy changes before users spend effort. |
 | U07 | Application runway view | 3 | 2 | Next | Shows strength and volume of active opportunities. |
 | U08 | "What changed since yesterday" summary | 4 | 3 | Next | Makes repeat use obvious and useful. |
-| U09 | Smart career campaign inbox | 4 | 4 | Later | Needs event ledger, case files, and source graph. |
+| U09 | Smart career campaign inbox | 4 | 4 | Next | Extend the accepted campaign loop after the event ledger, case files, and source graph stabilize. |
 | U10 | Low-pressure or overwhelmed mode | 4 | 3 | Next | Important for stressed and nontechnical users. |
 | U11 | Case-file timeline | 5 | 3 | Now | The visible face of the event ledger. |
 | U12 | Evidence wall | 5 | 4 | Now | Core differentiator versus opaque match scores. |
@@ -105,9 +105,9 @@ Priority:
 | U14 | "Why not this job?" panel | 5 | 3 | Now | Explains blockers and missing evidence. |
 | U15 | Duplicate and repost lineage | 4 | 3 | Next | Saves time and improves ghost-job review. |
 | U16 | Company relationship view | 3 | 3 | Later | Higher value after contacts and outcomes exist. |
-| U17 | Full campaign operating model | 5 | 5 | Later | Big product leap after primitives stabilize. |
+| U17 | Full campaign operating model | 5 | 5 | Now | Milestone 6 owns the core outcome; advanced campaign features remain in train 12A. |
 | U18 | Career strategy simulator | 4 | 4 | Later | Strong differentiator, but depends on outcomes and labels. |
-| U19 | Local career compiler | 5 | 5 | Moonshot | Turns evidence, goals, and constraints into a reviewed campaign plan. |
+| U19 | Local career compiler | 5 | 5 | Next | Consolidates X03 into one reviewed campaign-planning outcome built from user evidence, goals, and constraints. |
 | U20 | Employer dossier | 5 | 4 | Now | Company identity, official sources, pay, risk, and user-owned outcome context. |
 | U21 | Employer question planner | 4 | 3 | Next | Turns employer signals into recruiter, interview, and offer questions. |
 
@@ -173,7 +173,7 @@ Priority:
 | M23 | Hard-negative mining | 5 | 4 | Next | Highest-return quality improvement loop. |
 | M24 | Embedding fine-tuning | 3 | 5 | Later | Only if retrieval recall is poor. |
 | M25 | Contextual bandits | 3 | 5 | Moonshot | Needs substantial local feedback history. |
-| M26 | Open candidate-side matching benchmark | 4 | 4 | Later | Strong credibility and research advantage. |
+| M26 | Open candidate-side matching benchmark | 4 | 4 | Next | Consolidates X04; publish only after internal evaluation sets and evidence contracts stabilize. |
 | M27 | Local match debugger | 4 | 3 | Now | Developer and user trust tool for matching decisions. |
 
 ## Agents, Skills, And Automation
@@ -249,14 +249,13 @@ Priority:
 | E06 | Role-pack marketplace | 4 | 3 | Next | Career-specific sources, rubrics, and taxonomies. |
 | E07 | Skill-pack marketplace | 4 | 3 | Next | Builds on Agent Skills spec. |
 | E08 | Local API and CLI | 4 | 4 | Later | Power-user and automation bridge after scopes exist. |
-| E09 | Wiki-quality docs generated from contracts | 3 | 3 | Later | Reduces drift once contracts are stable. |
 | E10 | Import bridges | 4 | 3 | Next | JSON Resume, bookmarks, CSV, calendar, email reminders, notes. |
 | E11 | Export package without lock-in | 5 | 3 | Now | Commercial differentiator and privacy promise. |
 | E12 | Storage cleanup center | 4 | 2 | Now | Model packs, caches, logs, exports, and stale vectors. |
 | E13 | Pack quarantine and self-test | 5 | 4 | Now | Manifest, signature, privacy, permissions, fixtures, and size checks. |
 | E14 | Pack playground | 3 | 3 | Next | Synthetic fixture testing for community packs. |
 | E15 | Portable package | 4 | 4 | Next | Shared computers, workforce centers, and no-admin setups. |
-| E16 | Offline pack bundles | 3 | 3 | Later | Helps limited-internet and shared-computer users. |
+| E16 | Offline pack bundles | 3 | 3 | Next | Extends the accepted pack architecture for regional access, shared computers, and limited connectivity. |
 
 ## Native OS And Platform Integration
 
@@ -268,7 +267,7 @@ Priority:
 | N04 | Tray or menu bar helper | 3 | 4 | Later | Quick capture, source status, reminders, privacy lock. |
 | N05 | Global shortcut for quick capture | 3 | 3 | Later | Disabled by default. |
 | N06 | Clipboard import helper | 3 | 2 | Next | Explicit user action and token scrubbing. |
-| N07 | Drag-and-drop import | 4 | 2 | Now | Resume, job, pack, and backup import. |
+| N07 | Drag-and-drop import | 4 | 2 | Now | Milestone 6 owns resume, job, and backup import; Milestone 7 adds source packs after quarantine and installer controls. |
 | N08 | Native print and PDF export | 3 | 3 | Next | Resumes, packets, and reports. |
 | N09 | OS search metadata | 3 | 4 | Later | Safe metadata only, no private text by default. |
 | N10 | Platform health diagnostics | 4 | 3 | Now | Vault, database, sources, browser, model cache, permissions. |
@@ -295,12 +294,12 @@ Priority:
 | R06 | EU starter pack | 4 | 4 | Now | EURES, ESCO, Europass, multilingual fixtures. |
 | R07 | India starter pack | 4 | 4 | Now | NCS, NCO, NSQF, CTC/LPA/monthly pay patterns. |
 | R08 | Career-change mode | 4 | 3 | Next | Values adjacent evidence and explains stretch gaps. |
-| R09 | Returnship and caregiver mode | 3 | 3 | Later | Needs sensitive, careful copy and evals. |
-| R10 | Veteran, disability-aware, early-career modes | 3 | 4 | Later | Valuable, but needs research and review. |
+| R09 | Returnship and caregiver mode | 3 | 3 | Next | Extend inclusive job-search support after focused research, careful copy review, and evaluation. |
+| R10 | Veteran, military-transition, disability-aware, and early-career modes | 5 | 4 | Now | User-prioritized v3.0 scope; preserve current veteran support and add reviewed civilian-role and public-service paths without inferring protected status or eligibility. |
 | R11 | Trades, healthcare, education, and public-sector modes | 4 | 4 | Next | Role-specific sources, credentials, and application flows. |
 | R12 | Mobile companion without cloud lock-in | 3 | 5 | Later | Reminders, quick notes, and interview prep. |
 | R13 | Shared-computer privacy mode | 4 | 3 | Next | Lock, cleanup, local-data visibility, safe support. |
-| R14 | Offline-first mode | 3 | 3 | Later | Useful after sources or imports are complete. |
+| R14 | Offline-first mode | 5 | 3 | Now | Baseline behavior across recovery, daily workflow, sources, imports, and updates rather than a separately deferred mode. |
 | R15 | Data-saver source mode | 3 | 3 | Next | Fewer pages and lower concurrency. |
 | R16 | Battery-friendly mode | 3 | 2 | Next | Runtime profile and background task tuning. |
 | R17 | Essentials-to-stronger-local-ML upgrade path | 5 | 3 | Now | Lets users grow without reinstalling. |
@@ -311,8 +310,6 @@ Priority:
 | --- | --- | --- | --- | --- | --- |
 | X01 | Candidate-side infrastructure standard | 5 | 5 | Moonshot | Local career data, packets, receipts, ledger, MCP, browser protocol. |
 | X02 | Personal hiring firewall | 5 | 4 | Next | Protects users from low-quality or unsafe hiring systems. |
-| X03 | Local career compiler | 5 | 5 | Moonshot | Converts evidence and constraints into campaign plans. |
-| X04 | Open candidate-side matching benchmark | 4 | 4 | Later | Public credibility and regression target. |
 | X05 | Local evidence engine | 5 | 5 | Now | Qwen3 plus provenance, blockers, and explanations. |
 | X06 | Source intelligence mesh | 3 | 5 | Moonshot | Source health only, no private data. |
 | X07 | Candidate data rights toolkit | 4 | 3 | Next | Export, deletion report, support report, migration report. |

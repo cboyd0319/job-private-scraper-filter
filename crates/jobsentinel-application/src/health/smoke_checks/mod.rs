@@ -2,14 +2,17 @@
 
 use crate::{credentials::CredentialService, Config};
 use anyhow::Result;
+use chrono::Utc;
+use jobsentinel_domain::{
+    v3_source_authorization::SourceActionDecision, v3_source_manifest::SourceOperation,
+};
 use jobsentinel_sources::{limits, RateLimiter};
 use jobsentinel_storage::Database;
 use std::time::Instant;
 
 use self::sources::{
-    test_builtin, test_dice, test_glassdoor, test_greenhouse, test_hn_hiring, test_indeed,
-    test_jobswithgpt, test_lever, test_remoteok, test_simplyhired, test_usajobs, test_wellfound,
-    test_weworkremotely, test_yc_startup, test_ziprecruiter,
+    test_greenhouse, test_hn_hiring, test_indeed, test_jobswithgpt, test_lever, test_remoteok,
+    test_usajobs, test_wellfound, test_weworkremotely, test_ziprecruiter,
 };
 use jobsentinel_storage::health::{record_smoke_test, SmokeTestResult, SmokeTestType};
 
@@ -24,7 +27,6 @@ const SMOKE_TEST_SCRAPERS: &[&str] = &[
     "hn_hiring",
     "jobswithgpt",
     "dice",
-    "yc_startup",
     "ziprecruiter",
     "usajobs",
     "simplyhired",
@@ -42,8 +44,27 @@ const SOURCE_CHECK_READ_ERROR: &str =
     "JobSentinel could not read this source response. Try again later.";
 const SOURCE_CHECK_DEFAULT_ERROR: &str =
     "This source check could not finish. Try again later or save a safe support report.";
-const RESTRICTED_SOURCE_CHECK_ACK_REQUIRED: &str =
-    "Review and accept the restricted-source warning before checking this source.";
+const RESTRICTED_SOURCE_CHECK_UNAVAILABLE: &str =
+    "Automated access is unavailable after provider policy review. Use a user-opened search link, Browser Import, or manual entry.";
+const USAJOBS_SOURCE_CHECK_UNAVAILABLE: &str =
+    "This USAJobs connectivity check is unavailable until its reviewed source governance is current.";
+const USAJOBS_DISABLED: &str = "USAJobs scraping not enabled";
+const USAJOBS_EMAIL_MISSING: &str = "USAJobs email not configured";
+const REMOTEOK_DISABLED: &str = "RemoteOK scraping not enabled";
+const REMOTEOK_SOURCE_CHECK_UNAVAILABLE: &str =
+    "This RemoteOK connectivity check is unavailable until its reviewed source governance is current.";
+const WEWORKREMOTELY_DISABLED: &str = "We Work Remotely scraping not enabled";
+const WEWORKREMOTELY_SOURCE_CHECK_UNAVAILABLE: &str =
+    "This We Work Remotely connectivity check is unavailable until its reviewed source governance is current.";
+const HN_HIRING_DISABLED: &str = "Hacker News Who Is Hiring scraping not enabled";
+const HN_HIRING_SOURCE_CHECK_UNAVAILABLE: &str =
+    "This Hacker News Who Is Hiring connectivity check is unavailable until its reviewed source governance is current.";
+const GREENHOUSE_SOURCE_CHECK_UNAVAILABLE: &str =
+    "This Greenhouse connectivity check is unavailable until its reviewed source governance is current.";
+const LEVER_SOURCE_CHECK_UNAVAILABLE: &str =
+    "This Lever connectivity check is unavailable until its reviewed source governance is current.";
+const YC_STARTUP_AUTOMATION_UNAVAILABLE: &str =
+    "Automated YC Startup access is unavailable after source-policy review. Use the user-opened YC search link.";
 // Mirrors restricted public unauthenticated source-check helpers from the
 // shared source taxonomy. Source-specific reasons live in
 // src/shared/restrictedSourceTaxonomy.ts and docs/features/scrapers.md.
@@ -139,47 +160,37 @@ fn validate_smoke_details(scraper_name: &str, details: &serde_json::Value) -> Re
 
 fn smoke_rate_limit(scraper_name: &str) -> u32 {
     match scraper_name {
-        "greenhouse" => limits::GREENHOUSE,
-        "lever" => limits::LEVER,
         "indeed" => limits::INDEED,
-        "remoteok" => limits::REMOTEOK,
         "wellfound" => 200,
-        "weworkremotely" => limits::WEWORKREMOTELY,
-        "builtin" => limits::BUILTIN,
-        "hn_hiring" => limits::HN_HIRING,
         "jobswithgpt" => limits::JOBSWITHGPT,
-        "dice" => limits::DICE,
-        "yc_startup" => limits::YC_STARTUP,
         "ziprecruiter" => 300,
-        "usajobs" => limits::USAJOBS,
-        "simplyhired" => limits::SIMPLYHIRED,
-        "glassdoor" => limits::GLASSDOOR,
         _ => 60,
     }
 }
 
-fn restricted_source_check_requires_acknowledgement(scraper_name: &str) -> bool {
+fn is_restricted_source_check(scraper_name: &str) -> bool {
     RESTRICTED_SOURCE_CHECK_SCRAPERS.contains(&scraper_name)
 }
 
-fn saved_restricted_source_acknowledgement(config: &Config, scraper_name: &str) -> bool {
-    match scraper_name {
-        "builtin" => config.restricted_source_acknowledgements.builtin,
-        "dice" => config.restricted_source_acknowledgements.dice,
-        "simplyhired" => config.restricted_source_acknowledgements.simplyhired,
-        "glassdoor" => config.restricted_source_acknowledgements.glassdoor,
-        _ => false,
-    }
-}
-
-fn restricted_source_check_acknowledged(
-    config: &Config,
+async fn record_skipped_smoke_test(
+    db: &Database,
     scraper_name: &str,
-    one_time_acknowledged: bool,
-) -> bool {
-    !restricted_source_check_requires_acknowledgement(scraper_name)
-        || one_time_acknowledged
-        || saved_restricted_source_acknowledgement(config, scraper_name)
+    start: Instant,
+    reason: &str,
+) -> Result<SmokeTestResult> {
+    let result = SmokeTestResult {
+        scraper_name: scraper_name.to_string(),
+        test_type: SmokeTestType::Connectivity,
+        passed: true,
+        duration_ms: start.elapsed().as_millis() as i64,
+        details: Some(serde_json::json!({
+            "status": "skipped",
+            "reason": reason,
+        })),
+        error: None,
+    };
+    record_smoke_test(db, &result).await?;
+    Ok(result)
 }
 
 /// Run a connectivity smoke test for a specific scraper
@@ -199,45 +210,125 @@ pub async fn run_smoke_test_with_credentials(
     scraper_name: &str,
     credentials: &CredentialService,
 ) -> Result<SmokeTestResult> {
-    run_smoke_test_with_credentials_and_acknowledgement(
-        db,
-        config,
-        scraper_name,
-        credentials,
-        false,
-    )
-    .await
-}
-
-/// Run a connectivity smoke test with an explicit credential provider and
-/// one-time restricted-source acknowledgement from the user action that started it.
-pub async fn run_smoke_test_with_credentials_and_acknowledgement(
-    db: &Database,
-    config: &Config,
-    scraper_name: &str,
-    credentials: &CredentialService,
-    restricted_source_acknowledged: bool,
-) -> Result<SmokeTestResult> {
     let start = Instant::now();
-    if !restricted_source_check_acknowledged(config, scraper_name, restricted_source_acknowledged) {
-        let smoke_result = SmokeTestResult {
-            scraper_name: scraper_name.to_string(),
-            test_type: SmokeTestType::Connectivity,
-            passed: true,
-            duration_ms: start.elapsed().as_millis() as i64,
-            details: Some(serde_json::json!({
-                "status": "skipped",
-                "reason": RESTRICTED_SOURCE_CHECK_ACK_REQUIRED,
-            })),
-            error: None,
-        };
-        record_smoke_test(db, &smoke_result).await?;
-        return Ok(smoke_result);
+    if scraper_name == "yc_startup" {
+        return record_skipped_smoke_test(
+            db,
+            scraper_name,
+            start,
+            YC_STARTUP_AUTOMATION_UNAVAILABLE,
+        )
+        .await;
+    }
+    if is_restricted_source_check(scraper_name) {
+        return record_skipped_smoke_test(
+            db,
+            scraper_name,
+            start,
+            RESTRICTED_SOURCE_CHECK_UNAVAILABLE,
+        )
+        .await;
     }
 
-    RateLimiter::shared()
-        .wait(scraper_name, smoke_rate_limit(scraper_name))
-        .await;
+    if scraper_name == "usajobs" {
+        let reason = if !config.usajobs.enabled {
+            Some(USAJOBS_DISABLED)
+        } else if config.usajobs.email.is_empty() {
+            Some(USAJOBS_EMAIL_MISSING)
+        } else {
+            None
+        };
+        if let Some(reason) = reason {
+            return record_skipped_smoke_test(db, scraper_name, start, reason).await;
+        }
+    }
+    if scraper_name == "remoteok" && !config.remoteok.enabled {
+        return record_skipped_smoke_test(db, scraper_name, start, REMOTEOK_DISABLED).await;
+    }
+    if scraper_name == "weworkremotely" && !config.weworkremotely.enabled {
+        return record_skipped_smoke_test(db, scraper_name, start, WEWORKREMOTELY_DISABLED).await;
+    }
+    if scraper_name == "hn_hiring" && !config.hn_hiring.enabled {
+        return record_skipped_smoke_test(db, scraper_name, start, HN_HIRING_DISABLED).await;
+    }
+
+    let governed_decision = match scraper_name {
+        "greenhouse" => Some(
+            crate::v3_source_governance::authorize_greenhouse(
+                db,
+                SourceOperation::ConnectivityCheck,
+                Utc::now().date_naive(),
+            )
+            .await,
+        ),
+        "lever" => Some(
+            crate::v3_source_governance::authorize_lever(
+                db,
+                SourceOperation::ConnectivityCheck,
+                Utc::now().date_naive(),
+            )
+            .await,
+        ),
+        "usajobs" => Some(
+            crate::v3_source_governance::authorize_usajobs(
+                db,
+                SourceOperation::ConnectivityCheck,
+                Utc::now().date_naive(),
+            )
+            .await,
+        ),
+        "remoteok" => Some(
+            crate::v3_source_governance::authorize_remoteok(
+                db,
+                SourceOperation::ConnectivityCheck,
+                Utc::now().date_naive(),
+            )
+            .await,
+        ),
+        "weworkremotely" => Some(
+            crate::v3_source_governance::authorize_weworkremotely(
+                db,
+                SourceOperation::ConnectivityCheck,
+                Utc::now().date_naive(),
+            )
+            .await,
+        ),
+        "hn_hiring" => Some(
+            crate::v3_source_governance::authorize_hn_hiring(
+                db,
+                SourceOperation::ConnectivityCheck,
+                Utc::now().date_naive(),
+            )
+            .await,
+        ),
+        _ => None,
+    };
+    let governed_limit = match governed_decision {
+        Some(Ok(SourceActionDecision::Allowed {
+            request_limit_per_hour,
+            connectivity_required: true,
+        })) => Some(u32::from(request_limit_per_hour)),
+        Some(_) => {
+            let reason = match scraper_name {
+                "greenhouse" => GREENHOUSE_SOURCE_CHECK_UNAVAILABLE,
+                "lever" => LEVER_SOURCE_CHECK_UNAVAILABLE,
+                "usajobs" => USAJOBS_SOURCE_CHECK_UNAVAILABLE,
+                "remoteok" => REMOTEOK_SOURCE_CHECK_UNAVAILABLE,
+                "weworkremotely" => WEWORKREMOTELY_SOURCE_CHECK_UNAVAILABLE,
+                _ => HN_HIRING_SOURCE_CHECK_UNAVAILABLE,
+            };
+            return record_skipped_smoke_test(db, scraper_name, start, reason).await;
+        }
+        None => None,
+    };
+
+    if let Some(limit) = governed_limit {
+        RateLimiter::shared().wait_paced(scraper_name, limit).await;
+    } else {
+        RateLimiter::shared()
+            .wait(scraper_name, smoke_rate_limit(scraper_name))
+            .await;
+    }
 
     let result = match scraper_name {
         "greenhouse" => test_greenhouse().await,
@@ -246,15 +337,15 @@ pub async fn run_smoke_test_with_credentials_and_acknowledgement(
         "remoteok" => test_remoteok().await,
         "wellfound" => test_wellfound().await,
         "weworkremotely" => test_weworkremotely().await,
-        "builtin" => test_builtin().await,
-        "hn_hiring" => test_hn_hiring().await,
+        "hn_hiring" => match governed_limit {
+            Some(limit) => test_hn_hiring(limit).await,
+            None => Err(anyhow::anyhow!(
+                "Hacker News Who Is Hiring governance rate unavailable"
+            )),
+        },
         "jobswithgpt" => test_jobswithgpt(config).await,
-        "dice" => test_dice().await,
-        "yc_startup" => test_yc_startup().await,
         "ziprecruiter" => test_ziprecruiter().await,
         "usajobs" => test_usajobs(config, credentials).await,
-        "simplyhired" => test_simplyhired().await,
-        "glassdoor" => test_glassdoor().await,
         _ => Err(anyhow::anyhow!("Unknown scraper")),
     };
 
@@ -300,28 +391,10 @@ pub async fn run_all_smoke_tests_with_credentials(
     config: &Config,
     credentials: &CredentialService,
 ) -> Result<Vec<SmokeTestResult>> {
-    run_all_smoke_tests_with_credentials_and_acknowledgement(db, config, credentials, false).await
-}
-
-/// Run all smoke tests, using a one-time restricted-source acknowledgement for
-/// this user-triggered source check batch.
-pub async fn run_all_smoke_tests_with_credentials_and_acknowledgement(
-    db: &Database,
-    config: &Config,
-    credentials: &CredentialService,
-    restricted_source_acknowledged: bool,
-) -> Result<Vec<SmokeTestResult>> {
     let mut results = Vec::new();
 
     for scraper in SMOKE_TEST_SCRAPERS {
-        let result = run_smoke_test_with_credentials_and_acknowledgement(
-            db,
-            config,
-            scraper,
-            credentials,
-            restricted_source_acknowledged,
-        )
-        .await?;
+        let result = run_smoke_test_with_credentials(db, config, scraper, credentials).await?;
         results.push(result);
     }
 

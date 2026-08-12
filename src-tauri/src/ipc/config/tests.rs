@@ -159,6 +159,8 @@ async fn save_config_updates_runtime_config_after_disk_save() {
     let runtime_config = RwLock::new(create_dashboard_test_config());
     let temp_dir = tempfile::tempdir().unwrap();
     let config_path = temp_dir.path().join("config.json");
+    let database = Database::connect_memory().await.unwrap();
+    database.migrate().await.unwrap();
 
     let mut new_config = create_dashboard_test_config();
     new_config.salary_floor_usd = 95_000;
@@ -166,7 +168,7 @@ async fn save_config_updates_runtime_config_after_disk_save() {
     new_config.keywords_boost = vec!["case management".to_string()];
     let payload = serde_json::to_value(&new_config).unwrap();
 
-    save_config_to_runtime_and_path(payload, &runtime_config, &config_path)
+    save_config_to_runtime_and_path(payload, &runtime_config, &config_path, &database)
         .await
         .unwrap();
 
@@ -183,11 +185,46 @@ async fn save_config_updates_runtime_config_after_disk_save() {
 }
 
 #[tokio::test]
-async fn complete_setup_updates_runtime_config_without_system_credentials() {
+async fn save_config_clears_legacy_review_for_a_retired_source() {
+    let previous = create_dashboard_test_config();
+    let runtime_config = RwLock::new(previous.clone());
+    let database = Database::connect_memory().await.unwrap();
+    database.migrate().await.unwrap();
+    let temp_dir = tempfile::tempdir().unwrap();
+    let config_path = temp_dir.path().join("config.json");
+
+    let mut reviewed = previous;
+    reviewed.dice.enabled = true;
+    reviewed.dice.query = "security analyst".to_string();
+    reviewed.dice.limit = 25;
+    reviewed.restricted_source_acknowledgements.dice = true;
+    save_config_to_runtime_and_path(
+        serde_json::to_value(&reviewed).unwrap(),
+        &runtime_config,
+        &config_path,
+        &database,
+    )
+    .await
+    .unwrap();
+    let runtime = runtime_config.read().await;
+    assert!(!runtime.dice.enabled);
+    assert!(!runtime.restricted_source_acknowledgements.dice);
+    drop(runtime);
+    assert!(
+        !Config::load(&config_path)
+            .unwrap()
+            .restricted_source_acknowledgements
+            .dice
+    );
+}
+
+#[tokio::test]
+async fn complete_setup_reuses_the_owned_database() {
     let runtime_config = RwLock::new(create_dashboard_test_config());
     let temp_dir = tempfile::tempdir().unwrap();
     let config_path = temp_dir.path().join("config.json");
-    let db_path = temp_dir.path().join("jobs.db");
+    let database = Database::connect_memory().await.unwrap();
+    database.migrate().await.unwrap();
 
     let mut setup_config = create_dashboard_test_config();
     setup_config.salary_floor_usd = 82_000;
@@ -196,7 +233,7 @@ async fn complete_setup_updates_runtime_config_without_system_credentials() {
     setup_config.remoteok.limit = 50;
     let payload = serde_json::to_value(&setup_config).unwrap();
 
-    complete_setup_to_runtime_and_paths(payload, &runtime_config, &config_path, &db_path)
+    complete_setup_to_runtime_and_paths(payload, &runtime_config, &config_path, &database)
         .await
         .unwrap();
 
@@ -211,6 +248,7 @@ async fn complete_setup_updates_runtime_config_without_system_credentials() {
     assert_eq!(saved.salary_floor_usd, 82_000);
     assert_eq!(saved.title_allowlist, vec!["Program Coordinator"]);
     assert!(saved.remoteok.enabled);
+    assert!(!is_first_run_for_path(&config_path).unwrap());
 }
 
 #[test]
@@ -222,6 +260,10 @@ fn first_run_check_is_true_only_when_config_is_missing() {
 
     std::fs::write(&config_path, "{}").unwrap();
     assert!(!is_first_run_for_path(&config_path).unwrap());
+    assert_eq!(
+        first_run_or_recovery(&config_path, true),
+        Err("JobSentinel started in local recovery mode.".to_string())
+    );
 }
 
 #[tokio::test]
@@ -244,6 +286,10 @@ async fn set_resume_matching_enabled_updates_runtime_config_after_disk_save() {
 fn test_dashboard_source_check_handles_arrays_and_endpoint_sources() {
     let disabled = create_dashboard_test_config();
     assert!(!any_job_source_enabled(&disabled));
+
+    let mut retired_yc = create_dashboard_test_config();
+    retired_yc.yc_startup.enabled = true;
+    assert!(!any_job_source_enabled(&retired_yc));
 
     let mut greenhouse = create_dashboard_test_config();
     greenhouse.greenhouse_urls = vec!["https://boards.greenhouse.io/example".to_string()];

@@ -1,0 +1,84 @@
+{
+  "schema": "jobsentinel.feature_evidence.v1",
+  "feature_id": "v3-milestone-4-source-graph-browser-companion",
+  "slice": "starter-region-manifests",
+  "behavior": "Dated UK, EU, and India starter manifests preserve reviewed policy and provenance, exact regional metadata, real evaluation references, explicit incomplete coverage, and no unsupported runtime or native-source claim.",
+  "result": "passing",
+  "verified_at": "2026-07-19T21:28:56Z",
+  "revision": "c5422e635ba401167623a3c56a9f08987942eb3b",
+  "revision_scope": "The committed region manifest date and provenance contract, stipend and not-disclosed pay semantics, UK, EU, and India starter fixtures, corrected US contract baseline, and focused fail-closed tests.",
+  "platform": "local macOS arm64 host",
+  "commands": [
+    {
+      "command": "env -u JOBSENTINEL_LIVE_KEYRING_TESTS cargo test -p jobsentinel-domain v3_region_manifest_tests --no-fail-fast",
+      "exit_status": 101,
+      "relevant_result": "The fail-first run rejected the missing UK, EU, and India fixtures and missing stipend and not-disclosed pay semantics.",
+      "caveat": "This was the expected Red phase. The command could not compile until the contract and fixtures existed."
+    },
+    {
+      "command": "env -u JOBSENTINEL_LIVE_KEYRING_TESTS cargo test -p jobsentinel-domain --lib v3_region_manifest_tests --no-fail-fast",
+      "exit_status": 0,
+      "relevant_result": "All 4 focused regional tests passed. The fixtures have exact regional metadata, incomplete coverage, no native-source claim, real evaluation references, deterministic review dates, and fail-closed reference validation.",
+      "caveat": "The fixtures are research metadata only. They do not install a source adapter or RegionalPackCheck runtime action."
+    },
+    {
+      "command": "env -u JOBSENTINEL_LIVE_KEYRING_TESTS cargo test -p jobsentinel-domain --lib --no-fail-fast",
+      "exit_status": 0,
+      "relevant_result": "All 144 domain tests passed after the final hostile-reference validation correction.",
+      "caveat": "Every Rust test command explicitly disabled live keyring tests. No Tauri process, credential flow, or live source was launched."
+    },
+    {
+      "command": "env -u JOBSENTINEL_LIVE_KEYRING_TESTS cargo check --workspace",
+      "exit_status": 0,
+      "relevant_result": "Every Rust workspace crate compiled after the deterministic RegionManifest parser signature change.",
+      "caveat": "This was a compile check, not the full workspace test suite."
+    },
+    {
+      "command": "cargo fmt --all -- --check; env -u JOBSENTINEL_LIVE_KEYRING_TESTS cargo clippy -p jobsentinel-domain --lib -- -D warnings; npm run harness:check; npm run lint:architecture; npm run lint:file-size; git diff --check",
+      "exit_status": 0,
+      "relevant_result": "Formatting, production domain linting with warnings denied, harness state, architecture ownership, hard file limits, and patch whitespace passed.",
+      "caveat": "The all-target domain Clippy lane remains unsuitable because the repository deny-lints legacy test unwraps across unrelated files. The established library-only lane passed."
+    },
+    {
+      "command": "npm run lint:docs; npm run test:scripts",
+      "exit_status": 0,
+      "relevant_result": "Markdown, local links, prose, canonical state, and all 838 script-contract tests passed.",
+      "caveat": "The first harness run correctly rejected an overlong active-state line. The final compact state passed without increasing its 160-line budget."
+    },
+    {
+      "command": "One independent read-only adversarial review of provenance, policy separation, regional truth, evaluation references, dates, hostile URLs, current EU scope, and runtime claims",
+      "exit_status": 0,
+      "relevant_result": "The reviewer returned APPROVE after dated provenance, exact EU27 scope, real evaluation references, work-mode-only labels, and credential-free public HTTPS validation were enforced.",
+      "caveat": "The review confirmed these are incomplete English-only research manifests, not production source integrations or complete regional readiness."
+    }
+  ],
+  "source": "docs/plans/v3/master-exec-plan.md",
+  "measurements": {
+    "starter_region_manifests": 3,
+    "eu_country_codes": 27,
+    "focused_region_tests_passed": 4,
+    "domain_tests_passed": 144,
+    "script_contract_tests_passed": 838,
+    "adversarial_reviewers_passed": 1
+  },
+  "decisions": {
+    "coverage": "The UK, EU, and India fixtures set incomplete_coverage to true and claim only English metadata, regional-board research, and user import.",
+    "source_runtime": "No RegionalPackCheck action, scheduled source, native API, authenticated session, or external transport was added.",
+    "provenance": "Every manifest has a deterministic review date, policy notes, and separate provenance references. External references must pass the existing credential-free public HTTPS validator.",
+    "evaluation": "Every referenced evaluation ID resolves in the frozen v3 evaluation set. The corrected US contract baseline follows the same rule.",
+    "regional_semantics": "The EU fixture contains the exact 27 EU country codes and July 2026 currency set. Stipend and not-disclosed pay semantics are contract values; relocation and cross-border semantics remain outside the current work-mode field.",
+    "credential_tests": "Keep live keyring tests opt-in. Every unattended Rust test command unsets JOBSENTINEL_LIVE_KEYRING_TESTS."
+  },
+  "review": {
+    "adversarial_verdict": "APPROVE after provenance, exact-scope, evaluation-reference, and hostile-URL corrections",
+    "privacy_or_security_regression": false,
+    "open_slice_blockers": 0,
+    "remaining_findings": [
+      "Milestone 4 still needs origin-bound Browser Import replacement, generic Smart Paste and browser-origin applied-logging disposition, simulator closure, and Gate 3 evidence.",
+      "The starter manifests do not yet provide regional pay parsers, taxonomy bridges, CV implementation, localized UI, or production source integrations.",
+      "Windows 11 and Linux were not live-checked for this data-only contract slice; deterministic parser tests and workspace compilation provide platform-independent coverage.",
+      "Repository GitHub Actions must be re-enabled and verified before merge.",
+      "Commit c5422e63 is local-only until a non-Keychain GitHub credential becomes available."
+    ]
+  }
+}

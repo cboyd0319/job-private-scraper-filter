@@ -1,3 +1,5 @@
+<!-- Defines the downloadable Agent Skills set and JobSentinel validation profile. -->
+
 # JobSentinel Agent Skills
 
 This directory contains downloadable Agent Skills for job-search and resume
@@ -9,6 +11,19 @@ code can live in `scripts/`, and optional deeper rubrics live in `references/`.
 Additional spec-standard resource directories are allowed when they contain
 reviewable text or data files; executable helper files belong only in
 `scripts/`.
+
+`npm run lint:skills` first validates the normative Agent Skills frontmatter
+contract, then applies the narrower JobSentinel downloadable-package profile:
+MIT licensing, pinned JobSentinel target metadata, self-contained core
+instructions, review guardrails, bounded files, and OpenAI discovery metadata.
+It is not a generic claim that every upstream-valid package satisfies the
+JobSentinel profile.
+
+The signed in-app runtime is narrower again. It accepts reviewable static text
+and data resources, does not execute bundled scripts, rejects script references
+and tool capabilities, and can hand off only to a separately reviewed typed
+Evidence Reviewer or Packet Builder task. This preserves official package
+structure without turning static skill content into execution authority.
 
 Use these skills with an Agent Skills-compatible assistant when you want
 structured help with a job search while preserving JobSentinel's core rules:

@@ -58,10 +58,11 @@ AI may help with:
 - Generating documentation or synthetic test fixtures.
 
 Every external AI request needs opt-in, only the needed details, a clear review
-screen before anything leaves the device, user approval, and local request
-logging. Sensitive details need explicit selection by the user. Public-data-only
-requests must not include private notes, application history, resumes, salary
-floors, or unrelated local data.
+screen before anything leaves the device, user approval, an exact single-use
+backend approval, and a durable metadata-only privacy receipt. Sensitive details
+need explicit selection by the user. Public-data-only requests must not include
+private notes, application history, resumes, salary floors, or unrelated local
+data.
 
 ## Hiring-system transparency
 

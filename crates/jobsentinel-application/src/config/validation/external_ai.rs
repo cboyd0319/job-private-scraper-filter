@@ -1,6 +1,6 @@
 use crate::config::validation_error::{ValidationError, ValidationErrors};
 use crate::config::{Config, ExternalAiProvider};
-use jobsentinel_security::validate_external_https_url;
+use jobsentinel_security::validate_credential_free_external_https_url;
 use std::collections::BTreeSet;
 
 pub(super) fn validate_external_ai(config: &Config, errors: &mut ValidationErrors) {
@@ -67,7 +67,7 @@ pub(super) fn validate_external_ai(config: &Config, errors: &mut ValidationError
     if external_ai
         .enabled_providers
         .contains(&ExternalAiProvider::Custom)
-        && validate_external_https_url(&external_ai.custom_endpoint).is_err()
+        && validate_credential_free_external_https_url(&external_ai.custom_endpoint).is_err()
     {
         errors.add(ValidationError::invalid_url(
             "external_ai.custom_endpoint",

@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import test from "node:test";
 import {
-  hasBookmarkletCodeWithoutTokenHeader,
+  hasBookmarkletCodeWithoutPairingBoundary,
   hasLinkedInLoginCookieReturn,
   hasManualBookmarkletJsonErrorResponses,
   hasMlRawErrorDisplay,
@@ -25,7 +25,7 @@ import {
   hasRawScraperUrlOrQueryLogging,
   hasRawUserDataPrivacyLogging,
   hasResidualCorePrivacyLeak,
-  hasReusableBookmarkletImportToken,
+  hasNonAtomicBookmarkletPairing,
   hasUnauthenticatedBookmarkletImports,
   hasUnboundedExternalResponseBodyRead,
 } from "../../harness/checks/privacy-logging.mjs";
@@ -115,8 +115,8 @@ test("privacy logging rejects raw import and bookmarklet details", () => {
     );
     writeFixtureFile(
       root,
-      "src/features/settings/sources/browser-import/BrowserImportSection.tsx",
-      'fetch("/api/bookmarklet/import", { method: "POST" });',
+      "src-tauri/src/ipc/bookmarklet.rs",
+      'const TEMPLATE: &str = r#"fetch("/api/bookmarklet/import")"#;',
     );
     assert.equal(
       hasRawImportBookmarkletCommandErrorDetails(root, "src-tauri/src/ipc/import.rs"),
@@ -144,16 +144,16 @@ test("privacy logging rejects raw import and bookmarklet details", () => {
       true,
     );
     assert.equal(
-      hasReusableBookmarkletImportToken(
+      hasNonAtomicBookmarkletPairing(
         root,
         "crates/jobsentinel-assistance/src/bookmarklet/server.rs",
       ),
       true,
     );
     assert.equal(
-      hasBookmarkletCodeWithoutTokenHeader(
+      hasBookmarkletCodeWithoutPairingBoundary(
         root,
-        "src/features/settings/sources/browser-import/BrowserImportSection.tsx",
+        "src-tauri/src/ipc/bookmarklet.rs",
       ),
       true,
     );

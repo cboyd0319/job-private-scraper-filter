@@ -2,9 +2,15 @@ import { spawnSync } from "node:child_process";
 import { createHash, randomBytes } from "node:crypto";
 import { existsSync, lstatSync, readdirSync, readFileSync } from "node:fs";
 import { basename, join } from "node:path";
+import { getMacosRuntimeProfile } from "../platform/macos-runtime-profile.mjs";
 import { parseSha256Checksum } from "./checksum.mjs";
 
 export { parseSha256Checksum } from "./checksum.mjs";
+export {
+  modelPayloadFiles,
+  runtimeProfileArtifactViolations,
+  runtimeProfileCommandViolations,
+} from "../platform/macos-runtime-profile.mjs";
 
 const defaultSmokeSeconds = 12;
 const smokeDatabaseKeyHexEnv = "JOBSENTINEL_MACOS_PACKAGE_SMOKE_DATABASE_KEY_HEX";
@@ -63,6 +69,7 @@ export function parseArgs(args, arch = process.arch) {
     launchSmoke: hasArg(args, "--launch-smoke") || Boolean(smokeValue),
     requireChecksum: hasArg(args, "--require-checksum"),
     requireGatekeeper: hasArg(args, "--require-gatekeeper"),
+    runtimeProfile: getMacosRuntimeProfile(args),
     verifyChecksum: !hasArg(args, "--no-checksum"),
     smokeSeconds: smokeValue ? Number(smokeValue) : defaultSmokeSeconds,
   };

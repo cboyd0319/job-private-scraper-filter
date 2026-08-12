@@ -130,22 +130,6 @@ async fn test_scrape_company_handles_empty_response() {
 }
 
 #[tokio::test]
-async fn test_scrape_company_handles_non_array_response() {
-    let company = test_company();
-    let json_response = serde_json::json!({
-        "error": "Invalid response"
-    });
-
-    let jobs = LeverScraper::parse_postings(&json_response, &company);
-
-    assert_eq!(
-        jobs.len(),
-        0,
-        "Non-array response should produce empty job list"
-    );
-}
-
-#[tokio::test]
 async fn test_scrape_reports_error_when_all_companies_fail() {
     let scraper = LeverScraper::new(vec![LeverCompany {
         id: "broken".to_string(),

@@ -3,12 +3,16 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ToastProvider } from "../../app/providers/ToastProvider";
 import { openDeepLink } from "../../shared/search-links";
-import { recordLinkedInWorkbenchEvent } from "./internal/linkedinWorkbenchClient";
+import {
+  getLinkedInWorkbenchReviewStatus,
+  recordLinkedInWorkbenchEvent,
+  reviewLinkedInWorkbench,
+  revokeLinkedInWorkbenchReview,
+} from "./internal/linkedinWorkbenchClient";
 import {
   BROWSER_ASSIST_LEARNING_ENABLED_STORAGE_KEY,
   BROWSER_ASSIST_LEARNING_STORAGE_KEY,
 } from "../../shared/browserAssistLearning";
-import { LINKEDIN_WORKBENCH_ACK_STORAGE_KEY } from "./linkedinWorkbenchPolicy";
 import { LinkedInWorkbench } from "./LinkedInWorkbench";
 
 vi.mock("../../shared/search-links", () => ({
@@ -16,7 +20,10 @@ vi.mock("../../shared/search-links", () => ({
 }));
 
 vi.mock("./internal/linkedinWorkbenchClient", () => ({
+  getLinkedInWorkbenchReviewStatus: vi.fn(),
   recordLinkedInWorkbenchEvent: vi.fn(),
+  reviewLinkedInWorkbench: vi.fn(),
+  revokeLinkedInWorkbenchReview: vi.fn(),
 }));
 
 function renderWorkbench() {
@@ -27,11 +34,23 @@ function renderWorkbench() {
   );
 }
 
+async function reviewWorkbench(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(
+    screen.getByLabelText(/I understand\. Remember this on this computer/i),
+  );
+  await waitFor(() =>
+    expect(screen.getByRole("button", { name: /open linkedin jobs/i })).toBeEnabled(),
+  );
+}
+
 describe("LinkedInWorkbench", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(window.localStorage.getItem).mockReturnValue(null);
     vi.mocked(openDeepLink).mockResolvedValue(undefined);
+    vi.mocked(getLinkedInWorkbenchReviewStatus).mockResolvedValue("review_required");
+    vi.mocked(reviewLinkedInWorkbench).mockResolvedValue(true);
+    vi.mocked(revokeLinkedInWorkbenchReview).mockResolvedValue(true);
     vi.mocked(recordLinkedInWorkbenchEvent).mockResolvedValue({
       jobId: 1,
       jobHash: "hash",
@@ -52,27 +71,66 @@ describe("LinkedInWorkbench", () => {
     expect(screen.getByRole("button", { name: /log interview/i })).toBeDisabled();
     expect(screen.getByRole("button", { name: /add reminder/i })).toBeDisabled();
 
-    await user.click(
-      screen.getByLabelText(/I understand\. Remember this on this computer/i),
-    );
+    await reviewWorkbench(user);
 
-    expect(window.localStorage.setItem).toHaveBeenCalledWith(
-      LINKEDIN_WORKBENCH_ACK_STORAGE_KEY,
-      expect.stringContaining("linkedin-workbench"),
-    );
+    expect(reviewLinkedInWorkbench).toHaveBeenCalledOnce();
+    expect(window.localStorage.setItem).not.toHaveBeenCalled();
     expect(screen.getByRole("button", { name: /open linkedin jobs/i })).toBeEnabled();
     expect(screen.getByRole("button", { name: /log applied/i })).toBeEnabled();
     expect(screen.getByRole("button", { name: /log interview/i })).toBeEnabled();
     expect(screen.getByRole("button", { name: /add reminder/i })).toBeEnabled();
   });
 
-  it("opens LinkedIn and shows a privacy reminder without a forced close", async () => {
+  it("loads and revokes the backend-owned review without browser storage", async () => {
     const user = userEvent.setup();
+    vi.mocked(getLinkedInWorkbenchReviewStatus).mockResolvedValue("reviewed");
     renderWorkbench();
+
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: /open linkedin jobs/i })).toBeEnabled(),
+    );
+    expect(
+      screen.getByLabelText(/I understand\. Remember this on this computer/i),
+    ).toBeChecked();
 
     await user.click(
       screen.getByLabelText(/I understand\. Remember this on this computer/i),
     );
+
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: /open linkedin jobs/i })).toBeDisabled(),
+    );
+    expect(revokeLinkedInWorkbenchReview).toHaveBeenCalledOnce();
+    expect(window.localStorage.removeItem).not.toHaveBeenCalled();
+  });
+
+  it("keeps controls paused when provider policy evidence needs refresh", async () => {
+    const user = userEvent.setup();
+    vi.mocked(getLinkedInWorkbenchReviewStatus).mockResolvedValue(
+      "policy_refresh_required",
+    );
+    renderWorkbench();
+
+    expect(
+      await screen.findByText(/paused while JobSentinel refreshes its LinkedIn policy review/i),
+    ).toBeInTheDocument();
+    const review = screen.getByLabelText(
+      /I understand\. Remember this on this computer/i,
+    );
+    expect(review).not.toBeChecked();
+    expect(review).toBeDisabled();
+    expect(screen.getByRole("button", { name: /open linkedin jobs/i })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /log applied/i })).toBeDisabled();
+
+    await user.click(review);
+    expect(reviewLinkedInWorkbench).not.toHaveBeenCalled();
+  });
+
+  it("opens LinkedIn and shows a privacy reminder without a forced close", async () => {
+    const user = userEvent.setup();
+    renderWorkbench();
+
+    await reviewWorkbench(user);
     await user.click(screen.getByRole("button", { name: /open linkedin jobs/i }));
 
     expect(openDeepLink).toHaveBeenCalledWith("https://www.linkedin.com/jobs/");
@@ -81,23 +139,18 @@ describe("LinkedInWorkbench", () => {
     ).toBeInTheDocument();
   });
 
-  it("presents Browser Import as the primary capture path", () => {
+  it("does not recommend policy-blocked LinkedIn page capture", () => {
     renderWorkbench();
 
     expect(
-      screen.getByText(/fastest path: browse normally, then save the page/i),
+      screen.getByText(/browse normally, then add only the details you choose/i),
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/use the browser button on a linkedin jobs page to save the visible job cards/i),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText(/then use these buttons for what you did/i),
+      screen.getByText(/LinkedIn does not permit third-party page capture/i),
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /log follow-up/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /log rejected/i })).toBeInTheDocument();
-    expect(
-      screen.queryByText(/paste is the main path/i),
-    ).not.toBeInTheDocument();
+    expect(screen.queryByText(/browser button/i)).not.toBeInTheDocument();
   });
 
   it("keeps local learning off until the user turns it on", () => {
@@ -114,9 +167,7 @@ describe("LinkedInWorkbench", () => {
     const user = userEvent.setup();
     renderWorkbench();
 
-    await user.click(
-      screen.getByLabelText(/I understand\. Remember this on this computer/i),
-    );
+    await reviewWorkbench(user);
     await user.type(
       screen.getByLabelText(/paste selected job text/i),
       "Principal Security Engineer at Example Co\nhttps://www.linkedin.com/jobs/view/123?token=secret\nli_at=raw-cookie",
@@ -140,9 +191,7 @@ describe("LinkedInWorkbench", () => {
     const user = userEvent.setup();
     renderWorkbench();
 
-    await user.click(
-      screen.getByLabelText(/I understand\. Remember this on this computer/i),
-    );
+    await reviewWorkbench(user);
     await user.type(
       screen.getByRole("textbox", { name: "Job title" }),
       "Security Program Manager",
@@ -168,9 +217,7 @@ describe("LinkedInWorkbench", () => {
       BROWSER_ASSIST_LEARNING_ENABLED_STORAGE_KEY,
       "true",
     );
-    await user.click(
-      screen.getByLabelText(/I understand\. Remember this on this computer/i),
-    );
+    await reviewWorkbench(user);
     await user.type(
       screen.getByRole("textbox", { name: "Job title" }),
       "Security Program Manager",
@@ -199,9 +246,7 @@ describe("LinkedInWorkbench", () => {
     await user.click(
       screen.getByLabelText(/Help JobSentinel learn from my local job actions/i),
     );
-    await user.click(
-      screen.getByLabelText(/I understand\. Remember this on this computer/i),
-    );
+    await reviewWorkbench(user);
     await user.type(
       screen.getByRole("textbox", { name: "Job title" }),
       "Content Strategist",
@@ -222,9 +267,7 @@ describe("LinkedInWorkbench", () => {
     const user = userEvent.setup();
     renderWorkbench();
 
-    await user.click(
-      screen.getByLabelText(/I understand\. Remember this on this computer/i),
-    );
+    await reviewWorkbench(user);
 
     fireEvent.paste(screen.getByLabelText(/paste selected job text/i), {
       clipboardData: {
@@ -261,9 +304,7 @@ describe("LinkedInWorkbench", () => {
     const user = userEvent.setup();
     renderWorkbench();
 
-    await user.click(
-      screen.getByLabelText(/I understand\. Remember this on this computer/i),
-    );
+    await reviewWorkbench(user);
     await user.type(
       screen.getByRole("textbox", { name: "Job title" }),
       "Content Strategist",

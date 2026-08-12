@@ -1,0 +1,17 @@
+[
+  {
+    "legal": "Synthetic fixture modeled on the reviewed RemoteOK API notice."
+  },
+  {
+    "id": "example-123",
+    "date": "2026-07-19T12:00:00+00:00",
+    "company": "Example Cooperative",
+    "position": "Distributed Systems Engineer",
+    "tags": ["rust", "distributed systems"],
+    "description": "Build reliable public-interest infrastructure.",
+    "location": "Worldwide",
+    "salary_min": 120000,
+    "salary_max": 160000,
+    "url": "/remote-jobs/example-123"
+  }
+]

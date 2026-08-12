@@ -56,6 +56,12 @@ const SAVED_LINK_SOURCE_REVIEW = {
   ariaLabel: "Check saved link before tailoring",
 };
 
+const SAVED_LINK_SOURCE_GUIDANCE: JobSourceGuidance = {
+  label: "Saved by you",
+  description: "Saved from a link you chose. Check the original posting before tailoring.",
+  review: SAVED_LINK_SOURCE_REVIEW,
+};
+
 const SAMPLE_SOURCE_REVIEW = {
   title: "Replace sample job",
   description:
@@ -155,21 +161,10 @@ const SOURCE_GUIDANCE_BY_KEY: Record<string, JobSourceGuidance> = {
     description: "From a connected local source. Verify on the employer page before tailoring.",
     review: CONNECTED_SOURCE_REVIEW,
   },
-  import: {
-    label: "Saved by you",
-    description: "Saved from a link you chose. Check the original posting before tailoring.",
-    review: SAVED_LINK_SOURCE_REVIEW,
-  },
-  manual: {
-    label: "Saved by you",
-    description: "Saved from a link you chose. Check the original posting before tailoring.",
-    review: SAVED_LINK_SOURCE_REVIEW,
-  },
-  manual_import: {
-    label: "Saved by you",
-    description: "Saved from a link you chose. Check the original posting before tailoring.",
-    review: SAVED_LINK_SOURCE_REVIEW,
-  },
+  import: SAVED_LINK_SOURCE_GUIDANCE,
+  user_source_actions: SAVED_LINK_SOURCE_GUIDANCE,
+  manual: SAVED_LINK_SOURCE_GUIDANCE,
+  manual_import: SAVED_LINK_SOURCE_GUIDANCE,
   builtin: {
     label: "Sample job",
     description: "Sample data for local review. Replace it with current postings before tailoring.",

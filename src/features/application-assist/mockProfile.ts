@@ -1,3 +1,5 @@
+import { requiresUserAnswer } from "../../shared/applicationScreeningTaxonomy";
+
 export interface MockApplicationProfile {
   id: number;
   fullName: string;
@@ -320,7 +322,10 @@ export function getMockSuggestedAnswers(
   const question = getStringArg(args, "question") ?? "";
   const limit = getNumericArg(args, "limit") ?? 5;
 
+  if (requiresUserAnswer(question)) return [];
+
   return screeningAnswers
+    .filter((answer) => !requiresUserAnswer(answer.questionPattern))
     .filter((answer) => screeningPatternMatchesQuestion(answer.questionPattern, question))
     .slice(0, limit)
     .map((answer) => ({

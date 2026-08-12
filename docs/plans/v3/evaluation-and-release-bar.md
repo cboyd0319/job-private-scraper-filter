@@ -229,10 +229,11 @@ Required checks:
 Because v3 is the first long-term compatibility boundary, verify:
 
 - fresh v3 install
-- v2.9-to-v3 local migration
-- backup-before-migration
-- failed migration retry
-- backup restore
+- v3.0.0 is the first supported compatibility baseline
+- pre-v3 readers, migration shims, fixtures, and release claims are absent
+- backup-before-v3.x migration
+- failed v3.x migration retry
+- v3.x backup restore
 - compatible v3 patch rollback
 - unsupported-newer-data detection
 - source pack compatibility
@@ -280,6 +281,30 @@ Required platform checks:
   unavailable-platform fallback.
 
 If a platform lacks a feature, the UI must say so plainly and offer a fallback.
+
+### Essentials Numeric Thresholds
+
+These Gate 4 release thresholds are derived from measured evidence on the
+macOS 27 arm64 host and the enforced 8 GiB zero-swap Linux guest recorded in
+`docs/harness/evidence/`. They bind release claims only for measured
+platforms; Windows 11 and macOS 26 must be measured before claiming them.
+
+| Threshold | Limit | Measured basis |
+| --- | --- | --- |
+| Model-free macOS DMG size | <= 25,000,000 bytes | 14,224,509 bytes |
+| Model-free installed macOS app size | <= 50,000,000 bytes | 29,704,192 bytes |
+| Model-free Debian package size | <= 30,000,000 bytes | 16,181,176 bytes |
+| Model-free AppImage size | <= 120,000,000 bytes | 89,344,504 bytes |
+| Model-free installed Linux binary size | <= 60,000,000 bytes | 39,689,664 bytes |
+| Installed first visible window, polling upper bound | <= 2,000 ms | 825 ms, 582 ms, 277 ms |
+| Complete Essentials first-run journey peak memory on an enforced 8 GiB zero-swap profile | <= 1,073,741,824 bytes with zero memory-limit and OOM events | 687,190,016 bytes |
+| Persistence relaunch peak memory on the same profile | <= 1,073,741,824 bytes | 717,479,936 bytes |
+| Aggregate app-coalition observed maximum RSS on an unconstrained macOS host | <= 536,870,912 bytes | 246,251,520 bytes |
+| Model-payload filenames inside model-free packages | exactly 0 matches | 0 matches |
+
+The stronger-local download payload is not a threshold: the lock owns the
+exact 2,406,043,460-byte required total for the governed Qwen3 pair, and
+changing it requires a model-lock change with fresh calibration evidence.
 
 ## Triage Framework
 
@@ -350,5 +375,5 @@ V3 is not done until:
 - Main README and wiki reflect the shipped v3 experience.
 - Release assets, checksums, SBOMs, and attestations are produced.
 - Manual UI verification covers every click and action in the shipped surface.
-- Compatibility and rollback docs define what v3 supports and what pre-v3 does
-  not promise.
+- Compatibility and rollback docs define v3.0.0 as the first supported baseline
+  and make clear that pre-v3 upgrades are unsupported.

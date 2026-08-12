@@ -1,0 +1,193 @@
+{
+  "schema": "jobsentinel.feature_evidence.v1",
+  "feature_id": "v3-milestone-4-source-graph-browser-companion",
+  "slice": "gate-3",
+  "behavior": "Source actions and browser capture fail closed behind typed policy.",
+  "result": "passing",
+  "verified_at": "2026-07-19T23:14:43Z",
+  "revision": "88beaadce5c819c97e1e199806c7e15d5db49ba9",
+  "revision_scope": "The committed Milestone 4 source manifests, policies, fixtures, simulator checks, veteran and public-service metadata, restricted-source retirement, employer discovery, LinkedIn Workbench, region research manifests, one-use browser companion, Smart Paste, and applied logging runtime.",
+  "platform": "local macOS arm64 host",
+  "commands": [
+    {
+      "command": "env -u JOBSENTINEL_LIVE_KEYRING_TESTS cargo test -p jobsentinel-domain v3_source --lib --no-fail-fast",
+      "exit_status": 0,
+      "relevant_result": "All 34 focused source contract and simulator tests passed, including exact SmartPaste and AppliedLogging grants, declared-operation fixture drift, source review freshness, disabled sources, pacing, and fail-closed unknown input.",
+      "caveat": "The shared Schema.org fixture proves canonical normalized output and hash drift. Operation-specific runtime tests own Smart Paste parsing and applied logging behavior."
+    },
+    {
+      "command": "env -u JOBSENTINEL_LIVE_KEYRING_TESTS cargo test -p jobsentinel-application smart_paste --lib --no-fail-fast; env -u JOBSENTINEL_LIVE_KEYRING_TESTS cargo test -p jobsentinel-application v3_source_governance_user_actions --lib --no-fail-fast; env -u JOBSENTINEL_LIVE_KEYRING_TESTS cargo test -p jobsentinel-application bookmarklet --lib --no-fail-fast",
+      "exit_status": 0,
+      "relevant_result": "Eight Smart Paste tests, five user-action governance tests, and eight browser application tests passed. They prove local parsing, review edits, exact installed authority, policy-drift retention, pre-queue credential rejection, exact applied grants, restricted target rejection, and credential filtering before storage.",
+      "caveat": "No external source, browser session, credential backend, or Keychain path ran."
+    },
+    {
+      "command": "env -u JOBSENTINEL_LIVE_KEYRING_TESTS cargo test -p jobsentinel-assistance bookmarklet:: --lib --no-fail-fast",
+      "exit_status": 0,
+      "relevant_result": "All 48 companion tests passed, including atomic one-use consumption, replacement revocation, expiry, replay rejection, exact origin matching, bounded requests, applied draft queueing, missing-field labeling, extra-state rejection, authorization recheck, explicit pending retention, and Applied status.",
+      "caveat": "Loopback requests and repositories are deterministic test doubles. No live browser or installed desktop process ran."
+    },
+    {
+      "command": "env -u JOBSENTINEL_LIVE_KEYRING_TESTS cargo test -p jobsentinel ipc::import::tests --lib --no-fail-fast; env -u JOBSENTINEL_LIVE_KEYRING_TESTS cargo test -p jobsentinel ipc::bookmarklet::tests --lib --no-fail-fast",
+      "exit_status": 0,
+      "relevant_result": "Nine import command tests and seven browser command tests passed. Commands are registered, internal errors stay sanitized, Smart Paste limits are explained, and generated browser actions block restricted or mismatched origins before page access while excluding hidden and structured page data.",
+      "caveat": "System clipboard and native confirmation behavior were verified statically and at command boundaries only."
+    },
+    {
+      "command": "npm run test:run -- src/features/dashboard/components/JobImportModal.test.tsx src/features/dashboard/components/SmartPasteFlow.test.tsx src/features/settings/sources/browser-import/BrowserImportSection.test.tsx src/features/settings/sources/browser-import/BrowserImportAppliedLogging.test.tsx src/features/settings/sources/browser-import/BrowserImportButtonScript.test.ts",
+      "exit_status": 0,
+      "relevant_result": "All 38 focused frontend tests passed. Smart Paste stays review-first and local, the renderer never receives the pairing secret, Import and Applied use separate commands, missing applied details remain visible, and restricted domains stop before DOM or fetch access.",
+      "caveat": "The generated-script tests use deterministic DOM and fetch doubles rather than live browsers."
+    },
+    {
+      "command": "npm run test:scripts",
+      "exit_status": 0,
+      "relevant_result": "All 839 script-contract tests passed, including source-boundary, pairing, origin-order, repository structure, and v3 disposition sensors.",
+      "caveat": "Static repository sensors do not replace installed browser or operating-system proof."
+    },
+    {
+      "command": "npm run harness:check",
+      "exit_status": 0,
+      "relevant_result": "Canonical state has one active Milestone 5 feature, passing Milestone 4 evidence, complete maintained-file coverage, and no harness contradiction.",
+      "caveat": "Harness validation checks repository contracts and state, not installed browser behavior."
+    },
+    {
+      "command": "npm run lint:security",
+      "exit_status": 0,
+      "relevant_result": "Security sensors and secret scanning passed for the source, browser, IPC, credential, support, and workflow boundaries.",
+      "caveat": "Static security sensors do not replace live platform proof."
+    },
+    {
+      "command": "npm run lint; npm run typecheck; npm run lint:file-size; npm run lint:architecture; cargo fmt --all -- --check; env -u JOBSENTINEL_LIVE_KEYRING_TESTS cargo clippy -p jobsentinel-domain -p jobsentinel-application -p jobsentinel-assistance -p jobsentinel -- -D warnings; git diff --check",
+      "exit_status": 0,
+      "relevant_result": "Frontend lint and types, every hard file limit, architecture, security sensors, secrets, harness state, Rust formatting, strict affected-package Clippy, and patch whitespace passed.",
+      "caveat": "Focused verification was used. Full frontend and Rust workspace test suites were intentionally not run."
+    },
+    {
+      "command": "Read-only Adversarial Review of the settled Gate 3 implementation",
+      "exit_status": 0,
+      "relevant_result": "The final verdict was APPROVE with no implementation blocker. Review confirmed exact operation grants, queue and storage reauthorization, transient pairing state, credential filtering, pre-DOM restricted-domain blocking, explicit review and discard, and no hidden or external network capture.",
+      "caveat": "The adversarial review was static and preserved the live release matrix as an explicit gap."
+    }
+  ],
+  "action_matrix": [
+    {
+      "action": "scheduled public source check",
+      "class": "official_public_api or public_ats",
+      "permission": "none",
+      "pacing": "Source-specific manifest request limit and scheduler rate limiter.",
+      "visibility": "Settings source state, run health, and source-specific status.",
+      "exit": "Disable the source; stop conditions and stale review fail closed.",
+      "explanation": "Manifest, policy reference, terms or robots review, freshness, fixture, and health remain inspectable.",
+      "evidence": "v3 source manifest, simulator, scheduler, and source-governance tests"
+    },
+    {
+      "action": "retired restricted scheduled check",
+      "class": "restricted_public_scheduled",
+      "permission": "user_review cannot override disabled policy",
+      "pacing": "Zero authorized requests.",
+      "visibility": "Policy and local history remain inspectable; active controls and health claims are removed.",
+      "exit": "Already disabled; stale config and acknowledgement are cleared and cannot restore transport.",
+      "explanation": "Current first-party policy reference and retirement reason are bound to the disabled manifest.",
+      "evidence": "restricted-source retirement evidence, migration 18, and simulator tests"
+    },
+    {
+      "action": "employer discovery",
+      "class": "user_import",
+      "permission": "user_review",
+      "pacing": "One credential-free HTTPS request after native destination confirmation.",
+      "visibility": "Minimized destination in native review and an editable pending preview.",
+      "exit": "Cancel before request or let the bounded pending draft expire; nothing is durable before save.",
+      "explanation": "Safe errors distinguish blocked policy, invalid links, expiry, and changed authorization.",
+      "evidence": "employer discovery governance evidence and application import tests"
+    },
+    {
+      "action": "restricted Workbench",
+      "class": "restricted_user_opened",
+      "permission": "user_review",
+      "pacing": "No page collection by JobSentinel; local user-entered actions only.",
+      "visibility": "Native review, local Workbench controls, and append-only consent history.",
+      "exit": "Revoke exact consent or close the user-opened session.",
+      "explanation": "Current policy evidence, allowed local actions, credential rejection, and stale-policy pause are explicit.",
+      "evidence": "LinkedIn Workbench governance evidence and focused Workbench tests"
+    },
+    {
+      "action": "visible page capture",
+      "class": "user_import",
+      "permission": "paired_browser_grant",
+      "pacing": "One local loopback request per origin-bound pairing; no source fetch by the app.",
+      "visibility": "Exact site and page in native review, copied one-use button, and local pending review list.",
+      "exit": "Cancel confirmation, replace or stop the pairing, wait for expiry, or discard the pending job.",
+      "explanation": "Safe copy, connection, mismatch, expiry, replay, policy-drift, and missing-detail messages.",
+      "evidence": "browser companion pairing evidence and companion runtime tests"
+    },
+    {
+      "action": "Smart Paste",
+      "class": "user_import",
+      "permission": "user_review",
+      "pacing": "Local parsing only with no network request.",
+      "visibility": "Pasted text, parsed fields, missing fields, and review edits stay in the import modal.",
+      "exit": "Close the modal, change the draft, or leave the bounded pending draft to expire.",
+      "explanation": "Safe messages cover size, required fields, credentials, expiry, and changed policy.",
+      "evidence": "Smart Paste application, command, and frontend tests"
+    },
+    {
+      "action": "browser-origin applied logging",
+      "class": "user_import",
+      "permission": "paired_browser_grant",
+      "pacing": "One local loopback request per origin-bound pairing; visible title, company, and page address only.",
+      "visibility": "Separate I Just Applied button and an Applied draft with missing details marked.",
+      "exit": "Cancel confirmation, replace or stop the pairing, wait for expiry, or discard the pending draft.",
+      "explanation": "Restricted sites, extra page state, credentials, replay, origin mismatch, and changed authority fail closed.",
+      "evidence": "Applied Logging companion, command, generated-script, and review-list tests"
+    },
+    {
+      "action": "regional pack check",
+      "class": "unsupported until Milestone 9",
+      "permission": "none available",
+      "pacing": "Zero runtime requests.",
+      "visibility": "Dated UK, EU, and India research manifests explicitly state incomplete research-only coverage.",
+      "exit": "No runtime action exists.",
+      "explanation": "RegionalPackCheck fails closed until Milestone 9 and Gate 4 approve delivery and sources.",
+      "evidence": "starter region manifest evidence and fail-closed manifest tests"
+    }
+  ],
+  "measurements": {
+    "declared_user_source_operations": 4,
+    "source_contract_tests_passed": 34,
+    "smart_paste_tests_passed": 8,
+    "user_action_governance_tests_passed": 5,
+    "application_browser_tests_passed": 8,
+    "assistance_browser_tests_passed": 48,
+    "tauri_import_tests_passed": 9,
+    "tauri_browser_tests_passed": 7,
+    "focused_frontend_tests_passed": 38,
+    "script_contract_tests_passed": 839,
+    "adversarial_reviews_approved": 1,
+    "live_browser_platform_matrices_passed": 0
+  },
+  "decisions": {
+    "gate_3": "Approved. The source classes, exact permissions, pacing, visibility, revocation or cancellation, and explanation model are frozen for the v3.0 line.",
+    "coexistence": "Scheduled public checks, retired restricted automation, employer discovery, restricted Workbench, visible Browser Import, Smart Paste, and applied logging remain distinct operations. No weaker path can authorize a stronger one.",
+    "s14": "The origin-bound one-use bookmarklet companion is the v3.0 minimum. Dedicated extension, side-panel, and broad cross-browser packaging remain train 12B work.",
+    "s27": "Milestone 4 owns source identity, action, provenance, lineage, and governed employer discovery. Employer dossiers and registry intelligence remain Milestone 8 work.",
+    "regional": "Starter region manifests are research metadata only. RegionalPackCheck remains unsupported and fail-closed until Milestone 9 and Gate 4.",
+    "simulator": "The shared Schema.org fixture proves canonical normalized output and hash drift. Operation-specific tests prove Smart Paste parsing and applied logging runtime behavior.",
+    "privacy": "Pairing secrets remain transient, external AI is not used, screenshots and hidden browser state are not read, and credential-like input is rejected before durable storage.",
+    "credential_tests": "Every unattended Rust command removed JOBSENTINEL_LIVE_KEYRING_TESTS. No Keychain prompt, live credential backend, signed build, Tauri launch, or live source ran."
+  },
+  "review": {
+    "adversarial_verdict": "APPROVE",
+    "privacy_or_security_regression": false,
+    "open_slice_blockers": 0,
+    "remaining_findings": [
+      "Live Chrome, Safari, Firefox, and Edge proof remains required across Windows 11, macOS 26+, and Linux for local-network permission, CSP, mixed-content, Origin, CORP, and loopback delivery behavior.",
+      "Installed clipboard, native dialog, keyboard, and screen-reader proof remains part of the later release matrix.",
+      "S21 broad cross-browser strategy remains accepted Next work in train 12B.",
+      "Runtime regional delivery remains Milestone 9 and Gate 4 work.",
+      "Repository GitHub Actions must be re-enabled and verified before merge.",
+      "Local commits remain unpublished until an unattended-safe GitHub credential is available."
+    ]
+  },
+  "source": "docs/plans/v3/master-exec-plan.md"
+}

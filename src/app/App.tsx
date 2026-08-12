@@ -17,11 +17,11 @@ import { KeyboardShortcutsProvider } from "./keyboard/KeyboardShortcutsProvider"
 import { useKeyboardShortcuts } from "./keyboard/useKeyboardShortcuts";
 import { logError } from "../shared/errorReporting/logger";
 import { defaultTourSteps } from "./onboarding/tourSteps";
-import {
-  copySanitizedDebugReport,
-  saveSanitizedDebugReport,
-} from "../shared/errorReporting/supportReport";
 import type { CompanyResearchPanelProps } from "../shared/companyResearch";
+import { StartupRecovery } from "./StartupRecovery";
+import { NativeFileDropReview } from "./NativeFileDropReview";
+
+export { StartupRecovery } from "./StartupRecovery";
 
 // Lazy load pages for better initial load performance
 const SetupWizard = lazy(() => import("../features/onboarding"));
@@ -60,6 +60,11 @@ const ApplicationProfile = lazy(() => import("../features/application-assist"));
 const ApplyButton = lazy(() =>
   import("../features/application-assist").then((module) => ({
     default: module.ApplyButton,
+  })),
+);
+const OpportunityCaseAction = lazy(() =>
+  import("../features/opportunity-case/OpportunityCaseAction").then((module) => ({
+    default: module.OpportunityCaseAction,
   })),
 );
 
@@ -111,102 +116,15 @@ function TourStartTrigger({
   return null;
 }
 
-export function StartupRecovery({ onRetry }: { onRetry: () => void }) {
-  const [reportStatus, setReportStatus] = useState<
-    "idle" | "copying" | "copied" | "saving" | "saved" | "failed"
-  >("idle");
-
-  const copyReport = async () => {
-    setReportStatus("copying");
-    try {
-      await copySanitizedDebugReport();
-      setReportStatus("copied");
-    } catch (error) {
-      logError("Failed to copy startup support report:", error);
-      setReportStatus("failed");
-    }
-  };
-
-  const saveReport = async () => {
-    setReportStatus("saving");
-    try {
-      const saved = await saveSanitizedDebugReport();
-      setReportStatus(saved ? "saved" : "idle");
-    } catch (error) {
-      logError("Failed to save startup support report:", error);
-      setReportStatus("failed");
-    }
-  };
-
-  return (
-    <ErrorBoundary>
-      <SkipToContent />
-      <main
-        className="min-h-screen bg-surface-950 text-white flex items-center justify-center px-6"
-        id="main-content"
-        tabIndex={-1}
-      >
-        <section className="w-full max-w-lg rounded-card border border-surface-700 bg-surface-900 p-8 shadow-xl">
-          <h1 className="font-display text-display-lg mb-3">
-            JobSentinel could not open saved setup
-          </h1>
-          <p className="text-sm text-surface-300 mb-6">
-            Your saved jobs and settings stay on this device. Try again, or save
-            a safe support report before closing and reopening JobSentinel.
-          </p>
-          <div className="space-y-3">
-            <button
-              className="w-full rounded-lg bg-sentinel-500 px-4 py-3 text-sm font-semibold text-white hover:bg-sentinel-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-sentinel-400"
-              onClick={onRetry}
-            >
-              Try Again
-            </button>
-            <button
-              className="w-full rounded-lg bg-surface-800 px-4 py-3 text-sm font-semibold text-surface-100 hover:bg-surface-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-surface-400 disabled:opacity-50"
-              disabled={reportStatus === "copying"}
-              onClick={() => void copyReport()}
-            >
-              {reportStatus === "copying"
-                ? "Copying..."
-                : "Copy Safe Support Report"}
-            </button>
-            <button
-              className="w-full rounded-lg bg-surface-800 px-4 py-3 text-sm font-semibold text-surface-100 hover:bg-surface-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-surface-400 disabled:opacity-50"
-              disabled={reportStatus === "saving"}
-              onClick={() => void saveReport()}
-            >
-              {reportStatus === "saving"
-                ? "Saving..."
-                : "Save Safe Support Report"}
-            </button>
-          </div>
-          {reportStatus === "copied" && (
-            <p className="mt-4 text-sm text-success" role="status">
-              Safe support report copied
-            </p>
-          )}
-          {reportStatus === "saved" && (
-            <p className="mt-4 text-sm text-success" role="status">
-              Safe support report saved for review
-            </p>
-          )}
-          {reportStatus === "failed" && (
-            <p className="mt-4 text-sm text-danger" role="status">
-              Could not create safe support report
-            </p>
-          )}
-        </section>
-      </main>
-    </ErrorBoundary>
-  );
-}
-
 function App() {
   const [isFirstRun, setIsFirstRun] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(true);
   const [startupError, setStartupError] = useState(false);
   const [currentPage, setCurrentPage] = useState<Page>("dashboard");
   const [showSettings, setShowSettings] = useState(false);
+  const [settingsInitialTab, setSettingsInitialTab] = useState<
+    "basic" | "advanced"
+  >("basic");
   const [openImportOnDashboard, setOpenImportOnDashboard] = useState(false);
   const [shouldStartTour, setShouldStartTour] = useState(false);
 
@@ -235,13 +153,24 @@ function App() {
     setShouldStartTour(true);
   };
 
+  const handleSetupSkip = () => {
+    setIsFirstRun(false);
+  };
+
   const navigateTo = (page: Page) => {
     setCurrentPage(page);
   };
 
   // Moved before early returns to comply with hooks rules
   const openSettings = useCallback(() => {
+    setSettingsInitialTab("basic");
     setShowSettings(true);
+  }, []);
+
+  const openSourcesFromApplications = useCallback(() => {
+    setSettingsInitialTab("advanced");
+    setShowSettings(true);
+    setCurrentPage("dashboard");
   }, []);
 
   const openJobImportFromApplications = useCallback(() => {
@@ -265,7 +194,7 @@ function App() {
           <Suspense
             fallback={<PageLoader message="Getting JobSentinel ready..." />}
           >
-            <SetupWizard onComplete={handleSetupComplete} />
+            <SetupWizard onComplete={handleSetupComplete} onSkip={handleSetupSkip} />
           </Suspense>
         </div>
       </ErrorBoundary>
@@ -280,6 +209,7 @@ function App() {
       >
         <OnboardingProvider steps={defaultTourSteps}>
           <SkipToContent />
+          <NativeFileDropReview />
           <CommandPalette />
           <GlobalKeyboardHelp />
           <TourStartTrigger
@@ -307,22 +237,26 @@ function App() {
                       onOpenApplicationAssist,
                     ) => (
                       <Suspense fallback={null}>
-                        <ApplyButton
-                          job={{
-                            id: job.id,
-                            hash: job.hash ?? `job-${job.id}`,
-                            title: job.title,
-                            company: job.company,
-                            location: job.location ?? "",
-                            url: job.url,
-                            description: job.description ?? undefined,
-                            score: job.score ?? undefined,
-                          }}
-                          onOpenApplicationAssist={onOpenApplicationAssist}
-                        />
+                        <div className="flex flex-wrap items-center gap-2">
+                          {job.hash && <OpportunityCaseAction jobHash={job.hash} />}
+                          <ApplyButton
+                            job={{
+                              id: job.id,
+                              hash: job.hash ?? `job-${job.id}`,
+                              title: job.title,
+                              company: job.company,
+                              location: job.location ?? "",
+                              url: job.url,
+                              description: job.description ?? undefined,
+                              score: job.score ?? undefined,
+                            }}
+                            onOpenApplicationAssist={onOpenApplicationAssist}
+                          />
+                        </div>
                       </Suspense>
                     )}
                     settingsPage={Settings}
+                    settingsInitialTab={settingsInitialTab}
                     linkedinWorkbench={<LinkedInWorkbench />}
                     renderCompanyResearch={renderCompanyResearch}
                     showSettings={showSettings}
@@ -340,6 +274,8 @@ function App() {
                   <Applications
                     onBack={() => navigateTo("dashboard")}
                     onImportJob={openJobImportFromApplications}
+                    onOpenSalary={() => navigateTo("salary")}
+                    onOpenSources={openSourcesFromApplications}
                     renderCompanyResearch={renderCompanyResearch}
                   />
                 </PageErrorBoundary>

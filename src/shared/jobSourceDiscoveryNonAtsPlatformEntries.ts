@@ -111,10 +111,9 @@ export const JOB_SOURCE_NON_ATS_PLATFORM_ENTRIES: readonly model.JobSourceDiscov
       model.RESTRICTED_AUTHENTICATED_INTERACTIVE_POLICY,
     examples: ["LinkedIn Jobs", "LinkedIn company job tabs"],
     implementationPath:
-      "User-gated restricted discovery only. Prefer user-opened import and never run silent scheduled discovery. Persist user-entered query intent and selected filters only; do not persist referral, origin, or session-like identifiers as source configuration.",
+      "User-gated restricted discovery only. Prefer the user-opened local Workbench and never run Browser Import or silent scheduled discovery. Persist user-entered query intent and selected filters only; do not persist referral, origin, or session-like identifiers as source configuration.",
     notes:
-      "Observed search-results URLs can include role keywords, LinkedIn geo IDs, posted-within filters, Easy Apply filters, selected job IDs, how-you-fit surfaces, origin surfaces, referral search IDs, landing job lists, and jobs-hub text-fragment anchors. Treat LinkedIn-specific IDs and navigation context as volatile user/session context. " +
-      model.RESTRICTED_BOARD_NOTES,
+      "Observed search-results URLs can include role keywords, LinkedIn geo IDs, posted-within filters, Easy Apply filters, selected job IDs, how-you-fit surfaces, origin surfaces, referral search IDs, landing job lists, and jobs-hub text-fragment anchors. Treat LinkedIn-specific IDs and navigation context as volatile user/session context. Keep access user opened, store no sign-in material, and use only details the user enters or selects for the local Workbench.",
     requiresUserAgreement: true,
   },
   {

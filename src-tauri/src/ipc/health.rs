@@ -8,13 +8,13 @@ use crate::application::health::{
     get_all_scraper_health, get_health_summary as health_summary,
     get_latest_source_request as latest_source_request, get_scraper_configs as scraper_configs,
     get_scraper_runs as scraper_runs, is_known_scraper_name,
-    run_all_smoke_tests_with_credentials_and_acknowledgement as all_smoke_tests,
-    run_smoke_test_with_credentials_and_acknowledgement as run_smoke_test,
-    set_scraper_enabled as scraper_enabled, HealthSummary, ScraperConfig, ScraperHealthMetrics,
-    ScraperRun, SmokeTestResult, SourceRequestSummary,
+    run_all_smoke_tests_with_credentials as all_smoke_tests,
+    run_smoke_test_with_credentials as run_smoke_test, set_scraper_enabled as scraper_enabled,
+    HealthSummary, ScraperConfig, ScraperHealthMetrics, ScraperRun, SmokeTestResult,
+    SourceRequestSummary,
 };
 use crate::bootstrap::AppState;
-use crate::desktop::path_label_for_logging;
+use crate::desktop::{path_label_for_logging, Database};
 use crate::ipc::errors::user_friendly_error;
 use crate::ipc::limits::validate_optional_command_limit_i32;
 use std::path::Path;
@@ -36,21 +36,16 @@ fn validate_scraper_name(scraper_name: &str) -> Result<(), String> {
 const DEFAULT_SCRAPER_LIMIT: usize = 50;
 const DEFAULT_USAJOBS_LIMIT: usize = 100;
 const DEFAULT_USAJOBS_DATE_POSTED_DAYS: u8 = 30;
+const RETIRED_SCHEDULED_SOURCES: &[&str] = &["builtin", "dice", "simplyhired", "glassdoor"];
+
+fn is_retired_scheduled_source(scraper_name: &str) -> bool {
+    RETIRED_SCHEDULED_SOURCES.contains(&scraper_name)
+}
 
 fn ensure_source_limit(limit: &mut usize, default_limit: usize) {
     if *limit == 0 {
         *limit = default_limit;
     }
-}
-
-fn default_source_query(config: &Config) -> Option<String> {
-    config
-        .title_allowlist
-        .iter()
-        .chain(config.keywords_boost.iter())
-        .map(|value| value.trim())
-        .find(|value| !value.is_empty())
-        .map(ToOwned::to_owned)
 }
 
 fn apply_config_backed_scraper_toggle(
@@ -59,6 +54,8 @@ fn apply_config_backed_scraper_toggle(
     enabled: bool,
 ) -> bool {
     match scraper_name {
+        "yc_startup" => return false,
+        source if is_retired_scheduled_source(source) => return false,
         "remoteok" => {
             config.remoteok.enabled = enabled;
             ensure_source_limit(&mut config.remoteok.limit, DEFAULT_SCRAPER_LIMIT);
@@ -67,27 +64,9 @@ fn apply_config_backed_scraper_toggle(
             config.weworkremotely.enabled = enabled;
             ensure_source_limit(&mut config.weworkremotely.limit, DEFAULT_SCRAPER_LIMIT);
         }
-        "builtin" => {
-            config.builtin.enabled = enabled;
-            ensure_source_limit(&mut config.builtin.limit, DEFAULT_SCRAPER_LIMIT);
-        }
         "hn_hiring" => {
             config.hn_hiring.enabled = enabled;
             ensure_source_limit(&mut config.hn_hiring.limit, DEFAULT_SCRAPER_LIMIT);
-        }
-        "dice" => {
-            if enabled && config.dice.query.trim().is_empty() {
-                let Some(query) = default_source_query(config) else {
-                    return false;
-                };
-                config.dice.query = query;
-            }
-            config.dice.enabled = enabled;
-            ensure_source_limit(&mut config.dice.limit, DEFAULT_SCRAPER_LIMIT);
-        }
-        "yc_startup" => {
-            config.yc_startup.enabled = enabled;
-            ensure_source_limit(&mut config.yc_startup.limit, DEFAULT_SCRAPER_LIMIT);
         }
         "usajobs" => {
             if enabled && config.usajobs.email.trim().is_empty() {
@@ -98,26 +77,6 @@ fn apply_config_backed_scraper_toggle(
                 config.usajobs.date_posted_days = DEFAULT_USAJOBS_DATE_POSTED_DAYS;
             }
             ensure_source_limit(&mut config.usajobs.limit, DEFAULT_USAJOBS_LIMIT);
-        }
-        "simplyhired" => {
-            if enabled && config.simplyhired.query.trim().is_empty() {
-                let Some(query) = default_source_query(config) else {
-                    return false;
-                };
-                config.simplyhired.query = query;
-            }
-            config.simplyhired.enabled = enabled;
-            ensure_source_limit(&mut config.simplyhired.limit, DEFAULT_SCRAPER_LIMIT);
-        }
-        "glassdoor" => {
-            if enabled && config.glassdoor.query.trim().is_empty() {
-                let Some(query) = default_source_query(config) else {
-                    return false;
-                };
-                config.glassdoor.query = query;
-            }
-            config.glassdoor.enabled = enabled;
-            ensure_source_limit(&mut config.glassdoor.limit, DEFAULT_SCRAPER_LIMIT);
         }
         _ => return false,
     }
@@ -130,15 +89,24 @@ async fn set_config_backed_scraper_enabled_in_runtime_and_path(
     enabled: bool,
     runtime_config: &RwLock<Config>,
     config_path: &Path,
+    database: &Database,
 ) -> Result<bool, String> {
-    let mut next_config = {
+    let previous = {
         let config = runtime_config.read().await;
         config.clone()
     };
+    let mut next_config = previous.clone();
 
     if !apply_config_backed_scraper_toggle(&mut next_config, scraper_name, enabled) {
         return Ok(false);
     }
+    jobsentinel_application::restricted_source_consent::reconcile_restricted_source_consents(
+        database,
+        &previous,
+        &mut next_config,
+    )
+    .await
+    .map_err(|error| user_friendly_error("Failed to update restricted-source review", error))?;
 
     next_config.save(config_path).map_err(|e| {
         let message = user_friendly_error("Failed to save configuration", &e);
@@ -196,12 +164,16 @@ pub(crate) async fn set_scraper_enabled(
     enabled: bool,
 ) -> Result<(), String> {
     validate_scraper_name(&scraper_name)?;
+    if is_retired_scheduled_source(&scraper_name) {
+        return Ok(());
+    }
     let config_path = Config::default_path();
     set_config_backed_scraper_enabled_in_runtime_and_path(
         &scraper_name,
         enabled,
         state.config.as_ref(),
         &config_path,
+        state.database.as_ref(),
     )
     .await?;
     scraper_enabled(&state.database, &scraper_name, enabled)
@@ -240,7 +212,6 @@ pub(crate) async fn get_latest_source_request(
 pub(crate) async fn run_scraper_smoke_test(
     state: State<'_, AppState>,
     scraper_name: String,
-    restricted_source_acknowledged: Option<bool>,
 ) -> Result<SmokeTestResult, String> {
     validate_scraper_name(&scraper_name)?;
     let config = state.config.read().await.clone();
@@ -249,7 +220,6 @@ pub(crate) async fn run_scraper_smoke_test(
         &config,
         &scraper_name,
         state.credentials.as_ref(),
-        restricted_source_acknowledged.unwrap_or(false),
     )
     .await
     .map_err(|e| health_command_error("Failed to run scraper smoke test", e))
@@ -259,17 +229,11 @@ pub(crate) async fn run_scraper_smoke_test(
 #[tauri::command]
 pub(crate) async fn run_all_smoke_tests(
     state: State<'_, AppState>,
-    restricted_source_acknowledged: Option<bool>,
 ) -> Result<Vec<SmokeTestResult>, String> {
     let config = state.config.read().await.clone();
-    all_smoke_tests(
-        &state.database,
-        &config,
-        state.credentials.as_ref(),
-        restricted_source_acknowledged.unwrap_or(false),
-    )
-    .await
-    .map_err(|e| health_command_error("Failed to run scraper smoke tests", e))
+    all_smoke_tests(&state.database, &config, state.credentials.as_ref())
+        .await
+        .map_err(|e| health_command_error("Failed to run scraper smoke tests", e))
 }
 
 #[cfg(test)]
@@ -341,9 +305,29 @@ mod tests {
         assert!(!msg.contains("secret"));
     }
 
+    #[test]
+    fn retired_sources_cannot_be_toggled() {
+        let mut config = create_health_toggle_test_config();
+
+        for source in ["yc_startup", "builtin", "dice", "simplyhired", "glassdoor"] {
+            assert!(!apply_config_backed_scraper_toggle(
+                &mut config,
+                source,
+                true,
+            ));
+        }
+        assert!(!config.yc_startup.enabled);
+        assert!(!config.builtin.enabled);
+        assert!(!config.dice.enabled);
+        assert!(!config.simplyhired.enabled);
+        assert!(!config.glassdoor.enabled);
+    }
+
     #[tokio::test]
     async fn config_backed_source_toggle_updates_runtime_config_and_disk() {
         let runtime_config = RwLock::new(create_health_toggle_test_config());
+        let database = Database::connect_memory().await.unwrap();
+        database.migrate().await.unwrap();
         let temp_dir = tempfile::tempdir().unwrap();
         let config_path = temp_dir.path().join("config.json");
 
@@ -352,6 +336,7 @@ mod tests {
             true,
             &runtime_config,
             &config_path,
+            &database,
         )
         .await
         .unwrap();

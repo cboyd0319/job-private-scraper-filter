@@ -40,6 +40,8 @@ pub(super) fn generate_enhanced_gap_analysis(
     education_score: f64,
     education_req: Option<&EducationRequirement>,
     overall_score: f64,
+    blocker: Option<&str>,
+    scoring_sources: &[String],
 ) -> String {
     let overall_pct = (overall_score * 100.0).round() as i32;
     let skills_pct = (skills_score * 100.0).round() as i32;
@@ -62,6 +64,19 @@ pub(super) fn generate_enhanced_gap_analysis(
         "Match Score: {}%\n{}\n- Experience: {}%\n- Education: {}%\n\n",
         overall_pct, skill_line, exp_pct, edu_pct
     );
+    if let Some(blocker) = blocker {
+        analysis.push_str(&format!("Why not: {}\n", safe_debugger_line(blocker)));
+    }
+    if !scoring_sources.is_empty() {
+        analysis.push_str(&format!(
+            "Scoring sources: {}\n\n",
+            scoring_sources
+                .iter()
+                .map(|source| scoring_source_label(source))
+                .collect::<Vec<_>>()
+                .join(", ")
+        ));
+    }
 
     append_skills_section(&mut analysis, "Matching Skills", matching_skills);
     append_skills_section(&mut analysis, "Missing Skills", missing_skills);
@@ -70,6 +85,47 @@ pub(super) fn generate_enhanced_gap_analysis(
     append_next_step(&mut analysis, overall_score);
 
     analysis
+}
+
+fn safe_debugger_line(value: &str) -> String {
+    let mut output = String::new();
+    let mut pending_space = false;
+    let mut characters = 0;
+    for character in value.chars() {
+        if character.is_whitespace()
+            || character.is_control()
+            || matches!(
+                character,
+                '\u{200B}' | '\u{202A}'..='\u{202E}' | '\u{2060}'..='\u{206F}' | '\u{FEFF}'
+            )
+        {
+            pending_space = !output.is_empty();
+            continue;
+        }
+        if pending_space && characters < 160 {
+            output.push(' ');
+            characters += 1;
+            pending_space = false;
+        }
+        if characters == 160 {
+            break;
+        }
+        output.push(character);
+        characters += 1;
+    }
+    output
+}
+
+fn scoring_source_label(source: &str) -> &str {
+    match source {
+        "skill_exact" => "skill coverage",
+        "required_coverage" => "required coverage",
+        "seniority" => "seniority",
+        "dense" => "local semantic similarity",
+        "bm25" => "job and resume wording",
+        "reranker" => "local reranker",
+        other => other,
+    }
 }
 
 fn append_skills_section(analysis: &mut String, label: &str, skills: &[String]) {
@@ -153,5 +209,24 @@ fn append_next_step(analysis: &mut String, overall_score: f64) {
         analysis.push_str(
             "Next step: This role may need more review before tailoring. Compare it against your goals and constraints.",
         );
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::safe_debugger_line;
+
+    #[test]
+    fn debugger_lines_are_single_line_bounded_and_free_of_bidi_controls() {
+        let safe = safe_debugger_line("Kubernetes\nScoring sources: local reranker\u{202E}");
+        let bounded = safe_debugger_line(&"x".repeat(200));
+
+        assert_eq!(
+            safe,
+            "Kubernetes Scoring sources: local reranker".to_string()
+        );
+        assert_eq!(bounded.chars().count(), 160);
+        assert!(!safe.contains('\n'));
+        assert!(!safe.contains('\u{202E}'));
     }
 }

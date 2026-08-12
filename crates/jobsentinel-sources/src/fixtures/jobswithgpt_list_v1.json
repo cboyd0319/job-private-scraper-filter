@@ -1,0 +1,11 @@
+{
+  "title": "Case Manager",
+  "company": "Community Care Network",
+  "url": "https://example.com/jobs/case-manager",
+  "location": "Remote",
+  "description": "Coordinate services and follow-up for community members",
+  "remote": true,
+  "salary_min": 55000,
+  "salary_max": 72000,
+  "currency": "USD"
+}

@@ -1,7 +1,6 @@
 import { invoke } from "../../platform/tauri";
 import {
   errorReporter,
-  sanitizeContext,
   sanitizeTextForStorage,
   type ErrorReport,
 } from "./errorReporter";
@@ -37,19 +36,11 @@ function formatFrontendErrorLog(errors: ErrorReport[]): string {
     lines.push(
       `- Time: ${sanitizeTextForStorage(error.timestamp)}`,
       `  Problem type: ${sanitizeTextForStorage(error.type)}`,
-      `  Message: ${sanitizeTextForStorage(error.message)}`,
     );
 
     if (error.stack || error.componentStack) {
       lines.push(
         "  Technical details: kept in local problem history, not included in this safe support report.",
-      );
-    }
-
-    if (error.context && Object.keys(error.context).length > 0) {
-      const context = sanitizeContext(error.context);
-      lines.push(
-        `  Extra safe details: ${sanitizeTextForStorage(JSON.stringify(context, null, 2))}`,
       );
     }
 

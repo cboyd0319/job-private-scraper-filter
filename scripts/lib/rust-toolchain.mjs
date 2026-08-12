@@ -22,9 +22,13 @@ export function cargoCommand(platform = process.platform) {
 
 export function runPinnedCargo(root, args, options = {}) {
   const spawn = options.spawnSync ?? spawnSync;
+  const env = { ...(options.env ?? process.env) };
+  for (const name of Object.keys(env)) {
+    if (name.toUpperCase() === "JOBSENTINEL_LIVE_KEYRING_TESTS") delete env[name];
+  }
   const result = spawn(cargoCommand(options.platform), args, {
     cwd: root,
-    env: repositoryToolchainEnvironment(root, options),
+    env: repositoryToolchainEnvironment(root, { ...options, env }),
     stdio: options.stdio ?? "inherit",
     encoding: options.encoding,
   });

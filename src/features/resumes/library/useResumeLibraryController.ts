@@ -12,6 +12,8 @@ import {
   type NewSkill,
   type ResumeData,
   type ResumeMatchingPreference,
+  type ResumeMatchFeedback,
+  type ResumeMatchFeedbackLabel,
   type ResumeTextPreview,
   type SkillUpdate,
   type UserSkill,
@@ -32,6 +34,7 @@ export function useResumeLibraryController() {
   const [textPreviewLoading, setTextPreviewLoading] = useState(false);
   const [resumeMatchingEnabled, setResumeMatchingEnabled] = useState(false);
   const [resumeMatchingLoading, setResumeMatchingLoading] = useState(false);
+  const [savingFeedback, setSavingFeedback] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{
     type: 'resume' | 'skill';
@@ -367,6 +370,33 @@ export function useResumeLibraryController() {
     });
   };
 
+  const handleMatchFeedback = async (
+    match: MatchResult,
+    label: ResumeMatchFeedbackLabel,
+  ) => {
+    const nextLabel = match.feedback?.label === label ? null : label;
+    try {
+      setSavingFeedback(true);
+      const feedback = await safeInvokeWithToast<ResumeMatchFeedback | null>(
+        "set_resume_match_feedback",
+        { matchId: match.id, label: nextLabel },
+        toast,
+        {
+          logContext: nextLabel
+            ? "Save resume match feedback"
+            : "Clear resume match feedback",
+        },
+      );
+      setRecentMatches((matches) =>
+        matches.map((value) => (value.id === match.id ? { ...value, feedback } : value)),
+      );
+    } catch {
+      // Error already logged and shown to user
+    } finally {
+      setSavingFeedback(false);
+    }
+  };
+
   return {
     resumeState: {
       allResumes,
@@ -376,6 +406,7 @@ export function useResumeLibraryController() {
       resume,
       resumeMatchingEnabled,
       resumeMatchingLoading,
+      savingFeedback,
       showResumeLibrary,
       uploading,
     },
@@ -407,6 +438,7 @@ export function useResumeLibraryController() {
       handleSetActiveResume,
       handleSetResumeMatching,
       handleUploadResume,
+      handleMatchFeedback,
     },
   };
 }

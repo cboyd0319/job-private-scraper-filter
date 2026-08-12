@@ -6,7 +6,7 @@ pub(crate) fn parse_sqlite_datetime(value: &str) -> Result<DateTime<Utc>> {
         return Ok(datetime.with_timezone(&Utc));
     }
 
-    for format in ["%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S"] {
+    for format in ["%Y-%m-%d %H:%M:%S%.f", "%Y-%m-%dT%H:%M:%S%.f"] {
         if let Ok(datetime) = NaiveDateTime::parse_from_str(value, format) {
             return Ok(DateTime::from_naive_utc_and_offset(datetime, Utc));
         }
@@ -24,10 +24,11 @@ mod tests {
         for value in [
             "2026-01-15T12:34:56Z",
             "2026-01-15 12:34:56",
+            "2026-01-15 12:34:56.123",
             "2026-01-15T12:34:56",
         ] {
             let parsed = parse_sqlite_datetime(value).expect("supported datetime format");
-            assert_eq!(parsed.to_rfc3339(), "2026-01-15T12:34:56+00:00");
+            assert!(parsed.to_rfc3339().starts_with("2026-01-15T12:34:56"));
         }
     }
 

@@ -6,10 +6,10 @@
 //! ## Features
 //! - Pinned model lock with revision and SHA-256 verification
 //! - Qwen3 embedding and reranker profiles for the production direction
-//! - Qwen3-first semantic matching with a legacy all-MiniLM fallback
+//! - Qwen3-first semantic matching, verified all-MiniLM fallback, and exact-only
+//!   deterministic matching when neither model is available
 //! - Explicit model download on user or developer action
 //! - Pure Rust inference with Metal acceleration (macOS)
-//! - Graceful fallback to keyword matching if disabled
 //!
 //! ## Usage
 //! Enable with `embedded-ml` feature flag in Cargo.toml
@@ -23,6 +23,7 @@ mod hybrid;
 mod manifest;
 mod matcher;
 mod model;
+mod provenance;
 mod qwen3;
 mod runtime;
 
@@ -44,12 +45,17 @@ pub use evaluation::{
 };
 pub use hybrid::{HybridCandidate, HybridScore, HybridScorer, HybridWeights};
 pub use manifest::{
-    load_model_manifest, model_lock_hash, InstructionProfile, ModelFileSpec, ModelKind,
-    ModelManifest, ModelSpec, ScoreThresholds,
+    load_model_manifest, model_lock_hash, validate_v3_vector_contract, InstructionProfile,
+    ModelFileSpec, ModelKind, ModelManifest, ModelSpec, ScoreThresholds,
 };
-pub use matcher::{SemanticMatchResult, SemanticMatcher};
-pub use model::status::ModelStatus;
+pub use matcher::{
+    validate_local_matching_inputs, validate_resume_embeddings, SemanticMatchResult,
+    SemanticMatcher, SemanticRuntimeProfile, SemanticUnmatchedReason, SkillMatch,
+    UnmatchedRequirementDiagnostic,
+};
+pub use model::status::{ModelCacheHealth, ModelStatus};
 pub use model::ModelManager;
+pub use provenance::default_resume_embedding_provenance;
 pub use qwen3::{Qwen3EmbeddingBackend, Qwen3RerankerBackend};
 pub use runtime::{
     EmbeddingBackend, EmbeddingInput, EmbeddingInputKind, RerankCandidate, RerankQuery,

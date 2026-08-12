@@ -13,6 +13,41 @@ This brief condenses research and source-governance guidance for job monitoring.
 - Provenance matters. Users need to know where a job came from and how current
   it may be.
 
+## Reviewed source decisions
+
+### Y Combinator Jobs
+
+Reviewed 2026-07-19 against the current
+[Y Combinator Terms of Use](https://www.ycombinator.com/legal/#terms-of-use).
+The terms prohibit scraping, data mining, robots, and similar gathering or
+extraction methods. JobSentinel retires its YC HTML adapter, scheduled checks,
+connectivity probe, and Settings recommendation. The user-opened YC search link
+remains available. URL import and Browser Import fail closed before fetching or
+extracting YC pages. Reconsider automated access only if Y Combinator publishes
+an official feed or grants written authorization.
+
+### Built In, Dice, SimplyHired, and Glassdoor
+
+Reviewed 2026-07-19 against each provider's current Terms and robots rules:
+[Built In](https://builtin.com/community-terms-of-use),
+[Dice](https://www.dice.com/about/terms-and-conditions),
+[Indeed terms covering SimplyHired](https://www.indeed.com/legal?hl=en_US), and
+[Glassdoor](https://www.glassdoor.com/about/terms/). The reviewed terms do not
+authorize the retired automated adapters or pasted-URL fetching. JobSentinel
+blocks those paths before transport and ignores legacy local acknowledgements.
+User-opened search links, visible Browser Import, and manual entry remain local,
+user-controlled paths. Dice's official MCP is a separate review-required
+candidate, not a substitute for the retired HTML adapter.
+
+Current LinkedIn evidence was reviewed on 2026-07-19 from the
+[LinkedIn User Agreement](https://www.linkedin.com/legal/user-agreement) and
+[LinkedIn automated-activity guidance](https://www.linkedin.com/help/linkedin/answer/a1340567).
+The agreement effective November 3, 2025 and the current guidance prohibit
+unauthorized scraping, copying, browser plugins, and automated activity.
+JobSentinel therefore blocks LinkedIn Browser Import, scheduled access, and
+hidden page access. User-opened navigation and the local Workbench remain
+available after trusted native review, with no session-material storage.
+
 ## Product implications
 
 - Prefer official-source job monitoring where public feeds or employer pages are
@@ -166,11 +201,13 @@ Patterns to avoid:
 | ------------ | ---------------- | ------------- | -------- | -------------- |
 | Official API or feed | Public unauthenticated or local API key | Native scheduled source | USAJobs, Adzuna, Reed, Remotive, official RSS or JSON feeds | Normal source opt-in; API key or source setup plus any required attribution or rate limit when needed |
 | Public ATS postings | Public unauthenticated | Native scheduled source | Greenhouse, Lever, Ashby, Workable, SmartRecruiters, Recruitee, Personio | Normal source opt-in, no restricted-source acknowledgement unless the source is reclassified after review |
-| Public community or remote source | Public unauthenticated | Native scheduled source with conservative limits and attribution where required | Hacker News hiring posts, YC job listings, We Work Remotely, RemoteOK, Remote First Jobs | Normal source opt-in |
+| Public community or remote source | Public unauthenticated | Native scheduled source with conservative limits and attribution where required | Hacker News hiring posts, We Work Remotely, RemoteOK, Remote First Jobs | Normal source opt-in |
+| Policy-blocked website | Public page whose current terms prohibit extraction | User-opened search link only | YC job listings | No automated fetch, import, capture, probe, or scheduled action |
+| Policy-blocked scheduled board | Public page whose current terms do not authorize the retired automation | User-opened search link, visible Browser Import, or manual entry | Built In, Dice HTML, SimplyHired, Glassdoor | No scheduled check, connectivity probe, pasted-URL fetch, or local-consent override |
 | Employer-owned web API | Public unauthenticated when reviewed | Company discovery first, then native adapter after fixtures prove the endpoint is stable | Workday CXS tenants, Amazon Jobs, Google Careers, Microsoft Careers, GitHub iCIMS/Jibe, Tesla Careers | Normal source opt-in when public; keep Browser Import or manual entry fallback if the endpoint is unstable or blocked in the user's environment |
 | Employer career system | Unknown until reviewed | Company discovery first, then classify into public API, public page import, restricted, or manual | Best Choice Products, Champion Petfoods, Ascend Wellness Holdings, Yourgi Pet, AC Lion, ForceBrands, Berri Organics, Renovation Brands, and other direct employer pages | Treat as review-required until source terms, structure, and rate limits are recorded |
-| Restricted public board | Public unauthenticated with terms/account-risk warning | Search link, pasted individual job link, Browser Import, or explicitly acknowledged scheduled check | Indeed, Glassdoor, Monster, ZipRecruiter, Built In, Dice, Naukri, Shine, Foundit, CV-Library, Totaljobs, Wellfound, ClearanceJobs | Prominent warning and explicit local acknowledgement before the risky action; no sign-in-session rules unless a sign-in session is opened |
-| Restricted authenticated source | Authenticated user session | User-initiated interactive use only | LinkedIn search, LinkedIn Jobs Tracker, FlexJobs, Upwork, Freelancer, Toptal, any future account-backed restricted source | Warning before sign-in, fresh sign-in for every use when JobSentinel opens the session, no auth/session/browser-storage persistence, no background or offline collection, and a visible privacy reminder for supported interactive sessions |
+| Restricted public board | Public unauthenticated with terms/account-risk warning | Search link, pasted individual job link, Browser Import, or explicitly acknowledged scheduled check where current policy permits | Indeed, Monster, ZipRecruiter, Naukri, Shine, Foundit, CV-Library, Totaljobs, Wellfound, ClearanceJobs | Prominent warning and explicit local acknowledgement before the risky action; no sign-in-session rules unless a sign-in session is opened |
+| Restricted authenticated source | Authenticated user session | User-initiated interactive use within current provider policy | LinkedIn search, LinkedIn Jobs Tracker, FlexJobs, Upwork, Freelancer, Toptal, any future account-backed restricted source | Warning before sign-in, fresh user initiation, no auth/session/browser-storage persistence, no background collection, and no page capture where provider policy prohibits it |
 | Unknown or changing source | Unknown review required | Manual entry or search link until reviewed | New country or niche boards | Treat as restricted until source terms, robots policy, rate limits, and practical access are reviewed |
 
 ## Company-Careers Discovery Examples
@@ -187,9 +224,9 @@ token.
 | `https://www.spacex.com/careers` | Custom Angular employer page with public Greenhouse board `spacex` | Detect Greenhouse board and use native Greenhouse API instead of scraping the custom frontend |
 | Klaviyo, Faire, and Mindgruve careers | Verified Greenhouse public board tokens from direct board API probes | Treat as Greenhouse native sources when the user adds these employers |
 | `https://www.tesla.com/careers/search/?site=US` | Tesla employer-owned careers system; local direct fetch can be blocked by edge controls | Keep browser-open and manual import fallback until stable public fixtures are captured without bypassing controls |
-| `https://builtin.com/jobs`, state/city filters such as `?state=California&country=USA&allLocations=true`, and `https://www.builtincolorado.com/jobs` | Restricted Built In network, location-filtered searches, and regional city job boards with custom data and filtering | Keep user-gated restricted source path; prefer employer-career follow-through after the user reviews a role |
-| `https://www.linkedin.com/company/fivetran/jobs/` and search-results URLs with `keywords`, `geoId`, `f_TPR`, or `f_AL` filters | Restricted LinkedIn jobs and company jobs pages | User-gated restricted discovery only; preserve user-entered query intent and selected filters, but do not persist referral, origin, landing-job, or other session-like identifiers |
-| `https://www.linkedin.com/jobs-tracker/?stage=applied` | Restricted LinkedIn Jobs Tracker for user-reviewed jobs | User-gated restricted tracking only for jobs the user already saved or applied to; no broad background discovery, login capture, session-cookie storage, or hidden background access |
+| `https://builtin.com/jobs`, state/city filters such as `?state=California&country=USA&allLocations=true`, and `https://www.builtincolorado.com/jobs` | Policy-blocked Built In network with regional city job boards | Use a user-opened search link, visible Browser Import, or manual entry; do not fetch the pasted URL or schedule collection |
+| `https://www.linkedin.com/company/fivetran/jobs/` and search-results URLs with `keywords`, `geoId`, `f_TPR`, or `f_AL` filters | Restricted LinkedIn jobs and company jobs pages | User-opened navigation after trusted review; use manual or sanitized user-selected Workbench details, with no Browser Import, hidden access, or session-like storage |
+| `https://www.linkedin.com/jobs-tracker/?stage=applied` | Restricted LinkedIn Jobs Tracker for user-reviewed jobs | User-opened navigation and local Workbench logging only; no page capture, broad background discovery, login capture, session-cookie storage, or hidden access |
 | LinkedIn Jobs home anchors for Preferences, Job tracker, and My Career Insights | Restricted LinkedIn navigation surfaces | User-opened navigation only; use these to help a user reach the right LinkedIn area, not as stored source-query or session state |
 | `https://www.google.com/about/careers/applications/jobs/results?hl=en_US` | Google employer-owned careers web app with public job-search surfaces | Add a source-specific adapter only after a stable public fixture is reviewed; keep user-opened search fallback |
 | `https://www.yahooinc.com/careers/` | Yahoo custom career site with server-rendered search pages | User-opened employer search or source-specific adapter after endpoint and terms review |

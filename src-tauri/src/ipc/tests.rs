@@ -9,7 +9,7 @@ mod tests {
     use crate::bootstrap::AppState;
     use crate::desktop::Database;
     use chrono::Utc;
-    use jobsentinel_application::Job;
+    use jobsentinel_application::{pack_runtime::PackRuntimeEnvironment, Job};
     use std::sync::Arc;
     use tokio::sync::RwLock;
 
@@ -72,6 +72,7 @@ mod tests {
             ..Default::default()
         };
         let bookmarklet_server = BookmarkletServer::new(bookmarklet_config);
+        let pack_runtime_data_dir = tempfile::tempdir().expect("Failed to create test data dir");
 
         AppState {
             config: Arc::new(RwLock::new(config)),
@@ -85,6 +86,9 @@ mod tests {
             scheduler_status: Arc::new(RwLock::new(SchedulerStatus::default())),
             bookmarklet_server: Arc::new(RwLock::new(bookmarklet_server)),
             pending_url_imports: Default::default(),
+            pack_runtime: PackRuntimeEnvironment::for_data_dir(pack_runtime_data_dir.path()),
+            pending_military_transition_reviews: Default::default(),
+            outside_ai_cancellations: Default::default(),
         }
     }
 
@@ -343,19 +347,6 @@ mod tests {
 
         let status = state.scheduler_status.read().await;
         assert!(!status.is_running);
-    }
-
-    #[tokio::test]
-    async fn test_is_first_run() {
-        use crate::ipc::config::is_first_run;
-
-        // Note: This test is environment-dependent and difficult to test in isolation
-        // without mocking Config::default_path(). In a real scenario, you'd use
-        // dependency injection or a trait to make this testable.
-
-        // We can at least verify the function doesn't panic
-        let result = is_first_run().await;
-        assert!(result.is_ok(), "is_first_run should not panic");
     }
 
     #[tokio::test]

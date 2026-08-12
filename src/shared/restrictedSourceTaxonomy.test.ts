@@ -8,8 +8,8 @@ import {
   RESTRICTED_JOB_SOURCE_DOMAINS,
   isRestrictedJobSourceHost,
   isRestrictedJobSourceUrl,
+  isPolicyBlockedAutomationUrl,
   normalizeRestrictedSourceAcknowledgements,
-  restrictedScheduledJobSourceLabel,
 } from "./restrictedSourceTaxonomy";
 
 function isConcreteHostPattern(value: string): boolean {
@@ -62,15 +62,31 @@ describe("restrictedSourceTaxonomy", () => {
     expect(isRestrictedJobSourceUrl("not a url")).toBe(false);
   });
 
-  it("normalizes scheduled source acknowledgement defaults", () => {
+  it("marks retired scheduled-source domains as policy-blocked automation", () => {
+    const blocked = RESTRICTED_JOB_SOURCE_DOMAIN_RECORDS.filter(
+      (record) => record.category === "policy-blocked-automation",
+    ).map((record) => record.domain);
+
+    expect(blocked).toEqual([
+      "builtin.com",
+      "builtincolorado.com",
+      "dice.com",
+      "glassdoor.com",
+      "simplyhired.com",
+    ]);
+  });
+
+  it("matches policy-blocked automation URLs without widening host boundaries", () => {
+    expect(isPolicyBlockedAutomationUrl("https://jobs.dice.com/role/1")).toBe(true);
+    expect(isPolicyBlockedAutomationUrl("https://dice.com.example/role/1")).toBe(false);
+    expect(isPolicyBlockedAutomationUrl("not a url")).toBe(false);
+  });
+
+  it("normalizes legacy source acknowledgement defaults", () => {
     expect(normalizeRestrictedSourceAcknowledgements({ dice: true })).toEqual({
       ...DEFAULT_RESTRICTED_SOURCE_ACKNOWLEDGEMENTS,
       dice: true,
     });
-  });
-
-  it("keeps user-facing labels centralized", () => {
-    expect(restrictedScheduledJobSourceLabel("simplyhired")).toBe("SimplyHired");
   });
 
   it("centralizes restricted authenticated source session rules", () => {

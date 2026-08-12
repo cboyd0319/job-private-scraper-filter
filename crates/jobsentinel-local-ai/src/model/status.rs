@@ -1,5 +1,15 @@
 pub(super) const MODEL_CACHE_METADATA_FILE: &str = ".jobsentinel-model.json";
 
+/// Read-only health of one governed model cache.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ModelCacheHealth {
+    Missing,
+    Incomplete,
+    IntegrityMismatch,
+    Ready,
+}
+
 /// Model download and loading status.
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct ModelStatus {

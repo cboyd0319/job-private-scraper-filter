@@ -1,3 +1,5 @@
+import { isPolicyBlockedScheduledSourceId } from "../../../../shared/restrictedSourceTaxonomy";
+
 export type MockScraperEnabledOverrides = Record<string, boolean>;
 
 type MockScraperType = "api" | "html" | "rss" | "graphql" | "hybrid";
@@ -112,32 +114,11 @@ const MOCK_SCRAPERS: readonly MockScraperDefinition[] = [
     rate_limit_per_hour: 45,
   },
   {
-    scraper_name: "builtin",
-    display_name: "Built In",
-    requires_auth: false,
-    scraper_type: "html",
-    rate_limit_per_hour: 60,
-  },
-  {
     scraper_name: "jobswithgpt",
     display_name: "JobsWithGPT",
     requires_auth: false,
     scraper_type: "api",
     rate_limit_per_hour: 60,
-  },
-  {
-    scraper_name: "dice",
-    display_name: "Dice",
-    requires_auth: false,
-    scraper_type: "html",
-    rate_limit_per_hour: 45,
-  },
-  {
-    scraper_name: "yc_startup",
-    display_name: "YC Startup Jobs",
-    requires_auth: false,
-    scraper_type: "html",
-    rate_limit_per_hour: 45,
   },
   {
     scraper_name: "ziprecruiter",
@@ -153,21 +134,18 @@ const MOCK_SCRAPERS: readonly MockScraperDefinition[] = [
     scraper_type: "api",
     rate_limit_per_hour: 120,
   },
-  {
-    scraper_name: "simplyhired",
-    display_name: "SimplyHired",
-    requires_auth: false,
-    scraper_type: "html",
-    rate_limit_per_hour: 45,
-  },
-  {
-    scraper_name: "glassdoor",
-    display_name: "Glassdoor",
-    requires_auth: false,
-    scraper_type: "html",
-    rate_limit_per_hour: 45,
-  },
 ] as const;
+const RESTRICTED_SMOKE_TEST_SOURCES = new Set([
+  "indeed",
+  "wellfound",
+  "builtin",
+  "dice",
+  "ziprecruiter",
+  "simplyhired",
+  "glassdoor",
+]);
+const JOBSWITHGPT_PROVIDER_REVIEW_REASON =
+  "JobsWithGPT provider endpoint and usage policy require review";
 
 export function hasEnabledMockScraperSource(configRecord: Record<string, unknown>): boolean {
   return MOCK_SCRAPERS.some((scraper) =>
@@ -216,7 +194,9 @@ export function getMockScraperHealth(
   scraperEnabledOverrides: MockScraperEnabledOverrides,
 ): MockScraperHealthMetrics[] {
   return MOCK_SCRAPERS.map((scraper, index) => {
-    const isEnabled = scraperEnabledOverrides[scraper.scraper_name] ?? true;
+    const isEnabled =
+      scraper.scraper_name !== "jobswithgpt" &&
+      (scraperEnabledOverrides[scraper.scraper_name] ?? true);
     const status: MockHealthStatus = isEnabled
       ? index % 7 === 0
         ? "degraded"
@@ -226,7 +206,8 @@ export function getMockScraperHealth(
       ...scraper,
       is_enabled: isEnabled,
       health_status: status,
-      selector_health: status === "degraded" ? "degraded" : "healthy",
+      selector_health:
+        status === "disabled" ? "unknown" : status === "degraded" ? "degraded" : "healthy",
       success_rate_24h: status === "healthy" ? 96 : status === "degraded" ? 82 : 0,
       avg_duration_ms: isEnabled ? 850 + index * 75 : null,
       last_success: isEnabled
@@ -329,7 +310,7 @@ export function updateMockScraperEnabled(
   scraperEnabledOverrides: MockScraperEnabledOverrides,
 ): MockScraperEnabledOverrides {
   const scraperName = getStringArg(args, "scraperName") ?? getStringArg(args, "scraper_name");
-  if (!scraperName) {
+  if (!scraperName || isPolicyBlockedScheduledSourceId(scraperName)) {
     return scraperEnabledOverrides;
   }
 
@@ -343,6 +324,33 @@ function getMockSmokeTestResult(
   scraperName: string,
   scraperEnabledOverrides: MockScraperEnabledOverrides,
 ): MockSmokeTestResult {
+  if (scraperName === "jobswithgpt") {
+    return {
+      scraper_name: scraperName,
+      test_type: "connectivity",
+      passed: true,
+      duration_ms: 0,
+      details: {
+        status: "skipped",
+        reason: JOBSWITHGPT_PROVIDER_REVIEW_REASON,
+      },
+      error: null,
+    };
+  }
+  if (RESTRICTED_SMOKE_TEST_SOURCES.has(scraperName)) {
+    return {
+      scraper_name: scraperName,
+      test_type: "connectivity",
+      passed: true,
+      duration_ms: 0,
+      details: {
+        status: "skipped",
+        reason:
+          "Automated access is unavailable after provider policy review. Use a user-opened search link, Browser Import, or manual entry.",
+      },
+      error: null,
+    };
+  }
   return {
     scraper_name: scraperName,
     test_type: "connectivity",

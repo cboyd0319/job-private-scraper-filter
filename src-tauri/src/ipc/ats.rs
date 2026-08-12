@@ -194,7 +194,7 @@ pub(crate) async fn get_upcoming_interviews(
         .map_err(|e| user_friendly_error("Failed to get interviews", e))
 }
 
-/// Get past interviews (completed, last 90 days)
+/// Get completed interviews.
 #[tauri::command]
 pub(crate) async fn get_past_interviews(
     state: State<'_, AppState>,

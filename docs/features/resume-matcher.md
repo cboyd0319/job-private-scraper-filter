@@ -25,6 +25,26 @@ It is a local, advisory signal for readability, fit, and preparation.
 
 External AI is not required for resume matching.
 
+Local semantic matching refuses resume skills, job requirements, queries, or
+candidates that contain shared instruction-override phrases or the invisible
+format controls U+200B, U+2060 through U+2064, or U+FEFF. Other Unicode format
+controls are ignored during phrase inspection, so bidirectional text, Persian
+joiners, and emoji sequences remain valid but cannot conceal an override phrase.
+Rejection stops before local model dispatch and returns a content-free
+review-required error. It does not log, persist, or send the rejected value.
+Security work such as "prompt injection testing" also remains valid input.
+
+Requirement diagnostics are rebuilt locally from one database snapshot of the
+current case-file job description, saved resume text, saved skills, resume
+revision, job revision, and reviewed case evidence. Direct, Strong, Partial, and
+Implied states require exact same-case UserConfirmed citations. Missing results
+cannot carry citations. The in-memory result exposes only its case identifier,
+job revision, requirement, importance, bounded match state, opaque evidence
+IDs, hard-constraint status, and a bounded Partial, Implied, or Missing "why
+not" reason. It does not trust caller-supplied match state, recommendation text,
+importance, blockers, or citations, and it performs no write or external AI
+call.
+
 ## What It Helps With
 
 - **Resume readability**: Confirm and copy the text JobSentinel can read from
@@ -122,6 +142,8 @@ The current local matcher:
 - extracts readable text from PDF, DOCX, TXT, Markdown, and HTML resumes;
 - keeps selected resume uploads local and rejects files over 10 MB before
   copying them into managed local storage;
+- routes an explicitly confirmed dropped resume through the same validation,
+  managed storage, and Resume-page review path without exposing its source path;
 - shows the resume format and whether readable text is available before review;
 - provides an explicit local preview of readable resume text without returning
   the saved file path;
@@ -491,6 +513,52 @@ The current local matcher:
 - treats job posts with too little recognized requirement detail as
   insufficient evidence instead of a perfect match;
 - stores results locally so recent job comparisons can be reviewed later.
+- shows only the scoring signals actually used in each recent local result,
+  and, when embedded local scoring applies a limit, shows its first stable
+  evidence blocker as plain **Why not** and **Scoring sources** lines.
+- lets the user mark a saved match **Useful** or **Not relevant** and clear the
+  label. Feedback stays local, stores only the saved match ID, closed label, and
+  time, and does not change ranking or retain extra resume or job content.
+
+The v3 storage foundation keeps derived vectors in the local database as bounded
+little-endian `f32` bytes with model and content provenance. It stores no source
+text in the vector table and excludes the table from reviewed plaintext export.
+A read returns bytes only when model availability, provenance, dimension, and
+every value remain valid; otherwise it removes the row and requests a rebuild.
+Encrypted portable backups include the local table. Row deletion is lifecycle
+cleanup, not a secure-erasure claim.
+
+The embedded semantic command caches only the first skill in the existing
+deterministic skill order. It rebuilds that local vector when content or model
+provenance changes and removes it when the skill set changes, the resume is
+deleted, or the governed Qwen3 runtime is unavailable. Remaining skill
+vectors are generated in memory for that request. MiniLM and model-free
+installs keep their existing local matching behavior and never consume the
+Qwen3 cache. The command returns one same-order citation for every positive
+match, bound to the exact skill in the same revision-guarded local order. It
+returns no partial result when any skill is missing or ambiguous, and returns
+no result when the resume changes or is deleted during matching. Citations
+contain no resume content, filesystem path, source identifier, or raw revision.
+This command boundary is not yet the visible Resume Match page.
+
+Settings calls the Model Doctor surface **Local Match Check**. It reports the
+active local profile, privacy mode, fallback, model revision, backend, license,
+dimension, required-file count, and cache integrity. Missing or incomplete
+models keep built-in matching available. Integrity-invalid lock-owned caches
+can be removed only after native review; stale vector provenance is rebuilt at
+the application boundary rather than presented as current evidence.
+
+The visible active saved-resume review is application-owned. It brackets the
+existing local analysis with exact active-resume, revision, parsed-text, file,
+bounded HTML-source, and ordered-skill reads. A change or deletion refuses the
+whole result with a safe retry action instead of returning stale citations. HTML
+format-source reads use one file handle and stop after the 10 MiB boundary plus
+one sentinel byte. The result shape and visible review remain unchanged.
+
+Copied structured-resume review is also application-owned. It discards any
+renderer-supplied evidence identity, derives an opaque local revision from
+canonical resume content, and stops before analysis when that content exceeds
+10 MiB. The copied resume and its derived identity are not persisted.
 
 The skill list is self-contained and deterministic. Same input should produce
 the same local result. Optional OCR is available for scanned PDFs when the app
@@ -528,6 +596,77 @@ Visible matched-word and requirement review surfaces, including live Resume
 Builder tooltips and Resume Match rows, use plain evidence labels such as
 current role experience, recent role experience, work experience, and skills
 list instead of backend section names.
+Requirement rows and live Resume Builder details can also show the matching
+resume locations as keyboard-visible human labels. They never show citation
+identifiers, source revisions, raw field paths, or excerpts. Clearance labels
+do not verify current status, and military-service labels do not claim civilian
+equivalence.
+
+The Milestone 5 application contract prepares military-to-civilian wording as a
+move-only, in-memory review draft. The occupation code, every described military
+responsibility or credential, and any current-clearance label must appear in the
+current bounded saved-resume text and have same-case, user-confirmed military
+evidence. Current-clearance evidence uses its own citation. The draft preserves
+each exact military source phrase beside the proposed civilian wording for
+explicit review. Saved-match existence, job description, match ID, and skills
+are checked only when preparing that review; they do not author its wording.
+It returns only the reviewed civilian wording after a typed user-action receipt
+names that exact draft and a fresh atomic read confirms the same resume
+revision, content hash, and evidence links. A job or saved-match context change
+cannot revise the prepared civilian wording; skills context cannot revise it
+either, and any resulting resume revision or a changed evidence link fails
+confirmation.
+
+The dated O*NET occupation crosswalk and DoD COOL credential site remain manual
+review resources. They do not author or verify the branch, occupation, civilian
+role, responsibilities, credentials, clearance, veteran status, eligibility, or
+equivalence. Missing, changed, deleted, ambiguous, unconfirmed, or near-match
+source evidence fails closed. No review draft or suggestion is persisted,
+logged, sent, or generated from a packaged crosswalk. The native move-only
+draft and suggestion remain non-Serialize. IPC may serialize only an opaque
+pending-review token and, after confirmation, a safe civilian projection:
+role, responsibilities, credential wording, a user-confirmed clearance label,
+and fixed `suggestion_only` / `not_verified` boundaries for clearance
+currentness and military-to-civilian equivalence. It never serializes source-
+evidence fields, raw resume text, citations, IDs, revisions, paths, or
+resources.
+
+Each recent saved match also offers **Inspect evidence**. The debugger shows
+bounded requirement states, hard-constraint blockers, plain **Why not**
+reasons, and opaque current citations. Users must confirm exact current
+evidence before saving a reviewed packet claim. Packet claims persist only the
+reviewed text, ordered opaque evidence links, and fixed uncertainty boundaries;
+stale resume, skill, or job evidence refuses the write or reload.
+
+Resume Match offers an optional local matching profile only after the user
+selects both a role evidence focus and job-market wording. The role focus marks
+preferred evidence sections and breaks ties only after requirement importance
+and match state. It does not upgrade evidence, change a requirement state, or
+change a score. The regional profile recognizes a small reviewed set of
+`program` / `programme` and `license` / `licence` spellings, so it can change
+recognized matches and scores. It does not treat different concepts as
+equivalent, and a missing required licence remains a hard constraint.
+
+United States, United Kingdom, European Union, and India are explicit starter
+choices, not inferred locations. They do not claim complete terminology,
+employer, occupation, or regional coverage. Unselected analysis keeps the
+existing result contract without profile fields. Selected profiles reach both
+active saved-resume and copied structured-resume analysis, stay in local
+session state, and never trigger network access. The controls remain locked
+while a review is running so an older profile result cannot appear under a
+newer selection.
+
+The versioned synthetic `matching-profiles-v1` evaluation fixture freezes this
+limited behavior. All nine role profiles must produce an exact review order
+that differs from unprofiled analysis while preserving requirement states and
+zero keyword and overall score deltas. The bounded United Kingdom, European
+Union, and India spelling cases produce exact positive match-score deltas; the
+United States control remains unchanged. Separate cases preserve the
+`project evaluation` / `program evaluation` distinction and the required
+licence hard-constraint cap. These are regression values, not claims that
+Qwen3, regional terminology, employers, occupations, sources, or a region pack
+are complete or ready to ship.
+
 Resume Match also shows a compact Role Coverage card backed by
 `src/features/resumes/shared/resumeRoleFamilyTaxonomy.ts`. The shared contract covers technical,
 content, operations, healthcare, service, trades, education, sales, and

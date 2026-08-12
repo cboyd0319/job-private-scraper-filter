@@ -65,6 +65,16 @@ Essentials should avoid by default:
 - background jobs that can make older machines feel stuck
 - advanced settings unless expert mode is enabled
 
+Gate 4 freezes the Essentials composition as the `Lighter` profile with
+deterministic matching, public sources, and safe support. It has no automatic
+or bundled model download, and region packs remain separately installed
+options. This approves the component boundary, not a numeric footprint or
+performance claim. A controlled zero-swap Linux amd64 guest now proves the
+model-free installed journey under an enforced 8 GiB limit, and a revision-bound
+macOS arm64 low-pressure baseline exists on a 64 GiB host. Approved numeric
+thresholds and the Windows 11, macOS 26, and Linux platform package matrix remain
+blocked.
+
 ## Runtime Profiles
 
 V3 should expose a simple runtime profile without making users tune model

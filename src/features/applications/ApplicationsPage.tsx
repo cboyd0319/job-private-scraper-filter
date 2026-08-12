@@ -32,6 +32,7 @@ import {
   hasAnyApplications,
   STATUS_COLUMNS,
   type Application,
+  type ApplicationReviewAction,
   type ApplicationsByStatus,
   type PendingReminder,
   type StatusKey,
@@ -49,12 +50,16 @@ import type { RenderCompanyResearch } from "../../shared/companyResearch";
 interface ApplicationsProps {
   onBack: () => void;
   onImportJob?: () => void;
+  onOpenSalary?: () => void;
+  onOpenSources?: () => void;
   renderCompanyResearch?: RenderCompanyResearch;
 }
 
 export default function ApplicationsPage({
   onBack,
   onImportJob,
+  onOpenSalary,
+  onOpenSources,
   renderCompanyResearch,
 }: ApplicationsProps) {
   const [applications, setApplications] = useState<ApplicationsByStatus | null>(null);
@@ -279,32 +284,40 @@ export default function ApplicationsPage({
     }
   };
 
-  const handleReviewNoResponses = async () => {
-    try {
-      const count = await safeInvokeWithToast<number>("detect_ghosted_applications", undefined, toast, {
-        logContext: "Review no-response applications",
-      });
-      // Invalidate cache after mutation
-      invalidateCacheByCommand("get_applications_kanban");
-      toast.info("No-response review complete", `${count} application(s) moved to No Response`);
-      fetchData();
-    } catch {
-      // Error already logged and shown to user
+  const handleMissionAction = (action: ApplicationReviewAction) => {
+    switch (action.kind) {
+      case "reminders":
+        document
+          .querySelector<HTMLButtonElement>(`[data-reminder-id="${action.reminderId}"] button`)
+          ?.focus();
+        return;
+      case "no_response":
+      case "to_apply": {
+        const application = findApplicationById(applications, action.applicationId ?? null);
+        if (application) {
+          openApplicationDetail(application);
+        } else {
+          (onImportJob ?? onBack)();
+        }
+        return;
+      }
+      case "interviews":
+        setShowInterviews(true);
+        return;
+      case "offers":
+        if (onOpenSalary) {
+          onOpenSalary();
+        } else {
+          setShowAnalytics(true);
+        }
+        return;
+      case "weekly_review":
+      case "steady":
+        setShowAnalytics(true);
+        return;
+      case "source_review":
+        (onOpenSources ?? onBack)();
     }
-  };
-
-  const focusFirstPendingReminder = () => {
-    const firstReminderAction = document.querySelector<HTMLButtonElement>(
-      '[data-testid="pending-reminders"] button',
-    );
-    firstReminderAction?.focus();
-  };
-
-  const focusFirstSavedRole = () => {
-    const firstSavedRole = document.querySelector<HTMLDivElement>(
-      '[data-testid="kanban-column"][data-status="to_apply"] [data-testid="application-card"]',
-    );
-    firstSavedRole?.focus();
   };
 
   const getActiveApp = (): Application | null =>
@@ -341,18 +354,14 @@ export default function ApplicationsPage({
         onOpenInterviews={() => setShowInterviews(true)}
         onOpenSummary={() => setShowAnalytics(true)}
         onOpenTemplates={() => setShowTemplates(true)}
-        onReviewNoResponses={handleReviewNoResponses}
         stats={stats}
       />
 
       <main className="p-6">
         <ApplicationsReviewPanel
           summary={getApplicationReviewSummary(applications, reminders)}
-          onReviewReminders={focusFirstPendingReminder}
-          onReviewNoResponses={handleReviewNoResponses}
-          onOpenInterviews={() => setShowInterviews(true)}
+          onSelectAction={handleMissionAction}
           onOpenSummary={() => setShowAnalytics(true)}
-          onReviewSavedRoles={focusFirstSavedRole}
           onGoToJobs={onBack}
           onImportJob={onImportJob}
         />
@@ -368,6 +377,7 @@ export default function ApplicationsPage({
                 <div
                   key={reminder.id}
                   data-testid="pending-reminder"
+                  data-reminder-id={reminder.id}
                   className="flex items-center justify-between p-3 bg-alert-50 dark:bg-alert-900/20 rounded-lg"
                 >
                   <div>

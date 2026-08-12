@@ -1,0 +1,33 @@
+{
+  "source_id": "weworkremotely",
+  "reviewed_on": "2026-07-19",
+  "reference_ids": [
+    "source-review.weworkremotely.public-rss",
+    "source-review.weworkremotely.robots"
+  ],
+  "evidence": [
+    {
+      "url": "https://weworkremotely.com/remote-job-rss-feed",
+      "observed": "The published page says anyone may use the public RSS feeds when links attribute We Work Remotely."
+    },
+    {
+      "url": "https://weworkremotely.com/robots.txt",
+      "observed": "The robots policy allows public paths and excludes administrative, account, profile, and token-management paths."
+    }
+  ],
+  "local_policy": {
+    "operation": "published RSS GET checks only",
+    "request_limit_per_hour": 1,
+    "basis": "JobSentinel conservative ceiling for a low-frequency local job search.",
+    "burst": 1,
+    "automatic_retries": false,
+    "attribution_link_required": true,
+    "external_model_training": false
+  },
+  "change_triggers": [
+    "public RSS availability or attribution terms change",
+    "robots policy changes",
+    "rate-limit or access rejection",
+    "feed schema drift"
+  ]
+}

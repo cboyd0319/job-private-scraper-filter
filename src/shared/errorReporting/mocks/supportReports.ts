@@ -63,23 +63,15 @@ export function generateMockFeedbackReport(
     "",
     "SUPPORT SUMMARY",
     "",
-    JSON.stringify(
-      {
-        schema_version: "1.0",
-        app_version: systemInfo.app_version,
-        category,
-        timestamp,
-        platform: {
-          os: systemInfo.platform,
-          os_version: systemInfo.os_version,
-          arch: systemInfo.architecture,
-        },
-        config_summary: includeDebugInfo ? configSummary : null,
-        debug_events_count: 0,
-      },
-      null,
-      2,
-    ),
+    "schema_version: 1.1",
+    `app_version: ${systemInfo.app_version}`,
+    `category: ${category}`,
+    `timestamp: ${timestamp}`,
+    `platform_os: ${systemInfo.platform}`,
+    `platform_os_version: ${systemInfo.os_version}`,
+    `platform_arch: ${systemInfo.architecture}`,
+    "debug_events_count: 0",
+    "privacy_doctor_present: false",
     "",
     "END OF SAFE SUPPORT REPORT",
   );
@@ -192,7 +184,35 @@ function sanitizeMockSupportReportText(content: string): string {
     "[JOB_SEARCH_DETAIL_REDACTED]",
   );
 
-  return result;
+  return result
+    .split("\n")
+    .map((line) => {
+      const pathStart = supportReportPathStart(line);
+      return pathStart < 0
+        ? line
+        : `${line.slice(0, pathStart)}[LOCAL_PATH]`;
+    })
+    .join("\n");
+}
+
+function supportReportPathStart(line: string): number {
+  for (let index = 0; index < line.length; index += 1) {
+    const previous = line[index - 1];
+    const boundary =
+      index === 0 || !/[A-Za-z0-9_]/.test(previous ?? "");
+    const current = line[index];
+    if (
+      boundary &&
+      (current === "/" ||
+        (current === "\\" && line[index + 1] === "\\") ||
+        (/[A-Za-z]/.test(current ?? "") &&
+          line[index + 1] === ":" &&
+          (line[index + 2] === "/" || line[index + 2] === "\\")))
+    ) {
+      return index;
+    }
+  }
+  return -1;
 }
 
 function getMockFeedbackCategory(args?: Record<string, unknown>): MockFeedbackCategory {

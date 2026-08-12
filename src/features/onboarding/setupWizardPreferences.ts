@@ -223,13 +223,12 @@ export function formatLocationSummary(locationPreferences: LocationPreferences) 
 }
 
 export function formatJobSourceSummary(
-  config: Pick<SetupConfig, "remoteok" | "hn_hiring" | "weworkremotely" | "simplyhired">
+  config: Pick<SetupConfig, "remoteok" | "hn_hiring" | "weworkremotely">
 ): string {
   const sources = [
     config.remoteok.enabled ? "Remote OK" : null,
     config.weworkremotely.enabled ? "We Work Remotely" : null,
     config.hn_hiring.enabled ? "Startup and tech hiring posts" : null,
-    config.simplyhired.enabled ? "SimplyHired" : null,
   ].filter((source): source is string => source !== null);
 
   if (sources.length === 0) {
@@ -292,9 +291,6 @@ export function getSuggestedJobSourceOptions(
   });
 
   const sourceOptions: SuggestedJobSourceOption[] = [];
-  const hasSearchTerms = [...config.title_allowlist, ...config.keywords_boost]
-    .some((term) => term.trim().length > 0);
-
   if (sourceDefaults.remoteokEnabled) {
     sourceOptions.push({
       key: "remoteok",
@@ -319,41 +315,7 @@ export function getSuggestedJobSourceOptions(
     });
   }
 
-  if (
-    hasSearchTerms &&
-    !sourceDefaults.remoteokEnabled &&
-    !sourceDefaults.weworkremotelyEnabled &&
-    !sourceDefaults.hnHiringEnabled
-  ) {
-    sourceOptions.push({
-      key: "simplyhired",
-      label: "SimplyHired",
-      description: "Broad public listings across many kinds of work.",
-    });
-  }
-
   return sourceOptions;
-}
-
-export function buildSetupSourceQuery(
-  config: Pick<SetupConfig, "title_allowlist" | "keywords_boost">
-): string {
-  const seen = new Set<string>();
-  const terms: string[] = [];
-
-  for (const rawTerm of [...config.title_allowlist, ...config.keywords_boost]) {
-    const term = rawTerm.trim();
-    const key = term.toLocaleLowerCase();
-
-    if (!term || seen.has(key)) continue;
-
-    seen.add(key);
-    terms.push(term);
-
-    if (terms.length >= 4) break;
-  }
-
-  return terms.join(" ").slice(0, 200);
 }
 
 export function toResumeSkillSuggestions(skills: SetupResumeSkill[]): string[] {

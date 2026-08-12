@@ -8,7 +8,7 @@ pub(super) struct CheckResult {
 
 /// Status of database integrity
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub(super) enum IntegrityStatus {
+pub(crate) enum IntegrityStatus {
     Healthy,
     Corrupted,
     ForeignKeyViolations,

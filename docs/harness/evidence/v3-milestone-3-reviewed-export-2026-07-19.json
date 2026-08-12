@@ -1,0 +1,82 @@
+{
+  "schema": "jobsentinel.feature_evidence.v1",
+  "feature_id": "v3-milestone-3-recovery-portability-policy-repair",
+  "slice": "reviewed-plaintext-export",
+  "behavior": "A user can review and create a documented local plaintext export without exposing JobSentinel-managed credentials, app-managed private paths, connection links, or protected structured records by default.",
+  "result": "passing",
+  "verified_at": "2026-07-19T06:14:46Z",
+  "revision": "3b4f635b34699a32985f7b7782439b77f4d3f679",
+  "revision_scope": "The clean committed reviewed-export implementation within active Milestone 3.",
+  "platform": "local macOS 27.0 arm64 host",
+  "commands": [
+    {
+      "command": "env -u JOBSENTINEL_LIVE_KEYRING_TESTS cargo test -p jobsentinel-storage --lib reviewed_export -- --nocapture",
+      "exit_status": 0,
+      "relevant_result": "All 7 focused tests passed for fixed-schema streaming, structural inspection, no-clobber publication, nested and top-level URL sanitation, managed-secret and private-path exclusion, protected-record review, changed-data refusal, malformed-data refusal, provenance, and writer I/O classification.",
+      "caveat": "Live keyring tests were explicitly disabled. The library test owner uses isolated databases and did not prompt for Keychain access."
+    },
+    {
+      "command": "env -u JOBSENTINEL_LIVE_KEYRING_TESTS cargo clippy -p jobsentinel-storage -p jobsentinel-application --lib -- -D warnings",
+      "exit_status": 0,
+      "relevant_result": "The changed storage and application library owners passed Clippy with warnings denied.",
+      "caveat": "This focused production lane is not the final release workspace lane."
+    },
+    {
+      "command": "env -u JOBSENTINEL_LIVE_KEYRING_TESTS node scripts/checks/sqlx-metadata.mjs --check",
+      "exit_status": 0,
+      "relevant_result": "Migrations 0 through 12 applied to an isolated database and SQLx offline metadata remained current for every workspace owner.",
+      "caveat": "The export uses dynamic SQL only after static identifier and filter validation, so no new prepared-query metadata was required."
+    },
+    {
+      "command": "npm run harness:check && npm run lint:file-size && npm run lint:docs && npm run lint:deps && npm run lint:architecture && npm run lint:security",
+      "exit_status": 0,
+      "relevant_result": "Harness, hard file limits, documentation, dependency pins, architecture ownership, security sensors, and secret scanning passed.",
+      "caveat": "Five changed owners reached the modularization review threshold without exceeding hard limits. Repository GitHub Actions remain temporarily disabled by user direction."
+    },
+    {
+      "command": "cargo fmt --all -- --check && git diff --check",
+      "exit_status": 0,
+      "relevant_result": "Rust formatting and patch whitespace passed on the final implementation.",
+      "caveat": "The implementation commit was clean before this evidence-only update."
+    },
+    {
+      "command": "Read-only privacy adversarial review and Rust cancellation/error-semantics review",
+      "exit_status": 0,
+      "relevant_result": "Both reviewers returned PASS after corrections for meeting-link paths, protected-key variants, malformed URL types, separate protected-data counts, writer error classification, and post-publication provenance.",
+      "caveat": "The reviewers inspected the live final files without running tests or touching credential or Keychain paths."
+    }
+  ],
+  "source": "docs/plans/v3/master-exec-plan.md",
+  "measurements": {
+    "export_schema_version": 1,
+    "export_projections": 42,
+    "maximum_jsonl_line_bytes": 16777216,
+    "focused_tests_passed": 7,
+    "focused_tests_failed": 0,
+    "largest_implementation_file_lines": 498,
+    "largest_test_file_lines": 497,
+    "adversarial_reviewers_passed": 2
+  },
+  "decisions": {
+    "format": "Use UTF-8 JSON Lines with one manifest, fixed-order records, and one structural completion record. Do not add a generic serialization framework.",
+    "consistency": "Review counts and publication data come from current compatible SQLite state. Creation refuses changed data and streams from one consistent transaction.",
+    "schema": "Use a fixed allowlist of main-qualified table and field projections. Refuse unknown future tables and incomplete current schemas.",
+    "publication": "Write and inspect an owner-private temporary file, flush and sync it, publish without overwrite, and treat successful publication as authoritative even if detached provenance bookkeeping finishes later.",
+    "credentials": "Never read or export JobSentinel-managed credentials, encryption keys, authentication state, diagnostic caches, or app-managed private paths and connection links.",
+    "protected_records": "Exclude protected application answers plus clearance, military-service, veteran-status, and disability fields in structured resume drafts by default. Show application-answer and structured-draft record counts separately and require an explicit protected-record selection.",
+    "user_text": "Copy user-authored resumes, descriptions, notes, cover letters, and similar text verbatim. Warn that users may have pasted secrets, private links, or protected facts and must review the plaintext artifact before sharing it.",
+    "integrity": "The completion record detects incomplete writes only. It is not a signature or tamper-proof seal.",
+    "credential_tests": "Keep live keyring tests opt-in. Every unattended focused test command unsets JOBSENTINEL_LIVE_KEYRING_TESTS."
+  },
+  "review": {
+    "adversarial_verdict": "PASS after privacy, type-validation, count, I/O, and cancellation corrections",
+    "privacy_or_security_regression": false,
+    "open_slice_blockers": 0,
+    "remaining_findings": [
+      "The renderer and Tauri command surface for review and save remain later Milestone 3 work.",
+      "Run publication and cleanup behavior on Windows 11, macOS 26, and Linux, including removable and network filesystems, in the release matrix.",
+      "If the process exits immediately after publication, detached success provenance can remain started; startup reconciliation marks interrupted operations cancelled while the already-published artifact remains valid.",
+      "Milestone 3 cleanup, Privacy Doctor, support bundle, policy, consent, offline repair, and platform-health work remain active."
+    ]
+  }
+}

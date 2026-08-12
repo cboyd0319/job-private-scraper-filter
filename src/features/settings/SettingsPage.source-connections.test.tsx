@@ -58,30 +58,19 @@ describe("Settings source connection saves", () => {
     expect(onClose).not.toHaveBeenCalled();
   });
 
-  it("fills query-backed source defaults before saving scheduled checks", async () => {
+  it("does not offer retired restricted scheduled checks", async () => {
     const user = userEvent.setup();
-    const onClose = vi.fn();
     const config = makeConfig();
-    config.title_allowlist = ["Data Analyst"];
-    config.keywords_boost = ["SQL"];
-    config.location_preferences.cities = ["Denver"];
-    let savedConfig: ReturnType<typeof makeConfig> | null = null;
 
-    mockInvoke.mockImplementation(async (cmd: string, args?: unknown) => {
+    mockInvoke.mockImplementation(async (cmd: string) => {
       if (cmd === "get_config") return config;
       if (cmd === "has_credential") return false;
       if (cmd === "get_ghost_config") return makeGhostConfig();
       if (cmd === "detect_location") return null;
-      if (cmd === "save_config") {
-        savedConfig = (args as { config: ReturnType<typeof makeConfig> })
-          .config;
-        return null;
-      }
-      if (cmd === "store_credential") return null;
       return null;
     });
 
-    render(<Settings onClose={onClose} />);
+    render(<Settings onClose={vi.fn()} />);
 
     await waitFor(() => {
       expect(screen.getByText("Settings")).toBeInTheDocument();
@@ -89,25 +78,21 @@ describe("Settings source connection saves", () => {
 
     await user.click(screen.getByRole("tab", { name: "Sources & Alerts" }));
     await user.click(screen.getByText("More Job Boards"));
-    await user.click(
-      screen.getByRole("checkbox", {
-        name: /Turn Dice scheduled job checks on or off/i,
+    expect(
+      screen.queryAllByRole("checkbox", {
+        name: /Turn (BuiltIn|Dice|SimplyHired|Glassdoor) scheduled job checks on or off/i,
       }),
-    );
-    await user.click(
-      screen.getByLabelText(
-        /I understand and accept this risk\. Run Dice scheduled checks from this computer/i,
+    ).toHaveLength(0);
+    expect(
+      screen.getByText(
+        /scheduled access to Built In, Dice, SimplyHired, and Glassdoor is unavailable after provider policy review/i,
       ),
-    );
-    await user.click(screen.getByRole("button", { name: /save changes/i }));
-
-    await waitFor(() => {
-      expect(savedConfig?.dice.enabled).toBe(true);
-    });
-    expect(savedConfig?.restricted_source_acknowledgements.dice).toBe(true);
-    expect(savedConfig?.dice.query).toBe("Data Analyst SQL");
-    expect(savedConfig?.dice.location).toBe("Denver");
-    expect(onClose).toHaveBeenCalled();
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /Dice's official MCP option still needs a reviewed privacy, schema, and pacing contract/i,
+      ),
+    ).toBeInTheDocument();
   });
 
   it("blocks saving an invalid Discord connection link", async () => {

@@ -13,6 +13,7 @@ use std::path::Path;
 
 const FILE_UPLOAD_UNAVAILABLE: &str = "Could not attach the selected resume file";
 const FILE_UPLOAD_SETUP_ERROR: &str = "Could not prepare the resume upload field";
+const MANUAL_REVIEW_TOPIC: &str = "voluntary or sensitive personal questions";
 
 fn javascript_string_literal(value: &str) -> Result<String> {
     serde_json::to_string(value).context("Failed to encode JavaScript string literal")
@@ -49,6 +50,8 @@ pub struct FillResult {
     pub filled_fields: Vec<String>,
     /// Review topics for saved screening answers that were prepared
     pub screening_answer_topics: Vec<String>,
+    /// Bounded categories of questions that require the user's direct answer.
+    pub manual_review_topics: Vec<String>,
     /// Fields that could not be filled (not found or error)
     pub unfilled_fields: Vec<String>,
     /// Whether a CAPTCHA was detected
@@ -64,6 +67,7 @@ impl FillResult {
         Self {
             filled_fields: Vec::new(),
             screening_answer_topics: Vec::new(),
+            manual_review_topics: Vec::new(),
             unfilled_fields: Vec::new(),
             captcha_detected: false,
             ready_for_review: false,
@@ -75,6 +79,7 @@ impl FillResult {
         Self {
             filled_fields: filled,
             screening_answer_topics: Vec::new(),
+            manual_review_topics: Vec::new(),
             unfilled_fields: Vec::new(),
             captcha_detected: false,
             ready_for_review: true,
@@ -86,6 +91,7 @@ impl FillResult {
         Self {
             filled_fields: filled,
             screening_answer_topics: Vec::new(),
+            manual_review_topics: Vec::new(),
             unfilled_fields: unfilled,
             captcha_detected: false,
             ready_for_review: true,
@@ -110,6 +116,17 @@ impl FillResult {
             .any(|existing| existing == topic)
         {
             self.screening_answer_topics.push(topic.to_string());
+        }
+    }
+
+    pub fn add_manual_review_topic(&mut self) {
+        if !self
+            .manual_review_topics
+            .iter()
+            .any(|existing| existing == MANUAL_REVIEW_TOPIC)
+        {
+            self.manual_review_topics
+                .push(MANUAL_REVIEW_TOPIC.to_string());
         }
     }
 }
@@ -334,6 +351,7 @@ mod tests {
     fn test_fill_result_new() {
         let result = FillResult::new();
         assert!(result.filled_fields.is_empty());
+        assert!(result.manual_review_topics.is_empty());
         assert!(result.unfilled_fields.is_empty());
         assert!(!result.captcha_detected);
         assert!(!result.ready_for_review);
@@ -360,6 +378,18 @@ mod tests {
         let result = FillResult::new().with_captcha();
         assert!(result.captcha_detected);
         assert!(result.error_message.is_some());
+    }
+
+    #[test]
+    fn fill_result_manual_review_topics_are_bounded_and_deduplicated() {
+        let mut result = FillResult::new();
+        result.add_manual_review_topic();
+        result.add_manual_review_topic();
+
+        assert_eq!(
+            result.manual_review_topics,
+            vec!["voluntary or sensitive personal questions"]
+        );
     }
 
     #[test]

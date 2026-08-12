@@ -2,8 +2,8 @@
 //!
 //! These commands remain registered only so older frontends and stored app
 //! state fail closed instead of reaching hidden endpoints or collecting session
-//! cookies. User-directed search links, manual entry, and Browser Import remain
-//! separate paths.
+//! cookies. User-directed search links, manual entry, and the local Workbench
+//! remain separate paths. Browser Import is blocked for LinkedIn.
 
 use crate::application::credentials::{CredentialKey, CredentialService};
 use crate::bootstrap::AppState;

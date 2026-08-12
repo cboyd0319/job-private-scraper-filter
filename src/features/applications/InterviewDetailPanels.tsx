@@ -1,8 +1,13 @@
+/** Renders interview details, feedback, debrief, and job-scoped research actions. */
+
 import { useState } from "react";
 import { Button } from "../../ui/Button";
 import { Modal } from "../../ui/Modal";
 import { formatInterviewDate } from "../../shared/dateFormatting";
-import type { RenderCompanyResearch } from "../../shared/companyResearch";
+import type {
+  CompanyResearchTarget,
+  RenderCompanyResearch,
+} from "../../shared/companyResearch";
 import {
   INTERVIEW_TYPES,
   OUTCOME_COLORS,
@@ -12,13 +17,29 @@ import {
   type Interview,
   type PrepProgress,
 } from "./InterviewSchedulerModel";
-import {
-  CalendarIcon,
-  DownloadIcon,
-  LocationIcon,
-  SearchIcon,
-  UserIcon,
-} from "./InterviewSchedulerIcons";
+import { CalendarIcon, DownloadIcon, LocationIcon, SearchIcon, UserIcon } from "./InterviewSchedulerIcons";
+
+const DEBRIEF_TEXT_FIELDS = [
+  { id: "questions", label: "Questions asked", placeholder: "Questions the interviewer asked" },
+  { id: "concerns", label: "Concerns", placeholder: "Anything that needs clarification" },
+  { id: "nextSteps", label: "Promised next steps", placeholder: "Who promised what happens next" },
+] as const;
+
+type Debrief = Record<(typeof DEBRIEF_TEXT_FIELDS)[number]["id"] | "followUpDeadline", string>;
+
+const EMPTY_DEBRIEF: Debrief = { questions: "", concerns: "", nextSteps: "", followUpDeadline: "" };
+
+function formatDebrief(debrief: Debrief) {
+  const rows: Array<[string, string]> = [
+    ["Questions asked", debrief.questions],
+    ["Concerns", debrief.concerns],
+    ["Promised next steps", debrief.nextSteps],
+    ["Follow-up deadline", debrief.followUpDeadline],
+  ];
+  return rows.filter(([, value]) => value.trim())
+    .map(([label, value]) => `${label}: ${value.trim()}`)
+    .join("\n");
+}
 
 interface InterviewDetailPanelsProps {
   completing: boolean;
@@ -45,24 +66,19 @@ export function InterviewDetailPanels({
   prepProgress,
   renderCompanyResearch,
 }: InterviewDetailPanelsProps) {
-  const [feedbackNotes, setFeedbackNotes] = useState("");
+  const [debrief, setDebrief] = useState(EMPTY_DEBRIEF);
   const [feedbackOutcome, setFeedbackOutcome] = useState("");
-  const [researchCompany, setResearchCompany] = useState<string | null>(null);
+  const [researchTarget, setResearchTarget] = useState<CompanyResearchTarget | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showFeedbackForm, setShowFeedbackForm] = useState(false);
-  const handleOpenCompanyResearch = (company: string) => setResearchCompany(company);
+  const handleOpenCompanyResearch = () => setResearchTarget({
+    companyName: interview.company,
+    jobHash: interview.job_hash,
+  });
 
   return (
     <>
-      {/* Interview Detail Modal */}
-      {interview && (
-        <Modal
-          isOpen
-          onClose={onClose}
-          title={interview.job_title}
-          description={interview.company}
-          size="md"
-        >
+      <Modal isOpen onClose={onClose} title={interview.job_title} description={interview.company} size="md">
           <div className="space-y-4">
               <span className={`inline-flex px-2 py-0.5 text-xs rounded-full font-medium ${TYPE_COLORS[interview.interview_type] || TYPE_COLORS.other}`}>
                 {INTERVIEW_TYPES.find((t) => t.value === interview.interview_type)?.label || interview.interview_type}
@@ -98,7 +114,6 @@ export function InterviewDetailPanels({
                 </div>
               )}
 
-              {/* Interview Prep Checklist */}
               <div className="p-3 bg-surface-50 dark:bg-surface-700 rounded-lg">
                 <div className="flex items-center justify-between mb-2">
                   <p className="font-medium text-surface-700 dark:text-surface-300 text-sm">Interview Prep</p>
@@ -125,7 +140,7 @@ export function InterviewDetailPanels({
                         <button
                           onClick={(e) => {
                             e.preventDefault();
-                            handleOpenCompanyResearch(interview.company);
+                            handleOpenCompanyResearch();
                           }}
                           className="text-xs text-sentinel-600 dark:text-sentinel-400 hover:underline ml-auto opacity-0 group-hover:opacity-100 transition-opacity"
                         >
@@ -137,22 +152,13 @@ export function InterviewDetailPanels({
                 </div>
               </div>
 
-              {/* Quick actions */}
               <div className="flex gap-2">
-                <Button
-                  variant="secondary"
-                  onClick={() => onExportICal(interview)}
-                  className="flex items-center gap-1"
-                >
+                <Button variant="secondary" onClick={() => onExportICal(interview)} className="flex items-center gap-1">
                   <DownloadIcon />
                   Add to Calendar
                 </Button>
                 {renderCompanyResearch && (
-                  <Button
-                    variant="secondary"
-                    onClick={() => handleOpenCompanyResearch(interview.company)}
-                    className="flex items-center gap-1"
-                  >
+                  <Button variant="secondary" onClick={handleOpenCompanyResearch} className="flex items-center gap-1">
                     <SearchIcon />
                     Research
                   </Button>
@@ -165,7 +171,7 @@ export function InterviewDetailPanels({
                     <p className="text-sm font-medium text-surface-700 dark:text-surface-300 mb-3">
                       How did it go?
                     </p>
-                    <div className="flex gap-2">
+                    <div className="grid gap-2 sm:grid-cols-3">
                       <Button
                         variant="secondary"
                         onClick={() => { setFeedbackOutcome("passed"); setShowFeedbackForm(true); }}
@@ -191,32 +197,48 @@ export function InterviewDetailPanels({
                   </>
                 ) : (
                   <div className="space-y-3">
+                    <div>
+                      <h3 className="font-semibold text-surface-900 dark:text-white">
+                        Post-interview debrief
+                      </h3>
+                      <p className="text-sm text-surface-500">
+                        Saved locally when you complete the interview. Nothing is sent and application status is unchanged.
+                      </p>
+                    </div>
                     <div className="flex items-center gap-2">
                       <p className="text-sm font-medium text-surface-700 dark:text-surface-300">
-                        Interview outcome:
+                        Signal strength:
                       </p>
                       <span className={`px-2 py-0.5 text-xs rounded-full font-medium ${OUTCOME_COLORS[feedbackOutcome] || OUTCOME_COLORS.pending}`}>
                         {formatOutcomeLabel(feedbackOutcome)}
                       </span>
                     </div>
-                    <div>
-                      <label htmlFor="post-notes" className="block text-sm font-medium text-surface-700 dark:text-surface-300 mb-1">
-                        Notes after interview
+                    {DEBRIEF_TEXT_FIELDS.map((field) => (
+                      <label className="block text-sm font-medium text-surface-700 dark:text-surface-300" key={field.id}>
+                        {field.label}
+                        <textarea
+                          value={debrief[field.id]}
+                          onChange={(event) => setDebrief((current) => ({ ...current, [field.id]: event.target.value }))}
+                          rows={2}
+                          placeholder={field.placeholder}
+                          maxLength={200}
+                          className="mt-1 w-full resize-none rounded-lg border border-surface-300 bg-white px-3 py-2 text-sm text-surface-900 dark:border-surface-600 dark:bg-surface-700 dark:text-surface-100"
+                        />
                       </label>
-                      <textarea
-                        id="post-notes"
-                        value={feedbackNotes}
-                        onChange={(e) => setFeedbackNotes(e.target.value)}
-                        rows={4}
-                        placeholder="How did it go? Topics discussed, questions asked, overall impression..."
-                        maxLength={1000}
-                        className="w-full px-3 py-2 border border-surface-300 dark:border-surface-600 rounded-lg bg-white dark:bg-surface-700 text-surface-900 dark:text-surface-100 resize-none text-sm"
+                    ))}
+                    <label className="block text-sm font-medium text-surface-700 dark:text-surface-300">
+                      Follow-up deadline
+                      <input
+                        type="date"
+                        value={debrief.followUpDeadline}
+                        onChange={(event) => setDebrief((current) => ({ ...current, followUpDeadline: event.target.value }))}
+                        className="mt-1 w-full rounded-lg border border-surface-300 bg-white px-3 py-2 text-sm text-surface-900 dark:border-surface-600 dark:bg-surface-700 dark:text-surface-100"
                       />
-                    </div>
-                    <div className="flex gap-2">
+                    </label>
+                    <div className="flex flex-col gap-2 sm:flex-row">
                       <Button
                         variant="secondary"
-                        onClick={() => { setShowFeedbackForm(false); setFeedbackOutcome(''); setFeedbackNotes(''); }}
+                        onClick={() => { setShowFeedbackForm(false); setFeedbackOutcome(""); setDebrief(EMPTY_DEBRIEF); }}
                         disabled={completing}
                         className="flex-1"
                       >
@@ -224,12 +246,12 @@ export function InterviewDetailPanels({
                       </Button>
                       <Button
                         variant="primary"
-                        onClick={() => onComplete(interview, feedbackOutcome, feedbackNotes)}
+                        onClick={() => onComplete(interview, feedbackOutcome, formatDebrief(debrief))}
                         loading={completing}
                         loadingText="Saving..."
                         className="flex-1"
                       >
-                        Save & Complete
+                        Save debrief
                       </Button>
                     </div>
                   </div>
@@ -269,14 +291,13 @@ export function InterviewDetailPanels({
                 )}
               </div>
           </div>
-        </Modal>
-      )}
+      </Modal>
 
-      {/* Company Research Panel Modal */}
-      {researchCompany &&
+      {researchTarget &&
         renderCompanyResearch?.({
-          companyName: researchCompany,
-          onClose: () => setResearchCompany(null),
+          companyName: researchTarget.companyName,
+          jobHash: researchTarget.jobHash,
+          onClose: () => setResearchTarget(null),
         })}
     </>
   );

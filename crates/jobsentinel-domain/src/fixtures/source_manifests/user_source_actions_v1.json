@@ -1,0 +1,109 @@
+{
+  "schema": "jobsentinel.v3.source-manifest.v1",
+  "source_id": "user-source-actions",
+  "display_name": "User-directed source actions",
+  "source_class": "user_import",
+  "endpoint_patterns": [],
+  "documentation_url": null,
+  "auth_requirement": "none",
+  "policy_ref": "jobsentinel.source-policy.user-source-actions",
+  "policy_revision": 1,
+  "actions": [
+    {
+      "operation": "employer_discovery",
+      "permission": "user_review"
+    },
+    {
+      "operation": "visible_page_capture",
+      "permission": "paired_browser_grant"
+    },
+    {
+      "operation": "smart_paste",
+      "permission": "user_review"
+    },
+    {
+      "operation": "applied_logging",
+      "permission": "paired_browser_grant"
+    }
+  ],
+  "terms_review": {
+    "status": "not_applicable",
+    "reference": null,
+    "reviewed_on": null
+  },
+  "robots_review": {
+    "status": "not_applicable",
+    "reference": null,
+    "reviewed_on": null
+  },
+  "parser_id": "schema-org-job-posting-v1",
+  "fixtures": [
+    {
+      "fixture_id": "user-source-actions-v1",
+      "kind": "detail",
+      "path": "crates/jobsentinel-domain/src/fixtures/source_simulator/user_source_actions_v1.json",
+      "payload_sha256": "895b50342662017445e5e63532425e6ac058f14c5ebdca4d38b3fba215e42a39"
+    }
+  ],
+  "supported_fields": [
+    "title",
+    "company",
+    "location",
+    "description",
+    "salary",
+    "employment_type",
+    "posted_at",
+    "application_url"
+  ],
+  "salary_coverage": "partial",
+  "verified_on": "2026-07-19",
+  "max_age_days": 3650,
+  "confidence_percent": 80,
+  "lineage": [
+    {
+      "link_id": "source-lineage-user-source-actions-employer-discovery",
+      "source_id": "user-source-actions",
+      "relation": "lineage",
+      "related_id": "source-operation-employer-discovery",
+      "provenance": "migration",
+      "provenance_ref": null
+    },
+    {
+      "link_id": "source-lineage-user-source-actions-visible-page-capture",
+      "source_id": "user-source-actions",
+      "relation": "lineage",
+      "related_id": "source-operation-visible-page-capture",
+      "provenance": "migration",
+      "provenance_ref": null
+    },
+    {
+      "link_id": "source-lineage-user-source-actions-smart-paste",
+      "source_id": "user-source-actions",
+      "relation": "lineage",
+      "related_id": "source-operation-smart-paste",
+      "provenance": "migration",
+      "provenance_ref": null
+    },
+    {
+      "link_id": "source-lineage-user-source-actions-applied-logging",
+      "source_id": "user-source-actions",
+      "relation": "lineage",
+      "related_id": "source-operation-applied-logging",
+      "provenance": "migration",
+      "provenance_ref": null
+    }
+  ],
+  "stop_conditions": [
+    "policy_disabled",
+    "policy_changed",
+    "review_expired",
+    "access_blocked",
+    "parser_drift",
+    "repeated_failure"
+  ],
+  "risk_note_refs": [
+    "source-risk.user-input-untrusted",
+    "source-risk.review-before-storage"
+  ],
+  "incomplete_coverage": true
+}

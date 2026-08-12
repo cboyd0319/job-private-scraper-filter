@@ -1,8 +1,5 @@
 import { RESTRICTED_INTERACTIVE_SESSION_REMINDER_MINUTES } from "../../shared/restrictedSourceTaxonomy";
 
-export const LINKEDIN_WORKBENCH_ACK_VERSION = "2026-06-19.linkedin-workbench.v1";
-export const LINKEDIN_WORKBENCH_ACK_STORAGE_KEY =
-  "jobsentinel.linkedinWorkbenchAcknowledgement";
 export const LINKEDIN_WORKBENCH_PRIVACY_REMINDER_MINUTES =
   RESTRICTED_INTERACTIVE_SESSION_REMINDER_MINUTES;
 

@@ -23,8 +23,11 @@ pub(super) fn build_hard_constraint_risks(
                 requirement: review.keyword.clone(),
                 category,
                 score_cap,
-                reason: "A required hard constraint was not clearly found in the resume."
-                    .to_string(),
+                reason: if category == HardConstraintCategory::SecurityClearance {
+                    "Visible clearance wording is not confirmed-current evidence.".to_string()
+                } else {
+                    "A required hard constraint was not clearly found in the resume.".to_string()
+                },
                 action: hard_constraint_action(&review.keyword, category),
             })
         })

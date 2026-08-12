@@ -1,0 +1,155 @@
+{
+  "schema": "jobsentinel.feature_evidence.v1",
+  "feature_id": "v3-milestone-5-local-evidence-resume-matching",
+  "slice": "qwen3-requirement-calibration-expansion",
+  "behavior": "The exact pinned Qwen3 Candle pair retrieves direct resume evidence and rejects high-risk requirement confusables without weakening the deterministic default, credential boundaries, or military-to-civilian non-equivalence rules.",
+  "result": "partial",
+  "verified_at": "2026-07-20T11:48:56Z",
+  "revision": "da5ce3df08198cc12d8d265fbc1c91650c8b3cc3",
+  "revision_scope": "The committed six-pair synthetic requirement hard-negative fixture, its always-on contract tests, the original three-pair production-path model baseline, and the three-pair direct-component model expansion.",
+  "platform": {
+    "os": "macOS 27.0 build 26A5378j",
+    "architecture": "arm64",
+    "hardware": "Mac16,5, Apple M4 Max, 64 GiB",
+    "rust": "rustc 1.97.1 (8bab26f4f 2026-07-14)"
+  },
+  "dataset": {
+    "kind": "job_requirement_to_resume_evidence",
+    "source": "synthetic checked-in fixture",
+    "total_pairs": 6,
+    "original_production_path_pairs": 3,
+    "expanded_direct_component_pairs": 3,
+    "expanded_cases": [
+      {
+        "query": "Current unrestricted registered nurse (RN) license required",
+        "positive": "Explicit current, active, unrestricted civilian RN license.",
+        "hard_negative": "Army combat medic emergency-care experience without civilian RN-license evidence.",
+        "boundary": "Military medical experience can be relevant but is not treated as civilian licensure."
+      },
+      {
+        "query": "Experience managing at least ten software engineers",
+        "positive": "Twelve direct reports with performance-review and hiring ownership.",
+        "hard_negative": "Mentoring two developers and leading design reviews.",
+        "boundary": "Mentoring and technical leadership are not treated as people-management scope."
+      },
+      {
+        "query": "Experience owning a GAAP month-end close",
+        "positive": "GAAP close, journal-entry, and general-ledger ownership.",
+        "hard_negative": "Invoice and purchase-order processing in accounts payable.",
+        "boundary": "Shared accounting context is not treated as month-end close ownership."
+      }
+    ]
+  },
+  "thresholds": {
+    "resume_requirement_retrieval": 0.3,
+    "resume_requirement_reranker_acceptance": 3.0,
+    "minimum_positive_retrieval_margin_asserted": 0.25,
+    "minimum_positive_and_negative_acceptance_margin_asserted": 1.0,
+    "unchanged_by_this_slice": true
+  },
+  "expanded_observations": [
+    {
+      "case": "civilian RN license versus Army combat medic",
+      "dense_positive": 0.65237284,
+      "dense_hard_negative": 0.2954709,
+      "reranker_positive": 5.5918465,
+      "reranker_hard_negative": -9.155273,
+      "decision": "The positive passes retrieval and reranker acceptance. The military-medical near miss is rejected at retrieval and remains far below reranker acceptance when directly compared."
+    },
+    {
+      "case": "people manager versus technical mentor",
+      "dense_positive": 0.6330073,
+      "dense_hard_negative": 0.60327697,
+      "reranker_positive": 7.062503,
+      "reranker_hard_negative": 1.0978334,
+      "decision": "Both candidates reach retrieval. The reranker accepts direct management ownership and rejects mentoring-only evidence."
+    },
+    {
+      "case": "GAAP close owner versus accounts-payable processor",
+      "dense_positive": 0.70158964,
+      "dense_hard_negative": 0.31112427,
+      "reranker_positive": 7.194971,
+      "reranker_hard_negative": -4.8113165,
+      "decision": "Both candidates reach retrieval. The reranker accepts close ownership and rejects adjacent accounting work."
+    }
+  ],
+  "tdd_evidence": [
+    {
+      "red": "The always-on fixture contract expected six requirement hard negatives and observed three.",
+      "green": "The checked-in fixture contains six exact requirement hard negatives and freezes the military-medic text and civilian-license distinction."
+    },
+    {
+      "red": "The first RN wording produced a positive reranker score of 1.6543779, below the unchanged 3.0 acceptance threshold.",
+      "green": "A literal current, active, unrestricted RN-license record produced 5.5918465 without changing the threshold; the military-medic near miss produced -9.155273."
+    },
+    {
+      "red": "Membership filtering returned JSON order instead of the caller's requested query order.",
+      "green": "The selector follows explicit query order and fails if a selected query is missing or duplicated."
+    }
+  ],
+  "commands": [
+    {
+      "command": "env -u JOBSENTINEL_LIVE_KEYRING_TESTS JOBSENTINEL_QWEN3_TEST_CACHE=/tmp/jobsentinel-qwen3-calibration-20260719 cargo test -p jobsentinel-local-ai --features embedded-ml matcher::qwen3::tests::pinned_qwen3 -- --ignored --test-threads=2",
+      "exit_status": 0,
+      "relevant_result": "Both exact committed-revision model tests passed in 503.22 seconds. The original three pairs passed production matching with fresh and cached vectors plus hard-negative-only abstention. The three expanded pairs passed pinned dense and reranker score, order, retrieval, and acceptance assertions.",
+      "caveat": "The model tests are ignored by default and require an explicit checksum-verified cache. The expanded cases exercise direct embedding and reranker components, not the full production pair and hard-negative-only path."
+    },
+    {
+      "command": "env -u JOBSENTINEL_LIVE_KEYRING_TESTS cargo test -p jobsentinel-local-ai --features embedded-ml",
+      "exit_status": 0,
+      "relevant_result": "All 77 default embedded local-AI tests passed with 11 explicit model tests ignored.",
+      "caveat": "The explicit two-test model command above supplies the model-backed result."
+    },
+    {
+      "command": "env -u JOBSENTINEL_LIVE_KEYRING_TESTS cargo clippy -p jobsentinel-local-ai --features embedded-ml --lib -- -D warnings; env -u JOBSENTINEL_LIVE_KEYRING_TESTS cargo fmt --all -- --check",
+      "exit_status": 0,
+      "relevant_result": "Strict production-library Clippy and Rust formatting passed.",
+      "caveat": "The broad workspace verify:rust lane was not rerun because this slice changes one local-AI fixture and its tests."
+    },
+    {
+      "command": "npm run harness:plan -- --since edf0f1bd; npm run lint:file-size; npm run harness:check; npm run lint:architecture; npm run lint:security; jq empty crates/jobsentinel-local-ai/src/eval_fixtures/seed_v1.json; git diff --check",
+      "exit_status": 0,
+      "relevant_result": "Harness routing, hard file limits, harness state, architecture, security sensors, secret scanning, JSON parsing, and diff validation passed.",
+      "caveat": "The two cohesive Rust test owners crossed only the soft modularization review threshold and were not split into additional files."
+    },
+    {
+      "command": "Independent read-only adversarial review",
+      "exit_status": 0,
+      "relevant_result": "The reviewer first blocked false test naming, positional fixture selection, an unfrozen veteran boundary, and indirect score-margin assertions. After correction, final re-review returned APPROVE.",
+      "caveat": "The reviewer inspected code and supplied check results but did not independently run model inference."
+    }
+  ],
+  "limitations": [
+    "Six synthetic pairs are not production-wide calibration.",
+    "Only resume-requirement matching is covered; job-search and other query kinds remain unapproved.",
+    "The three expanded pairs measure direct embedding and reranker behavior. Only the original three pairs exercise the full production path.",
+    "The result is from one macOS 27 arm64 64 GiB development host. It does not prove Windows 11, macOS 26, Linux, or modest-hardware stability.",
+    "The measured model-backed test is not model-free Essentials footprint evidence.",
+    "Weak, medium, and strong user-facing bands, the job-search thresholds, and the MiniLM threshold remain unapproved.",
+    "Installed model setup, consent, progress, cancel, retry, removal, fallback, and cache cleanup remain open."
+  ],
+  "gate_4_status": {
+    "state": "open",
+    "next_evidence": "Measure the model-free Essentials package, startup, memory, and core journey under an 8 GiB budget.",
+    "blocked_release_claims": [
+      "Production-wide and cross-platform Qwen3 calibration.",
+      "Model-free 8 GiB footprint and journey measurements.",
+      "Installed stronger-local setup and removal.",
+      "Employer and regional evaluation.",
+      "Windows 11, macOS 26 and later, and Linux package and runtime matrix."
+    ]
+  },
+  "privacy_and_network": {
+    "user_data_used": false,
+    "fixture_data": "Synthetic only.",
+    "external_ai_used": false,
+    "credentials_used": false,
+    "live_keyring_opt_in_removed_from_every_rust_command": true,
+    "keychain_access_observed": false,
+    "network_access_observed": false,
+    "model_files_downloaded": false,
+    "verified_local_model_cache_reused": true,
+    "live_sources_contacted": false,
+    "static_path_review": "The model-test constructors load only the explicit checksum-verified cache and contain no download, external AI, credential, or Keychain call."
+  }
+}

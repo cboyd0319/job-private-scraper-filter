@@ -104,15 +104,22 @@ export function toStructuredResume(resume: ResumeData): StructuredResume {
     skills: groupSkills(resume.skills),
     certifications: resume.certifications,
     projects: resume.projects,
-    clearance: null,
-    military_info: null,
+    clearance: resume.clearance ?? null,
+    military_info: resume.military_info ?? null,
   };
 }
 
-export function toResumeAnalysisInput(resume: ResumeData): ResumeAnalysisInput {
+export function toResumeAnalysisInput(
+  resume: ResumeData,
+  revision = resume.updated_at,
+): ResumeAnalysisInput {
   return {
     resume: toStructuredResume(resume),
     custom_sections: {},
+    evidence_snapshot: {
+      source_id: `resume-draft:${resume.id}`,
+      revision,
+    },
   };
 }
 

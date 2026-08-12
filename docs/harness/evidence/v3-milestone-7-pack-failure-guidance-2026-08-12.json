@@ -1,0 +1,60 @@
+{
+  "schema": "jobsentinel.feature_evidence.v1",
+  "feature_id": "v3-milestone-7-agent-pack-runtime",
+  "slice": "pack-lifecycle-failure-guidance",
+  "behavior": "Settings explains needs-review, disabled, removed, cleanup-pending, and every closed quarantine reason from renderer-safe durable facts. Guidance names only the existing Remove and Retry cleanup actions, keeps signed history visible, and does not add or imply install, activation, enable, rollback, trust, or execution authority.",
+  "result": "partial",
+  "verified_at": "2026-08-12T04:53:02Z",
+  "revision": "6744134854c832dc885f2fb95d636bf31d4a5796",
+  "revision_scope": "The closed lifecycle and quarantine guidance maps, their accessible reading-order presentation, and renderer regressions committed at the recorded revision.",
+  "platform": {
+    "macos": "The complete frontend lane passed on macOS 27.0 arm64.",
+    "windows": "Not live-run for this renderer-only slice. The shared TypeScript contracts are platform-neutral; native Windows 11 pack-storage proof remains separate.",
+    "linux": "Not live-run for this renderer-only slice. The shared TypeScript contracts are platform-neutral; earlier Unix pack-storage evidence retains Linux runtime coverage."
+  },
+  "commands": [
+    {
+      "command": "npx vitest run src/features/settings/packs/PackManagementModal.test.tsx",
+      "exit_status": 1,
+      "relevant_result": "The first fail-first run produced nine expected failures because lifecycle and quarantine guidance was absent."
+    },
+    {
+      "command": "npx vitest run src/features/settings/packs/PackManagementModal.test.tsx -t \"does not claim removed files are gone while cleanup is pending\"",
+      "exit_status": 1,
+      "relevant_result": "The review-driven regression failed against copy that incorrectly claimed local files were removed while durable cleanup remained pending."
+    },
+    {
+      "command": "npx vitest run src/features/settings/packs/PackManagementModal.test.tsx",
+      "exit_status": 0,
+      "relevant_result": "All 29 focused Pack management tests passed, covering three non-ready states, all five quarantine reasons, Removed plus cleanup pending, and the absence of unsupported execution actions."
+    },
+    {
+      "command": "npm run test:run",
+      "exit_status": 0,
+      "relevant_result": "All 268 frontend test files and 3,122 tests passed."
+    },
+    {
+      "command": "npm run typecheck && npm run lint",
+      "exit_status": 0,
+      "relevant_result": "TypeScript and frontend lint passed."
+    },
+    {
+      "command": "npm run harness:check && npm run lint:file-size && npm run lint:file-description && npm run lint:architecture && npm run lint:security && git diff --check",
+      "exit_status": 0,
+      "relevant_result": "Harness and state, hard file-size limits, changed-file responsibility headers, architecture, security sensors, secret scan, and patch validation passed."
+    },
+    {
+      "command": "Independent renderer review",
+      "exit_status": 0,
+      "relevant_result": "The initial review found false cleanup confirmation and pack-type-specific execution wording. Both received regressions and corrections; fresh review returned PASS with no material findings."
+    }
+  ],
+  "caveats": [
+    "This slice adds truthful recovery guidance only. It does not add production trust, install, activation, enable, rollback, or execution authority.",
+    "Reviewed-task history still lacks a renderer-safe failure-reason projection and production cannot create pack tasks without approved trust.",
+    "Production publisher trust and active-artifact startup reconciliation remain blocked on approved public key identities and capability ceilings.",
+    "The accepted G19 wording still requires a product decision about the static-skill quality bar.",
+    "Native Windows 11 private-storage proof remains open.",
+    "Milestone 7 remains active."
+  ]
+}

@@ -8,11 +8,8 @@ import type {
 
 interface ApplicationsReviewPanelProps {
   summary: ApplicationReviewSummary;
-  onReviewReminders: () => void;
-  onReviewNoResponses: () => void;
-  onOpenInterviews: () => void;
+  onSelectAction: (action: ApplicationReviewAction) => void;
   onOpenSummary: () => void;
-  onReviewSavedRoles: () => void;
   onGoToJobs: () => void;
   onImportJob?: () => void;
 }
@@ -31,11 +28,8 @@ const PRIORITY_BADGES: Record<ApplicationReviewAction["priority"], "alert" | "se
 
 export function ApplicationsReviewPanel({
   summary,
-  onReviewReminders,
-  onReviewNoResponses,
-  onOpenInterviews,
+  onSelectAction,
   onOpenSummary,
-  onReviewSavedRoles,
   onGoToJobs,
   onImportJob,
 }: ApplicationsReviewPanelProps) {
@@ -47,7 +41,7 @@ export function ApplicationsReviewPanel({
       <div className="flex min-w-0 flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
         <div className="min-w-0">
           <p className="text-xs font-semibold uppercase tracking-wide text-sentinel-700 dark:text-sentinel-300">
-            Search review
+            Daily mission
           </p>
           <h2 className="mt-1 font-display text-display-sm text-surface-900 dark:text-white">
             {summary.title}
@@ -74,17 +68,9 @@ export function ApplicationsReviewPanel({
       <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
         {summary.actions.map((action) => (
           <ReviewActionItem
-            key={action.kind}
+            key={action.id}
             action={action}
-            onClick={getActionHandler(action, {
-              onReviewReminders,
-              onReviewNoResponses,
-              onOpenInterviews,
-              onOpenSummary,
-              onReviewSavedRoles,
-              onGoToJobs,
-              onImportJob,
-            })}
+            onClick={() => onSelectAction(action)}
           />
         ))}
       </div>
@@ -106,11 +92,6 @@ function ReviewActionItem({
           <Badge variant={PRIORITY_BADGES[action.priority]} size="sm">
             {PRIORITY_LABELS[action.priority]}
           </Badge>
-          {action.count > 0 && (
-            <Badge variant="surface" size="sm">
-              {action.count}
-            </Badge>
-          )}
         </div>
         <h3 className="break-words text-sm font-semibold text-surface-900 dark:text-white">
           {action.title}
@@ -148,34 +129,14 @@ function getActionButtonLabel(action: ApplicationReviewAction): string {
     case "interviews":
       return "Open interviews";
     case "offers":
-      return "Open summary";
+      return "Review offer and pay";
     case "to_apply":
-      return action.count > 0 ? "Review saved roles" : "Add or import job";
+      return action.applicationId ? "Review this tracked role" : "Add or import job";
     case "weekly_review":
       return "Review weekly plan";
+    case "source_review":
+      return "Review job sources";
     case "steady":
       return "Open summary";
-  }
-}
-
-function getActionHandler(
-  action: ApplicationReviewAction,
-  handlers: Omit<ApplicationsReviewPanelProps, "summary">,
-): () => void {
-  switch (action.kind) {
-    case "reminders":
-      return handlers.onReviewReminders;
-    case "no_response":
-      return handlers.onReviewNoResponses;
-    case "interviews":
-      return handlers.onOpenInterviews;
-    case "offers":
-    case "weekly_review":
-    case "steady":
-      return handlers.onOpenSummary;
-    case "to_apply":
-      return action.count > 0
-        ? handlers.onReviewSavedRoles
-        : handlers.onImportJob ?? handlers.onGoToJobs;
   }
 }

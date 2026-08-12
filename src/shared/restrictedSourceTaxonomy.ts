@@ -1,6 +1,7 @@
 export type RestrictedJobSourceDomainCategory =
   | "authenticated-marketplace"
   | "local-credential-source"
+  | "policy-blocked-automation"
   | "restricted-job-board"
   | "review-required-source";
 
@@ -28,17 +29,17 @@ export const RESTRICTED_JOB_SOURCE_DOMAIN_RECORDS = [
   },
   {
     domain: "builtin.com",
-    category: "restricted-job-board",
-    sourceRefs: ["job-source-discovery:builtin"],
+    category: "policy-blocked-automation",
+    sourceRefs: ["job-source-discovery:builtin", "source-manifest:builtin-v2"],
     reason:
-      "Built In is a regional job-board network marked restricted-user-gated; direct board collection should require user agreement and prefer employer-career follow-through.",
+      "Built In's reviewed provider policy prohibits automated retrieval, so JobSentinel blocks scheduled and pasted-URL fetches while retaining warnings for user-opened links and visible Browser Import.",
   },
   {
     domain: "builtincolorado.com",
-    category: "restricted-job-board",
-    sourceRefs: ["job-source-discovery:builtin"],
+    category: "policy-blocked-automation",
+    sourceRefs: ["job-source-discovery:builtin", "source-manifest:builtin-v2"],
     reason:
-      "Built In Colorado is a regional Built In board covered by the restricted Built In source; warn before direct collection and prefer employer-career follow-through.",
+      "Built In Colorado belongs to the reviewed Built In network, so JobSentinel blocks scheduled and pasted-URL fetches while retaining warnings for user-opened links and visible Browser Import.",
   },
   {
     domain: "careerbuilder.com",
@@ -63,10 +64,10 @@ export const RESTRICTED_JOB_SOURCE_DOMAIN_RECORDS = [
   },
   {
     domain: "dice.com",
-    category: "restricted-job-board",
-    sourceRefs: ["job-source-discovery:dice", "scheduled-source:dice"],
+    category: "policy-blocked-automation",
+    sourceRefs: ["job-source-discovery:dice", "source-manifest:dice-v2"],
     reason:
-      "Dice is a technology job board with restricted scheduled-source handling; direct or scheduled collection must require the saved local user acknowledgement.",
+      "Dice's reviewed provider policy does not authorize the legacy HTML adapter or pasted-URL fetches; user-opened links and visible Browser Import remain warning-gated local paths.",
   },
   {
     domain: "flexjobs.com",
@@ -112,10 +113,10 @@ export const RESTRICTED_JOB_SOURCE_DOMAIN_RECORDS = [
   },
   {
     domain: "glassdoor.com",
-    category: "restricted-job-board",
-    sourceRefs: ["job-source-discovery:glassdoor", "scheduled-source:glassdoor"],
+    category: "policy-blocked-automation",
+    sourceRefs: ["job-source-discovery:glassdoor", "source-manifest:glassdoor-v2"],
     reason:
-      "Glassdoor combines jobs with account-adjacent reviews and restricted scheduled-source handling; direct or scheduled collection needs explicit local user acknowledgement.",
+      "Glassdoor's reviewed provider policy prohibits unapproved automation, so JobSentinel blocks scheduled and pasted-URL fetches while retaining warnings for user-opened links and visible Browser Import.",
   },
   {
     domain: "governmentjobs.com",
@@ -238,10 +239,10 @@ export const RESTRICTED_JOB_SOURCE_DOMAIN_RECORDS = [
   },
   {
     domain: "simplyhired.com",
-    category: "restricted-job-board",
-    sourceRefs: ["job-source-discovery:simplyhired", "scheduled-source:simplyhired"],
+    category: "policy-blocked-automation",
+    sourceRefs: ["job-source-discovery:simplyhired", "source-manifest:simplyhired-v2"],
     reason:
-      "SimplyHired is a restricted scheduled-source candidate with anti-bot and access uncertainty; direct or scheduled collection needs explicit local user acknowledgement.",
+      "SimplyHired is covered by reviewed Indeed provider terms that prohibit unapproved automation, so JobSentinel blocks scheduled and pasted-URL fetches while retaining user-opened warnings.",
   },
   {
     domain: "snagajob.com",
@@ -331,6 +332,16 @@ export const RESTRICTED_JOB_SOURCE_DOMAIN_RECORDS = [
 
 export const RESTRICTED_JOB_SOURCE_DOMAINS: readonly string[] =
   RESTRICTED_JOB_SOURCE_DOMAIN_RECORDS.map((record) => record.domain);
+export const POLICY_BLOCKED_SCHEDULED_SOURCE_IDS = [
+  "builtin",
+  "dice",
+  "simplyhired",
+  "glassdoor",
+] as const;
+const POLICY_BLOCKED_AUTOMATION_DOMAINS =
+  RESTRICTED_JOB_SOURCE_DOMAIN_RECORDS.filter(
+    (record) => record.category === "policy-blocked-automation",
+  ).map((record) => record.domain);
 
 export const RESTRICTED_JOB_SOURCE_WARNING =
   "Some job sites have rules about automated tools. JobSentinel keeps you in control: it will not sign in for you, click for you, bypass checks, or save your login. Continue only for sites you choose to use, and review that site's rules if you are unsure.";
@@ -340,38 +351,8 @@ export const RESTRICTED_INTERACTIVE_SESSION_REMINDER_MINUTES = 60;
 export const RESTRICTED_AUTHENTICATED_SOURCE_WARNING =
   "JobSentinel can open a sign-in window for a restricted job site when you ask. You sign in and use the site yourself. JobSentinel does not save your sign-in, read the page for you, click buttons, or run in the background. Use JobSentinel's local buttons and notes to record what you did.";
 
-export const RESTRICTED_SCHEDULED_JOB_SOURCES = [
-  {
-    id: "builtin",
-    label: "BuiltIn",
-    reason:
-      "BuiltIn is a job board checked directly from this computer, not an official API feed.",
-  },
-  {
-    id: "dice",
-    label: "Dice",
-    reason:
-      "Dice is a job board checked directly from this computer, not an official API feed.",
-  },
-  {
-    id: "simplyhired",
-    label: "SimplyHired",
-    reason:
-      "SimplyHired is a job aggregator with anti-bot controls and may restrict automated collection.",
-  },
-  {
-    id: "glassdoor",
-    label: "Glassdoor",
-    reason:
-      "Glassdoor publishes jobs together with reviews and account-protected pages, and may restrict automated collection.",
-  },
-] as const;
-
-export type RestrictedScheduledJobSourceId =
-  (typeof RESTRICTED_SCHEDULED_JOB_SOURCES)[number]["id"];
-
 export type RestrictedSourceAcknowledgements = Record<
-  RestrictedScheduledJobSourceId,
+  "builtin" | "dice" | "simplyhired" | "glassdoor",
   boolean
 >;
 
@@ -385,7 +366,7 @@ export const DEFAULT_RESTRICTED_SOURCE_ACKNOWLEDGEMENTS: RestrictedSourceAcknowl
 
 export function normalizeRestrictedSourceAcknowledgements(
   acknowledgements:
-    | Partial<Record<RestrictedScheduledJobSourceId, boolean>>
+    | Partial<RestrictedSourceAcknowledgements>
     | null
     | undefined,
 ): RestrictedSourceAcknowledgements {
@@ -393,15 +374,6 @@ export function normalizeRestrictedSourceAcknowledgements(
     ...DEFAULT_RESTRICTED_SOURCE_ACKNOWLEDGEMENTS,
     ...(acknowledgements ?? {}),
   };
-}
-
-export function restrictedScheduledJobSourceLabel(
-  sourceId: RestrictedScheduledJobSourceId,
-): string {
-  return (
-    RESTRICTED_SCHEDULED_JOB_SOURCES.find((source) => source.id === sourceId)
-      ?.label ?? sourceId
-  );
 }
 
 export function isRestrictedJobSourceHost(hostname: string): boolean {
@@ -417,4 +389,19 @@ export function isRestrictedJobSourceUrl(value: string): boolean {
   } catch {
     return false;
   }
+}
+
+export function isPolicyBlockedAutomationUrl(value: string): boolean {
+  try {
+    const hostname = new URL(value).hostname.toLowerCase();
+    return POLICY_BLOCKED_AUTOMATION_DOMAINS.some(
+      (domain) => hostname === domain || hostname.endsWith(`.${domain}`),
+    );
+  } catch {
+    return false;
+  }
+}
+
+export function isPolicyBlockedScheduledSourceId(value: string): boolean {
+  return POLICY_BLOCKED_SCHEDULED_SOURCE_IDS.some((sourceId) => sourceId === value);
 }

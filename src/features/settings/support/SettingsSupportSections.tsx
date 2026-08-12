@@ -1,5 +1,9 @@
+/** Renders settings support, diagnostics, and pack-management entry points. */
+
+import { useState } from "react";
 import { ErrorLogPanel } from "./ErrorLogPanel";
 import { HelpIcon } from "../../../ui/HelpIcon";
+import { PackManagementModal } from "../packs/PackManagementModal";
 import {
   ExportIcon,
   FeedbackIcon,
@@ -29,6 +33,7 @@ interface SettingsSupportSectionProps {
 export function SettingsHelpStatusSection({
   onShowHealthDashboard,
 }: SettingsHelpStatusSectionProps) {
+  const [showPackManagement, setShowPackManagement] = useState(false);
   return (
     <section className="mb-6">
       <h3 className="font-medium text-surface-800 dark:text-surface-200 mb-3 flex items-center gap-2">
@@ -36,20 +41,42 @@ export function SettingsHelpStatusSection({
         <HelpIcon text="Check job-source status or save a safe support report if you need help." />
       </h3>
 
-      <div className="mb-4">
-        <button
-          onClick={onShowHealthDashboard}
-          className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-surface-700 dark:text-surface-300 bg-surface-100 dark:bg-surface-700 hover:bg-surface-200 dark:hover:bg-surface-600 rounded-lg transition-colors w-full justify-center"
-        >
-          <HealthIcon className="w-5 h-5 text-sentinel-500" />
-          View Job Sources
-        </button>
-        <p className="text-xs text-surface-500 dark:text-surface-400 mt-1 text-center">
-          See which sources are working and what to try next
-        </p>
+      <div className="mb-4 grid gap-3 sm:grid-cols-2">
+        <div>
+          <button
+            onClick={onShowHealthDashboard}
+            className="flex w-full items-center justify-center gap-2 rounded-lg bg-surface-100 px-4 py-2 text-sm font-medium text-surface-700 transition-colors hover:bg-surface-200 dark:bg-surface-700 dark:text-surface-300 dark:hover:bg-surface-600"
+          >
+            <HealthIcon className="h-5 w-5 text-sentinel-500" />
+            View Job Sources
+          </button>
+          <p className="mt-1 text-center text-xs text-surface-500 dark:text-surface-400">
+            See which sources are working and what to try next
+          </p>
+        </div>
+        <div>
+          <button
+            onClick={() => setShowPackManagement(true)}
+            className="flex w-full items-center justify-center gap-2 rounded-lg bg-surface-100 px-4 py-2 text-sm font-medium text-surface-700 transition-colors hover:bg-surface-200 dark:bg-surface-700 dark:text-surface-300 dark:hover:bg-surface-600"
+          >
+            <SettingsSymbol
+              icon="settings"
+              className="h-5 w-5 text-sentinel-500"
+            />
+            View Packs
+          </button>
+          <p className="mt-1 text-center text-xs text-surface-500 dark:text-surface-400">
+            Review signed additions, permissions, and failures
+          </p>
+        </div>
       </div>
 
       <ErrorLogPanel />
+      {showPackManagement ? (
+        <PackManagementModal
+          onClose={() => setShowPackManagement(false)}
+        />
+      ) : null}
     </section>
   );
 }

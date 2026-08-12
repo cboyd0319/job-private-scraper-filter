@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+// Runs the deterministic local checks required before accepting staged repository changes.
 
 import { spawnSync } from "node:child_process";
 import { pathToFileURL } from "node:url";
@@ -7,6 +8,7 @@ export function preCommitCommands(platform = process.platform) {
   const suffix = platform === "win32" ? ".cmd" : "";
   return [
     { command: `npm${suffix}`, args: ["run", "lint:secrets"], reason: "reject staged or tracked secrets" },
+    { command: `npm${suffix}`, args: ["run", "lint:file-description", "--", "--staged"], reason: "require staged file responsibility descriptions" },
     { command: `npx${suffix}`, args: ["--no-install", "lint-staged"], reason: "check only staged files with installed tools" },
   ];
 }

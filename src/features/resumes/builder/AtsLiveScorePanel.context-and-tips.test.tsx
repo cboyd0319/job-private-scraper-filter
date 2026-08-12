@@ -142,6 +142,37 @@ describe("AtsLiveScorePanel context and tips", () => {
         expect(mockInvoke).toHaveBeenCalled();
       });
     });
+
+    it("uses a new evidence revision after an unsaved edit", async () => {
+      const { rerender } = render(
+        <AtsLiveScorePanel
+          resumeData={mockResumeData}
+          currentStep={1}
+          debounceMs={10}
+        />
+      );
+
+      await waitForAnalysis();
+      const firstSnapshot = mockInvoke.mock.calls[0]?.[1].resume.evidence_snapshot;
+      mockInvoke.mockClear();
+
+      rerender(
+        <AtsLiveScorePanel
+          resumeData={{ ...mockResumeData, summary: "Updated unsaved summary" }}
+          currentStep={1}
+          debounceMs={10}
+        />
+      );
+
+      await waitForAnalysis();
+      await waitFor(() => expect(mockInvoke).toHaveBeenCalledOnce());
+      const secondSnapshot = mockInvoke.mock.calls[0]?.[1].resume.evidence_snapshot;
+      expect(secondSnapshot).toEqual({
+        source_id: "resume-draft:7",
+        revision: expect.any(String),
+      });
+      expect(secondSnapshot.revision).not.toBe(firstSnapshot.revision);
+    });
   });
 
   describe("job context", () => {
@@ -182,7 +213,15 @@ describe("AtsLiveScorePanel context and tips", () => {
       await waitFor(() => {
         expect(mockInvoke).toHaveBeenCalledWith(
           "analyze_resume_for_job",
-          expect.objectContaining({ jobDescription: "Bilingual customer support role" }),
+          expect.objectContaining({
+            jobDescription: "Bilingual customer support role",
+            resume: expect.objectContaining({
+              evidence_snapshot: {
+                source_id: "resume-draft:7",
+                revision: expect.any(String),
+              },
+            }),
+          }),
         );
       });
       expect(window.sessionStorage.getItem("jobContext")).toBeNull();

@@ -108,6 +108,14 @@ mod validation_tests {
     }
 
     #[test]
+    fn retired_yc_startup_config_stays_loadable() {
+        let mut config = create_minimal_valid_config();
+        config.yc_startup.enabled = true;
+
+        assert!(validate_config(&config).is_ok());
+    }
+
+    #[test]
     fn test_discord_invalid_user_id_format() {
         let mut config = create_minimal_valid_config();
         config.alerts.discord.enabled = true;
@@ -152,18 +160,24 @@ mod validation_tests {
 
     #[test]
     fn test_external_ai_custom_provider_requires_public_https_endpoint() {
-        let mut config = create_minimal_valid_config();
-        config.external_ai.enabled = true;
-        config.external_ai.provider = ExternalAiProvider::Custom;
-        config.external_ai.enabled_providers = vec![ExternalAiProvider::Custom];
-        config.external_ai.provider_order = vec![ExternalAiProvider::Custom];
-        config.external_ai.custom_endpoint = "http://127.0.0.1:9000/model".to_string();
+        for endpoint in [
+            "http://127.0.0.1:9000/model",
+            "https://provider.example/model?candidate=private",
+            "https://provider.example/model#private",
+        ] {
+            let mut config = create_minimal_valid_config();
+            config.external_ai.enabled = true;
+            config.external_ai.provider = ExternalAiProvider::Custom;
+            config.external_ai.enabled_providers = vec![ExternalAiProvider::Custom];
+            config.external_ai.provider_order = vec![ExternalAiProvider::Custom];
+            config.external_ai.custom_endpoint = endpoint.to_string();
 
-        let result = validate_config(&config);
+            let result = validate_config(&config);
 
-        assert!(result.is_err());
-        let fields = validation_error_fields(result);
-        assert!(fields.contains(&"external_ai.custom_endpoint".to_string()));
+            assert!(result.is_err());
+            let fields = validation_error_fields(result);
+            assert!(fields.contains(&"external_ai.custom_endpoint".to_string()));
+        }
     }
 
     #[test]
@@ -237,8 +251,8 @@ mod validation_tests {
     #[test]
     fn test_scraper_limit_too_large_fails() {
         let mut config = create_minimal_valid_config();
-        config.builtin.enabled = true;
-        config.builtin.limit = 1001;
+        config.weworkremotely.enabled = true;
+        config.weworkremotely.limit = 1001;
 
         let result = validate_config(&config);
         assert!(result.is_err());
@@ -265,32 +279,18 @@ mod validation_tests {
     }
 
     #[test]
-    fn test_dice_enabled_requires_query() {
+    fn retired_source_fields_remain_loadable_but_inert() {
         let mut config = create_minimal_valid_config();
+        config.builtin.enabled = true;
+        config.builtin.limit = 0;
         config.dice.enabled = true;
         config.dice.query = "".to_string();
-
-        let result = validate_config(&config);
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn test_glassdoor_enabled_requires_query() {
-        let mut config = create_minimal_valid_config();
+        config.simplyhired.enabled = true;
+        config.simplyhired.query = "".to_string();
         config.glassdoor.enabled = true;
         config.glassdoor.query = "".to_string();
 
         let result = validate_config(&config);
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn test_simplyhired_enabled_requires_query() {
-        let mut config = create_minimal_valid_config();
-        config.simplyhired.enabled = true;
-        config.simplyhired.query = "".to_string();
-
-        let result = validate_config(&config);
-        assert!(result.is_err());
+        assert!(result.is_ok());
     }
 }

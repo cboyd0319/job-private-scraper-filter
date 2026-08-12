@@ -34,10 +34,11 @@ export function BrowserImportSection() {
   const [hasLoaded, setHasLoaded] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [connectionNotice, setConnectionNotice] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
+  const [copiedAction, setCopiedAction] = useState<"import" | "applied" | null>(
+    null,
+  );
   const [showAdvanced, setShowAdvanced] = useState(false);
-  const [restrictedSiteAcknowledged, setRestrictedSiteAcknowledged] =
-    useState(false);
+  const [targetUrl, setTargetUrl] = useState("");
   const [pendingImports, setPendingImports] = useState<
     PendingBookmarkletImport[]
   >([]);
@@ -55,6 +56,16 @@ export function BrowserImportSection() {
       parsedPort > MAX_BROWSER_IMPORT_PORT)
       ? `Use a number from ${MIN_BROWSER_IMPORT_PORT} to ${MAX_BROWSER_IMPORT_PORT}.`
       : null;
+  let targetUrlError: string | null = null;
+  if (targetUrl.trim()) {
+    try {
+      if (new URL(targetUrl).protocol !== "https:") {
+        targetUrlError = "Enter a public https job page address.";
+      }
+    } catch {
+      targetUrlError = "Enter a public https job page address.";
+    }
+  }
 
   const loadPendingImports = useCallback(async () => {
     try {
@@ -122,12 +133,6 @@ export function BrowserImportSection() {
         await invoke("stop_bookmarklet_server");
         setConfig({ ...config, enabled: false });
       } else {
-        if (!restrictedSiteAcknowledged) {
-          setError(
-            "Review the restricted-site warning and check the box if you want to turn on Browser Import.",
-          );
-          return;
-        }
         const startedConfig = await invoke<BookmarkletConfig>(
           "start_bookmarklet_server",
           {
@@ -174,23 +179,29 @@ export function BrowserImportSection() {
     }
   };
 
-  const copyBookmarklet = async () => {
-    if (!restrictedSiteAcknowledged) {
-      setError(
-        "Review the restricted-site warning and check the box before copying the Browser Button.",
-      );
+  const copyBookmarklet = async (applied = false) => {
+    if (!targetUrl.trim() || targetUrlError) {
+      setError("Enter a public https job page address before copying.");
       return;
     }
 
     try {
-      await invoke("copy_bookmarklet_code");
-      setCopied(true);
+      const approved = await invoke<boolean>(
+        applied ? "copy_applied_bookmarklet_code" : "copy_bookmarklet_code",
+        { targetUrl: targetUrl.trim() },
+      );
+      if (!approved) {
+        setCopiedAction(null);
+        setError(null);
+        return;
+      }
+      setCopiedAction(applied ? "applied" : "import");
       setError(null);
       setConnectionNotice(null);
-      setTimeout(() => setCopied(false), 2000);
+      setTimeout(() => setCopiedAction(null), 2000);
     } catch (err) {
       logError("Could not copy browser import button:", err);
-      setCopied(false);
+      setCopiedAction(null);
       setError(
         "Could not copy Browser Button. Allow clipboard access, then click Copy Browser Button again. If this keeps happening, copy or save a safe support report from Settings.",
       );
@@ -217,7 +228,8 @@ export function BrowserImportSection() {
         for (const item of selectedImports) {
           recordBrowserAssistLearningSignalIfEnabled({
             source: "browser-import",
-            action: "import_saved",
+            action:
+              item.operation === "applied_logging" ? "applied" : "import_saved",
             title: item.title,
             company: item.company,
             recordedAt: new Date().toISOString(),
@@ -228,7 +240,12 @@ export function BrowserImportSection() {
         current.filter((item) => !ids.includes(item.id)),
       );
       const savedLabel =
-        result.imported === 1 ? "browser import" : "browser imports";
+        selectedImports.length === 1 &&
+        selectedImports[0]?.operation === "applied_logging"
+          ? "applied draft"
+          : result.imported === 1
+            ? "browser import"
+            : "browser imports";
       const skippedCopy =
         result.skipped > 0 ? ` ${result.skipped} already existed.` : "";
       setPendingMessage(
@@ -348,19 +365,21 @@ export function BrowserImportSection() {
         />
 
         <BrowserImportControls
-          copied={copied}
+          copiedAction={copiedAction}
           enabled={config.enabled}
           loading={loading}
-          onCopy={copyBookmarklet}
+          onCopy={() => void copyBookmarklet()}
+          onCopyApplied={() => void copyBookmarklet(true)}
           onPortInputChange={setPortInput}
-          onRestrictedSiteAcknowledgedChange={setRestrictedSiteAcknowledged}
           onSavePort={updatePort}
+          onTargetUrlChange={setTargetUrl}
           onToggleAdvanced={() => setShowAdvanced((current) => !current)}
           portChanged={portChanged}
           portInput={portInput}
           portInputError={portInputError}
-          restrictedSiteAcknowledged={restrictedSiteAcknowledged}
           showAdvanced={showAdvanced}
+          targetUrl={targetUrl}
+          targetUrlError={targetUrlError}
         />
       </div>
     </Card>

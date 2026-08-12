@@ -1,3 +1,5 @@
+/** Verifies Settings save flows, source boundaries, and user-visible state. */
+
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import {
   fireEvent,
@@ -15,6 +17,10 @@ import {
   setupHappyPath,
 } from "./SettingsPage.testSupport";
 import Settings from "./SettingsPage";
+
+vi.mock("@tauri-apps/api/event", () => ({
+  listen: vi.fn(() => Promise.resolve(() => {})),
+}));
 
 describe("Settings — handleSave flow", () => {
   beforeEach(() => {
@@ -51,6 +57,18 @@ describe("Settings — handleSave flow", () => {
       expect(searchTab).toHaveAttribute("aria-selected", "true");
       expect(searchTab).toHaveFocus();
     });
+  });
+
+  it("opens Sources and Alerts when requested by another workflow", async () => {
+    setupHappyPath();
+    render(<Settings initialTab="advanced" onClose={vi.fn()} />);
+
+    expect(
+      await screen.findByRole("tab", { name: "Sources & Alerts" }),
+    ).toHaveAttribute("aria-selected", "true");
+    expect(
+      screen.getByRole("tab", { name: "Search Preferences" }),
+    ).toHaveAttribute("aria-selected", "false");
   });
 
   it("enables the saved-details passphrase lock from Settings", async () => {
@@ -196,7 +214,7 @@ describe("Settings — handleSave flow", () => {
     expect(onClose).toHaveBeenCalled();
   });
 
-  it("saves JobsWithGPT only after exact payload approval", async () => {
+  it("keeps the connected source disabled while provider review is pending", async () => {
     const user = userEvent.setup();
     const onClose = vi.fn();
     const loadedConfig = {
@@ -240,7 +258,9 @@ describe("Settings — handleSave flow", () => {
       screen.queryByText("Optional source address"),
     ).not.toBeInTheDocument();
     expect(
-      screen.getByText("Review before JobSentinel contacts this source"),
+      screen.getByText(
+        "Approve these exact details before JobSentinel contacts this source",
+      ),
     ).toBeInTheDocument();
     expect(screen.getByText("api.jobswithgpt.example")).toBeInTheDocument();
     expect(
@@ -257,7 +277,9 @@ describe("Settings — handleSave flow", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("Case Manager")).toBeInTheDocument();
     const approvalSummary = screen
-      .getByText("Review before JobSentinel contacts this source")
+      .getByText(
+        "Approve these exact details before JobSentinel contacts this source",
+      )
       .closest("div");
     expect(approvalSummary).not.toBeNull();
     expect(within(approvalSummary!).getByText("Location")).toBeInTheDocument();
@@ -272,16 +294,19 @@ describe("Settings — handleSave flow", () => {
       ),
     ).not.toBeInTheDocument();
 
-    await user.click(
-      screen.getByRole("button", { name: "Approve these exact details" }),
-    );
-    await waitFor(() => {
-      expect(
-        screen.getByText(/Approved for these exact details/i),
-      ).toBeInTheDocument();
-    });
-    await user.click(screen.getByRole("button", { name: /save changes/i }));
+    expect(
+      screen.getByText(
+        "Scheduled contact is disabled while JobSentinel verifies the provider endpoint and usage policy.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Provider review pending" }),
+    ).toBeDisabled();
+    expect(
+      screen.queryByRole("button", { name: "Approve these exact details" }),
+    ).not.toBeInTheDocument();
 
+    await user.click(screen.getByRole("button", { name: /save changes/i }));
     await waitFor(() => {
       expect(mockToast.success).toHaveBeenCalledWith(
         "Settings saved",
@@ -292,14 +317,8 @@ describe("Settings — handleSave flow", () => {
     expect(savedConfig?.jobswithgpt_endpoint).toBe(
       "https://api.jobswithgpt.example/mcp",
     );
-    expect(savedConfig?.jobswithgpt_approval.enabled).toBe(true);
-    expect(savedConfig?.jobswithgpt_approval.payload).toEqual({
-      endpoint: "https://api.jobswithgpt.example/mcp",
-      titles: ["Case Manager"],
-      location: null,
-      remote_only: true,
-      limit: 100,
-    });
+    expect(savedConfig?.jobswithgpt_approval.enabled).toBe(false);
+    expect(savedConfig?.jobswithgpt_approval.payload).toBeNull();
   });
 
   it("shows connected source contact history as minimized metadata", async () => {
@@ -334,7 +353,7 @@ describe("Settings — handleSave flow", () => {
           hasLocation: false,
           remoteOnly: true,
           resultLimit: 100,
-          outcome: "failure",
+          outcome: "started",
         };
       }
       if (cmd === "has_credential") return false;
@@ -352,7 +371,9 @@ describe("Settings — handleSave flow", () => {
     await user.click(screen.getByRole("tab", { name: "Sources & Alerts" }));
     await user.click(screen.getByText("More Job Boards"));
 
-    const contactSummary = screen.getByText(/Last contacted:/i).closest("div");
+    const contactSummary = screen
+      .getByText(/Last contacted or attempted:/i)
+      .closest("div");
     expect(contactSummary).not.toBeNull();
     expect(
       within(contactSummary!).getByText("Website contacted"),
@@ -364,10 +385,12 @@ describe("Settings — handleSave flow", () => {
       within(contactSummary!).getByText("api.jobswithgpt.example"),
     ).toBeInTheDocument();
     expect(
-      within(contactSummary!).getByText("Needs attention"),
+      within(contactSummary!).getByText(
+        "Outcome unknown; request may not have been sent.",
+      ),
     ).toBeInTheDocument();
     expect(
-      within(contactSummary!).queryByText("Failed"),
+      within(contactSummary!).queryByText("Started"),
     ).not.toBeInTheDocument();
     expect(
       within(contactSummary!).getByText("Remote-only filter"),

@@ -191,6 +191,7 @@ export const ApplyButton = memo(function ApplyButton({ job, onApplied, onOpenApp
         readyForReview: boolean;
         errorMessage: string | null;
         screeningAnswerTopics?: string[];
+        manualReviewTopics?: string[];
         attemptId: number | null;
         durationMs: number;
         atsPlatform: string;
@@ -223,6 +224,13 @@ export const ApplyButton = memo(function ApplyButton({ job, onApplied, onOpenApp
         );
         if (screeningTopicList) {
           message += `. Check saved answers for ${screeningTopicList}`;
+        }
+        if (
+          result.manualReviewTopics?.includes(
+            "voluntary or sensitive personal questions",
+          )
+        ) {
+          message += ". Voluntary or sensitive personal questions were left untouched";
         }
         if (unfilled > 0) {
           message += `. ${unfilled} fields need attention`;

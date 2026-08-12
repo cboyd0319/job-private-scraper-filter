@@ -22,6 +22,11 @@ import {
   buildMockHardConstraintRisks,
   buildMockRequirementReviews,
 } from "./resumeRequirementReview";
+import type { ResumeMatchingProfile } from "../../../features/resumes/shared/atsAnalysisContracts";
+import {
+  normalizeMockJobDescription,
+  normalizeMockResumeSections,
+} from "./resumeMatchingProfile";
 
 export function analyzeMockResumeFormat(resume: unknown): MockAtsAnalysisResult {
   const sections = getMockAtsResumeSections(resume);
@@ -245,10 +250,17 @@ function isMockDecorativeSymbol(character: string): boolean {
 export function analyzeMockResumeForJob(
   resume: unknown,
   jobDescription: string,
+  matchingProfile?: ResumeMatchingProfile,
 ): MockAtsAnalysisResult {
   const formatResult = analyzeMockResumeFormat(resume);
-  const sections = getMockAtsResumeSections(resume);
-  const keywords = extractMockAtsKeywords(jobDescription);
+  const rawSections = getMockAtsResumeSections(resume);
+  const sections = matchingProfile
+    ? normalizeMockResumeSections(rawSections, matchingProfile.region)
+    : rawSections;
+  const normalizedJobDescription = matchingProfile
+    ? normalizeMockJobDescription(jobDescription, matchingProfile.region)
+    : jobDescription;
+  const keywords = extractMockAtsKeywords(normalizedJobDescription);
   const keywordMatches: MockKeywordMatch[] = [];
   const missingKeywordDetails: MockAtsKeyword[] = [];
 
@@ -274,6 +286,7 @@ export function analyzeMockResumeForJob(
     keywords,
     keywordMatches,
     missingKeywordDetails,
+    matchingProfile?.profession,
   );
   const hardConstraintRisks = buildMockHardConstraintRisks(requirementReviews);
   const scoreCap = hardConstraintRisks.reduce<number | undefined>(
@@ -313,6 +326,7 @@ export function analyzeMockResumeForJob(
     requirement_reviews: requirementReviews,
     hard_constraint_risks: hardConstraintRisks,
     suggestions,
+    ...(matchingProfile ? { matching_profile: matchingProfile } : {}),
   };
 }
 

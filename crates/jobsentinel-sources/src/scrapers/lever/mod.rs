@@ -4,19 +4,25 @@
 //! Lever is used by companies like Netflix, Shopify, IDEO, etc.
 
 use super::error::ScraperError;
-use super::rate_limiter::{limits, RateLimiter};
+use super::rate_limiter::RateLimiter;
 #[cfg(test)]
 use super::COMPANY_SCRAPE_FAILED;
 use super::{
     collect_company_scrape_result, require_company_scrape_success, JobScraper, ScraperResult,
+    JOBSENTINEL_USER_AGENT,
 };
-use crate::is_safe_company_board_id;
+use crate::{is_safe_company_board_id, parse_lever_company_url};
 use async_trait::async_trait;
 use chrono::Utc;
 use jobsentinel_domain::normalization::infer_remote_status;
-use jobsentinel_domain::Job;
+use jobsentinel_domain::{
+    canonicalize_job_url,
+    v3_source_manifest::{LEVER_API_ENDPOINT_PREFIX, LEVER_REQUEST_LIMIT_PER_HOUR},
+    Job,
+};
 use jobsentinel_network::{send_external_http_text_with_retry, ExternalHttpRequest};
 use jobsentinel_security::sanitize_url_for_logging;
+use std::num::NonZeroU16;
 
 /// Lever scraper configuration
 #[derive(Debug, Clone)]
@@ -25,6 +31,8 @@ pub struct LeverScraper {
     pub companies: Vec<LeverCompany>,
     /// Rate limiter for respecting Lever's request limits
     pub rate_limiter: RateLimiter,
+    /// JobSentinel policy rate for this source
+    pub request_limit_per_hour: u32,
 }
 
 #[derive(Debug, Clone)]
@@ -39,7 +47,14 @@ impl LeverScraper {
         Self {
             companies,
             rate_limiter: RateLimiter::shared(),
+            request_limit_per_hour: u32::from(LEVER_REQUEST_LIMIT_PER_HOUR),
         }
+    }
+
+    #[must_use]
+    pub fn with_request_limit_per_hour(mut self, request_limit_per_hour: NonZeroU16) -> Self {
+        self.request_limit_per_hour = u32::from(request_limit_per_hour.get());
+        self
     }
 
     /// Scrape a single Lever company via API
@@ -51,15 +66,29 @@ impl LeverScraper {
                 reason: "Lever company id contains unsupported characters".to_string(),
             });
         }
+        let board =
+            parse_lever_company_url(&company.url).map_err(|reason| ScraperError::InvalidUrl {
+                url: company.url.clone(),
+                reason,
+            })?;
+        if board.id != company.id {
+            return Err(ScraperError::InvalidUrl {
+                url: company.url.clone(),
+                reason: "Lever company id does not match configured URL".to_string(),
+            });
+        }
 
-        // Lever has a public JSON API: https://api.lever.co/v0/postings/{company_id}
-        let api_url = format!("https://api.lever.co/v0/postings/{}", company.id);
+        let api_url = format!("{LEVER_API_ENDPOINT_PREFIX}{}", company.id);
 
         tracing::debug!(url = %sanitize_url_for_logging(&api_url), "Fetching Lever API");
 
-        let response = send_external_http_text_with_retry(ExternalHttpRequest::get(&api_url))
-            .await
-            .map_err(|error| ScraperError::from_external("lever", error))?;
+        let response = send_external_http_text_with_retry(
+            ExternalHttpRequest::get(&api_url)
+                .without_retries()
+                .user_agent(JOBSENTINEL_USER_AGENT),
+        )
+        .await
+        .map_err(|error| ScraperError::from_external("lever", error))?;
 
         if !(200..300).contains(&response.status) {
             return Err(ScraperError::http_status(
@@ -71,10 +100,25 @@ impl LeverScraper {
 
         let json: serde_json::Value = ScraperError::parse_json(&api_url, &response.body)?;
 
-        let jobs = Self::parse_postings(&json, company);
+        let jobs = Self::parse_api_response(&json, company, &api_url)?;
 
         tracing::info!("Found {} jobs from {}", jobs.len(), company.name);
         Ok(jobs)
+    }
+
+    fn parse_api_response(
+        json: &serde_json::Value,
+        company: &LeverCompany,
+        url: &str,
+    ) -> Result<Vec<Job>, ScraperError> {
+        if !json.is_array() {
+            return Err(ScraperError::ParseError {
+                format: "JSON".to_string(),
+                url: url.to_string(),
+                source: Box::new(std::io::Error::other("Lever response root is not an array")),
+            });
+        }
+        Ok(Self::parse_postings(json, company))
     }
 
     /// Infer if job is remote from title or location
@@ -91,8 +135,8 @@ impl LeverScraper {
             .iter()
             .filter_map(|posting| {
                 let title = posting["text"].as_str().unwrap_or("").to_string();
-                let url = posting["hostedUrl"].as_str().unwrap_or("").to_string();
-                if title.is_empty() || url.is_empty() {
+                let url = canonicalize_job_url(posting["hostedUrl"].as_str()?).ok()?;
+                if title.is_empty() {
                     return None;
                 }
 
@@ -135,8 +179,9 @@ impl JobScraper for LeverScraper {
         let mut failed_companies = 0usize;
 
         for company in &self.companies {
-            // Use rate limiter to respect Lever's limits
-            self.rate_limiter.wait("lever", limits::LEVER).await;
+            self.rate_limiter
+                .wait_paced("lever", self.request_limit_per_hour)
+                .await;
 
             collect_company_scrape_result(
                 self.scrape_company(company).await,

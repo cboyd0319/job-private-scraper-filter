@@ -232,12 +232,51 @@ impl Sanitizer {
     }
 
     pub(super) fn sanitize_support_report_text(text: &str) -> String {
-        let result = Self::sanitize_error(text);
+        let result = remove_support_report_path_suffixes(&Self::sanitize_error(text));
 
         JOB_SEARCH_NARRATIVE_CONTEXT_REGEX
             .replace_all(&result, "[JOB_SEARCH_DETAIL_REDACTED]")
             .to_string()
     }
+}
+
+fn remove_support_report_path_suffixes(text: &str) -> String {
+    let mut sanitized = String::with_capacity(text.len());
+
+    for chunk in text.split_inclusive('\n') {
+        let (line, ending) = if let Some(line) = chunk.strip_suffix("\r\n") {
+            (line, "\r\n")
+        } else if let Some(line) = chunk.strip_suffix('\n') {
+            (line, "\n")
+        } else {
+            (chunk, "")
+        };
+        if let Some(start) = support_report_path_start(line) {
+            sanitized.push_str(&line[..start]);
+            sanitized.push_str("[LOCAL_PATH]");
+            sanitized.push_str(ending);
+        } else {
+            sanitized.push_str(chunk);
+        }
+    }
+
+    sanitized
+}
+
+fn support_report_path_start(line: &str) -> Option<usize> {
+    let bytes = line.as_bytes();
+    (0..bytes.len()).find(|&index| {
+        let boundary =
+            index == 0 || (!bytes[index - 1].is_ascii_alphanumeric() && bytes[index - 1] != b'_');
+        boundary
+            && (bytes[index] == b'/'
+                || (bytes[index] == b'\\' && bytes.get(index + 1) == Some(&b'\\'))
+                || (bytes[index].is_ascii_alphabetic()
+                    && bytes.get(index + 1) == Some(&b':')
+                    && bytes
+                        .get(index + 2)
+                        .is_some_and(|separator| matches!(separator, b'/' | b'\\'))))
+    })
 }
 
 /// Anonymized configuration summary (counts only, no values)

@@ -1,3 +1,5 @@
+/** Verifies Dashboard overlay composition and exact research context. */
+
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import {
@@ -29,7 +31,7 @@ describe("Dashboard overlays", () => {
 
     render(
       <DashboardCompanyResearchOverlay
-        researchCompany="CareBridge Services"
+        researchTarget={{ companyName: "CareBridge Services", jobHash: "job-carebridge" }}
         renderCompanyResearch={renderCompanyResearch}
         onClose={onClose}
       />,
@@ -43,6 +45,7 @@ describe("Dashboard overlays", () => {
     expect(screen.getByText("Research for CareBridge Services")).toBeInTheDocument();
     expect(renderCompanyResearch).toHaveBeenCalledWith({
       companyName: "CareBridge Services",
+      jobHash: "job-carebridge",
       onClose,
     });
   });

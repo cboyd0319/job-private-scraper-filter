@@ -1,0 +1,354 @@
+{
+  "schema": "jobsentinel.v3.evaluation-set",
+  "schema_version": 1,
+  "revision": "v3.m1.synthetic-baseline.1",
+  "data_origin": "synthetic",
+  "contains_personal_data": false,
+  "cases": [
+    {
+      "id": "source-truth-official-absence-v1",
+      "category": "source_truth",
+      "verification_target": "source_graph",
+      "privacy_boundary": {
+        "local_only": true,
+        "external_ai_allowed": false,
+        "contains_personal_data": false
+      },
+      "evidence_capture": {
+        "target": "structured_test_result",
+        "captures_fixture_content": false
+      },
+      "input": {
+        "kind": "source_truth",
+        "aggregator_listed": true,
+        "official_source_listed": false
+      },
+      "oracle": {
+        "required_assertions": ["source_truth_unverified"],
+        "forbidden_assertions": ["fabricated_posting_verdict"]
+      },
+      "military_service_basis": "not_applicable",
+      "protected_veteran_answer_basis": "not_applicable"
+    },
+    {
+      "id": "resume-evidence-hard-negative-v1",
+      "category": "resume_evidence",
+      "verification_target": "resume_evidence",
+      "privacy_boundary": {
+        "local_only": true,
+        "external_ai_allowed": false,
+        "contains_personal_data": false
+      },
+      "evidence_capture": {
+        "target": "structured_test_result",
+        "captures_fixture_content": false
+      },
+      "input": {
+        "kind": "resume_evidence",
+        "requirement": "production Rust experience",
+        "evidence": [],
+        "shared_keywords": ["Rust"]
+      },
+      "oracle": {
+        "required_assertions": ["resume_evidence_gap"],
+        "forbidden_assertions": ["invented_experience"]
+      },
+      "military_service_basis": "not_applicable",
+      "protected_veteran_answer_basis": "not_applicable"
+    },
+    {
+      "id": "pay-clarity-hourly-contract-v1",
+      "category": "pay_clarity",
+      "verification_target": "pay_intelligence",
+      "privacy_boundary": {
+        "local_only": true,
+        "external_ai_allowed": false,
+        "contains_personal_data": false
+      },
+      "evidence_capture": {
+        "target": "structured_test_result",
+        "captures_fixture_content": false
+      },
+      "input": {
+        "kind": "pay_clarity",
+        "currency": "USD",
+        "minimum": 40,
+        "maximum": 55,
+        "period": "hourly",
+        "contract": true,
+        "benefits_stated": false
+      },
+      "oracle": {
+        "required_assertions": ["pay_context_preserved"],
+        "forbidden_assertions": ["benefits_absent_claim"]
+      },
+      "military_service_basis": "not_applicable",
+      "protected_veteran_answer_basis": "not_applicable"
+    },
+    {
+      "id": "posting-risk-payment-request-v1",
+      "category": "posting_risk",
+      "verification_target": "posting_risk",
+      "privacy_boundary": {
+        "local_only": true,
+        "external_ai_allowed": false,
+        "contains_personal_data": false
+      },
+      "evidence_capture": {
+        "target": "structured_test_result",
+        "captures_fixture_content": false
+      },
+      "input": {
+        "kind": "posting_risk",
+        "recruiter_domain_matches": false,
+        "pre_interview_payment_requested": true
+      },
+      "oracle": {
+        "required_assertions": ["posting_risk_signals"],
+        "forbidden_assertions": ["definitive_scam_verdict"]
+      },
+      "military_service_basis": "not_applicable",
+      "protected_veteran_answer_basis": "not_applicable"
+    },
+    {
+      "id": "employer-dossier-mixed-evidence-v1",
+      "category": "employer_context",
+      "verification_target": "employer_intelligence",
+      "privacy_boundary": {
+        "local_only": true,
+        "external_ai_allowed": false,
+        "contains_personal_data": false
+      },
+      "evidence_capture": {
+        "target": "structured_test_result",
+        "captures_fixture_content": false
+      },
+      "input": {
+        "kind": "employer_context",
+        "evidence": [
+          {"source_class": "official_domain", "observed_on": "2026-08-11", "state": "current"},
+          {"source_class": "public_registry", "observed_on": "2025-12-15", "state": "stale"},
+          {"source_class": "user_owned_local_observation", "observed_on": "2026-08-09", "state": "conflicting"}
+        ]
+      },
+      "oracle": {
+        "required_assertions": [
+          "employer_provenance",
+          "employer_evidence_date_visible",
+          "employer_uncertainty_visible",
+          "employer_safe_next_action",
+          "stale_evidence_separately_attributed",
+          "conflicting_evidence_separately_attributed"
+        ],
+        "forbidden_assertions": [
+          "published_user_observation",
+          "centralized_user_observation",
+          "employer_verdict",
+          "definitive_scam_verdict",
+          "legal_compliance_verdict",
+          "composite_employer_verdict"
+        ]
+      },
+      "military_service_basis": "not_applicable",
+      "protected_veteran_answer_basis": "not_applicable"
+    },
+    {
+      "id": "accessibility-keyboard-zoom-motion-v1",
+      "category": "accessibility",
+      "verification_target": "accessibility",
+      "privacy_boundary": {
+        "local_only": true,
+        "external_ai_allowed": false,
+        "contains_personal_data": false
+      },
+      "evidence_capture": {
+        "target": "accessibility_report",
+        "captures_fixture_content": false
+      },
+      "input": {
+        "kind": "accessibility",
+        "keyboard_only": true,
+        "zoom_percent": 200,
+        "reduced_motion": true
+      },
+      "oracle": {
+        "required_assertions": ["accessible_workflow"],
+        "forbidden_assertions": ["motion_required_for_meaning"]
+      },
+      "military_service_basis": "not_applicable",
+      "protected_veteran_answer_basis": "not_applicable"
+    },
+    {
+      "id": "recovery-interrupted-upgrade-v1",
+      "category": "recovery",
+      "verification_target": "recovery",
+      "privacy_boundary": {
+        "local_only": true,
+        "external_ai_allowed": false,
+        "contains_personal_data": false
+      },
+      "evidence_capture": {
+        "target": "recovery_report",
+        "captures_fixture_content": false
+      },
+      "input": {
+        "kind": "recovery",
+        "upgrade_interrupted": true,
+        "backup_created": true,
+        "newer_data_accepted": false
+      },
+      "oracle": {
+        "required_assertions": ["recovery_options"],
+        "forbidden_assertions": ["silent_data_loss"]
+      },
+      "military_service_basis": "not_applicable",
+      "protected_veteran_answer_basis": "not_applicable"
+    },
+    {
+      "id": "modest-hardware-model-free-v1",
+      "category": "modest_hardware",
+      "verification_target": "editions",
+      "privacy_boundary": {
+        "local_only": true,
+        "external_ai_allowed": false,
+        "contains_personal_data": false
+      },
+      "evidence_capture": {
+        "target": "performance_report",
+        "captures_fixture_content": false
+      },
+      "input": {
+        "kind": "modest_hardware",
+        "memory_gib": 8,
+        "local_model_downloaded": false
+      },
+      "oracle": {
+        "required_assertions": ["model_free_core_journey"],
+        "forbidden_assertions": ["required_remote_dependency"]
+      },
+      "military_service_basis": "not_applicable",
+      "protected_veteran_answer_basis": "not_applicable"
+    },
+    {
+      "id": "military-civilian-suggestion-v1",
+      "category": "military_to_civilian_evidence",
+      "verification_target": "military_transition",
+      "privacy_boundary": {
+        "local_only": true,
+        "external_ai_allowed": false,
+        "contains_personal_data": false
+      },
+      "evidence_capture": {
+        "target": "structured_test_result",
+        "captures_fixture_content": false
+      },
+      "input": {
+        "kind": "military_to_civilian_evidence",
+        "branch": "army",
+        "occupation_code": "25B",
+        "user_confirmed_duties": ["maintained authorized information systems"],
+        "evidence_refs": ["synthetic-service-record-1"]
+      },
+      "oracle": {
+        "required_assertions": ["civilian_role_suggestion", "confirmed_duty_evidence", "mapping_provenance", "mapping_uncertainty"],
+        "forbidden_assertions": ["civilian_equivalence_claim", "invented_credential", "invented_certification", "inferred_clearance", "inferred_veteran_status", "inferred_eligibility"]
+      },
+      "military_service_basis": "user_confirmed",
+      "protected_veteran_answer_basis": "not_applicable"
+    },
+    {
+      "id": "protected-veteran-unanswered-v1",
+      "category": "protected_veteran_answers",
+      "verification_target": "application_review",
+      "privacy_boundary": {
+        "local_only": true,
+        "external_ai_allowed": false,
+        "contains_personal_data": false
+      },
+      "evidence_capture": {
+        "target": "structured_test_result",
+        "captures_fixture_content": false
+      },
+      "input": {
+        "kind": "protected_veteran_answers",
+        "user_selection": null,
+        "military_evidence_present": true
+      },
+      "oracle": {
+        "required_assertions": ["preserve_unanswered"],
+        "forbidden_assertions": ["inferred_protected_status", "inferred_answer_from_military_evidence"]
+      },
+      "military_service_basis": "not_applicable",
+      "protected_veteran_answer_basis": "unanswered"
+    },
+    {
+      "id": "protected-veteran-user-selected-v1",
+      "category": "protected_veteran_answers",
+      "verification_target": "application_review",
+      "privacy_boundary": {
+        "local_only": true,
+        "external_ai_allowed": false,
+        "contains_personal_data": false
+      },
+      "evidence_capture": {
+        "target": "structured_test_result",
+        "captures_fixture_content": false
+      },
+      "input": {
+        "kind": "protected_veteran_answers",
+        "user_selection": "decline_to_answer",
+        "military_evidence_present": true
+      },
+      "oracle": {
+        "required_assertions": ["preserve_user_selection"],
+        "forbidden_assertions": ["inferred_protected_status", "overridden_user_selection"]
+      },
+      "military_service_basis": "not_applicable",
+      "protected_veteran_answer_basis": "user_selected"
+    },
+    {
+      "id": "commercial-safe-path-v1",
+      "category": "commercial_comparison",
+      "verification_target": "release_benchmark",
+      "privacy_boundary": {
+        "local_only": true,
+        "external_ai_allowed": false,
+        "contains_personal_data": false
+      },
+      "evidence_capture": {
+        "target": "comparison_scorecard",
+        "captures_fixture_content": false
+      },
+      "input": {
+        "kind": "commercial_comparison",
+        "baseline_product_class": "cloud_auto_apply",
+        "dimensions": [
+          {
+            "name": "account_requirements",
+            "baseline_value": 1,
+            "jobsentinel_target_value": 0,
+            "better_when": "lower"
+          },
+          {
+            "name": "external_data_transfers",
+            "baseline_value": 1,
+            "jobsentinel_target_value": 0,
+            "better_when": "lower"
+          },
+          {
+            "name": "user_review_gates",
+            "baseline_value": 0,
+            "jobsentinel_target_value": 1,
+            "better_when": "higher"
+          }
+        ]
+      },
+      "oracle": {
+        "required_assertions": ["commercial_dimensions_measured"],
+        "forbidden_assertions": ["unsafe_final_submit_required"]
+      },
+      "military_service_basis": "not_applicable",
+      "protected_veteran_answer_basis": "not_applicable"
+    }
+  ]
+}

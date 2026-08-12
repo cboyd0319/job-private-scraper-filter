@@ -1,3 +1,5 @@
+// Verifies release readiness metadata, workflow, and platform publication gates.
+
 import assert from "node:assert/strict";
 import test from "node:test";
 
@@ -9,10 +11,10 @@ import {
   parseArgs,
 } from "../../release/check-release-readiness.mjs";
 
-test("release readiness accepts the current local v2.9.5 gate posture", () => {
+test("release readiness accepts the current local v3.0.0 gate posture", () => {
   const report = evaluateReleaseReadiness({ env: {} });
 
-  assert.equal(report.expectedVersion, "2.9.5");
+  assert.equal(report.expectedVersion, "3.0.0");
   assert.deepEqual(
     report.criteria.filter((item) => !item.ok).map((item) => item.id),
     [],

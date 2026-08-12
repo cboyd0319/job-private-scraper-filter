@@ -1,0 +1,23 @@
+{
+  "MatchedObjectId": "123456",
+  "MatchedObjectDescriptor": {
+    "PositionTitle": "Public Service Program Analyst",
+    "PositionURI": "https://www.usajobs.gov/job/123456",
+    "PositionLocationDisplay": "Denver, Colorado",
+    "OrganizationName": "Department of Example Services",
+    "DepartmentName": "Example Department",
+    "PositionRemuneration": [
+      {
+        "MinimumRange": "80000",
+        "MaximumRange": "105000",
+        "RateIntervalCode": "PA"
+      }
+    ],
+    "UserArea": {
+      "Details": {
+        "JobSummary": "Synthetic public-service fixture for local parser verification.",
+        "MajorDuties": null
+      }
+    }
+  }
+}

@@ -57,6 +57,20 @@ export const LEGACY_SCREENING_PATTERNS: LegacyScreeningPattern[] =
 export const PLAIN_SCREENING_PATTERN_ALIASES: PlainScreeningPatternAlias[] =
   screeningAliasTaxonomy.plainScreeningPatternAliases;
 
+export const REQUIRES_USER_ANSWER_PATTERNS =
+  screeningAliasTaxonomy.requiresUserAnswerPatterns;
+
+export function requiresUserAnswer(question: string): boolean {
+  const normalizedQuestion = question
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}+#]+/gu, " ")
+    .trim()
+    .replace(/\s+/g, " ");
+  return normalizedQuestion.length > 0 && REQUIRES_USER_ANSWER_PATTERNS.some(
+    (pattern) => ` ${normalizedQuestion} `.includes(` ${pattern.toLowerCase()} `),
+  );
+}
+
 export const LANGUAGE_SCREENING_PATTERNS = [
   /\b(?:bilingual|multilingual)\b/i,
   /\blanguage (?:fluency|proficiency)\b/i,

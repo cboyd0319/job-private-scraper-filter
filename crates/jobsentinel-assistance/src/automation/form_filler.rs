@@ -7,7 +7,9 @@
 use super::browser::{AutomationPage, FillResult};
 use super::AtsPlatform;
 use anyhow::Result;
-use jobsentinel_domain::{screening_question_matches, ApplicationProfile, ScreeningAnswer};
+use jobsentinel_domain::{
+    requires_user_answer, screening_question_matches, ApplicationProfile, ScreeningAnswer,
+};
 use jobsentinel_security::path_label_for_logging;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};

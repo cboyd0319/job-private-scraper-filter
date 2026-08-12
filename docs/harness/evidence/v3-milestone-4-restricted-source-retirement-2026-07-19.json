@@ -1,0 +1,86 @@
+{
+  "schema": "jobsentinel.feature_evidence.v1",
+  "feature_id": "v3-milestone-4-source-graph-browser-companion",
+  "slice": "restricted-scheduled-source-retirement",
+  "behavior": "Built In, Dice HTML, SimplyHired, and Glassdoor scheduled automation, connectivity probes, and pasted-URL fetches stop locally under current provider policy. Legacy consent and configuration cannot restore transport. User-opened links, visible Browser Import, and manual entry remain separate user-controlled paths.",
+  "result": "passing",
+  "verified_at": "2026-07-19T19:13:36Z",
+  "revision": "8a7d3439017cc0c7f773fa6bf7203728c3e116eb",
+  "revision_scope": "The committed disabled source manifests and review fixture, source-policy installation, consent retirement, scheduler and health boundaries, adapter deletion, URL-operation split, migration 18, native and development health controls, renderer controls, maintained taxonomy, user documentation, and focused tests.",
+  "platform": "local macOS arm64 host",
+  "commands": [
+    {
+      "command": "env -u JOBSENTINEL_LIVE_KEYRING_TESTS cargo test -p jobsentinel-sources --lib; env -u JOBSENTINEL_LIVE_KEYRING_TESTS cargo test -p jobsentinel-application --lib; env -u JOBSENTINEL_LIVE_KEYRING_TESTS cargo test -p jobsentinel-domain --lib",
+      "exit_status": 0,
+      "relevant_result": "The source library passed 395 tests with 9 ignored, the application library passed 538 tests with 1 ignored, and the domain library passed 133 tests before the final focused policy regressions. The final URL, consent-reconciliation, scheduler, and disabled-manifest regressions were rerun separately after their last corrections.",
+      "caveat": "Every Rust command explicitly disabled live keyring tests. No live source, credential, Tauri launch, or Keychain path ran."
+    },
+    {
+      "command": "env -u JOBSENTINEL_LIVE_KEYRING_TESTS cargo test -p jobsentinel-application url_preview_rejects_policy_blocked_sources_before_transport --lib; env -u JOBSENTINEL_LIVE_KEYRING_TESTS cargo test -p jobsentinel-application test_local_acknowledgement_cannot_restore_a_retired_source --lib; env -u JOBSENTINEL_LIVE_KEYRING_TESTS cargo test -p jobsentinel-assistance bookmarklet_import --lib; env -u JOBSENTINEL_LIVE_KEYRING_TESTS cargo test -p jobsentinel ipc::health::tests --lib; env -u JOBSENTINEL_LIVE_KEYRING_TESTS cargo test -p jobsentinel ipc::import::tests --lib",
+      "exit_status": 0,
+      "relevant_result": "Pasted-URL fetches for the four retired providers and YC stopped before transport with operation-specific recovery. Reconciled local acknowledgements stayed disabled. All 14 Browser Import tests preserved the visible-capture distinction. All 4 native health tests and 4 import-error boundary tests passed.",
+      "caveat": "Tests used isolated databases and local fixtures. Browser Import did not contact provider sites."
+    },
+    {
+      "command": "env -u JOBSENTINEL_LIVE_KEYRING_TESTS cargo test -p jobsentinel-storage migration_18 --lib; env -u JOBSENTINEL_LIVE_KEYRING_TESTS npm run lint:sqlx",
+      "exit_status": 0,
+      "relevant_result": "Migration 18 deleted the four retired health rows, rejected insert and rename restoration, advanced compatibility metadata, and passed SQLx offline metadata verification against an isolated migrated database.",
+      "caveat": "No user database was opened or modified."
+    },
+    {
+      "command": "npm run test:run -- --run src/features/settings/sources/health/ScraperHealthDashboard.sources-and-history.test.tsx src/features/dashboard/components/JobImportModal.test.tsx src/shared/restrictedSourceTaxonomy.test.ts src/shared/jobSourceDiscoveryTaxonomy.test.ts src/dev-runtime/features/settings/sources/scraperHealth.test.ts",
+      "exit_status": 0,
+      "relevant_result": "Focused health, import, taxonomy, and development-runtime regressions passed. Hostile restored health rows expose no row or action, policy-blocked pasted links expose no consent override, and maintained source records remain manual-only.",
+      "caveat": "The full frontend suite was intentionally not rerun. Focused changed-behavior tests were used per the execution plan."
+    },
+    {
+      "command": "npm run typecheck; npm run lint; npm run harness:check; npm run lint:file-size; npm run lint:docs; npm run lint:language; npm run lint:architecture; npm run lint:security; git diff --check",
+      "exit_status": 0,
+      "relevant_result": "TypeScript, ESLint, harness state, file limits, maintained docs, language rules, architecture, security sensors, secret scan, and patch whitespace passed.",
+      "caveat": "Repository GitHub Actions remain temporarily disabled by user direction and must be restored before merge."
+    },
+    {
+      "command": "env -u JOBSENTINEL_LIVE_KEYRING_TESTS cargo fmt --all -- --check; env -u JOBSENTINEL_LIVE_KEYRING_TESTS cargo clippy -p jobsentinel-domain -p jobsentinel-assistance -p jobsentinel-application -p jobsentinel --lib -- -D warnings",
+      "exit_status": 0,
+      "relevant_result": "Changed Rust production libraries passed formatting and Clippy with warnings denied.",
+      "caveat": "The focused library lane avoided live credential and desktop launch behavior."
+    },
+    {
+      "command": "One independent read-only adversarial review of provider-policy evidence, URL boundaries, scheduler and config authority, health metadata, hostile renderer data, Browser Import separation, and maintained docs",
+      "exit_status": 0,
+      "relevant_result": "The final reviewer returned SOUND after corrections for reconciliation expectations, health-row mutation, pasted-URL transport, stale taxonomy, visible Browser Import separation, safe recovery copy, impossible health fixtures, and hostile restored rows.",
+      "caveat": "The reviewer used focused offline checks with live keyring tests disabled and did not access credentials or live providers."
+    }
+  ],
+  "source": "docs/plans/v3/master-exec-plan.md",
+  "measurements": {
+    "source_library_tests_passed": 395,
+    "application_library_tests_passed_before_final_focused_corrections": 538,
+    "domain_library_tests_passed_before_final_focused_corrections": 133,
+    "browser_import_tests_passed": 14,
+    "native_health_tests_passed": 4,
+    "native_import_boundary_tests_passed": 4,
+    "focused_frontend_tests_passed": 53,
+    "adversarial_reviewers_passed": 1
+  },
+  "decisions": {
+    "provider_policy": "Current first-party policy evidence disables the retired Built In, Dice HTML, SimplyHired, and Glassdoor automation. Local consent cannot override provider authorization.",
+    "configuration": "Preserve legacy fields for compatible reads, then clear retired enablement and acknowledgement in runtime and saved configuration. Preserve append-only policy and consent history.",
+    "transport": "Scheduled checks, connectivity probes, and pasted-URL fetches stop before provider contact. Direct raw scheduler flags fail closed with fixed local errors.",
+    "browser_import": "Visible Browser Import is distinct from an application-owned URL fetch and remains available for the four retired boards. YC retains its stricter no-fetch and no-capture boundary.",
+    "health": "Migration 18 removes retired health metadata and prevents recreation. Native IPC, development mocks, and renderer controls also reject or hide hostile restored identifiers.",
+    "dice_mcp": "The official Dice MCP remains documentation-only and review-required until exact endpoint, schema, privacy, pacing, and fixture contracts are approved.",
+    "credential_tests": "Keep live keyring tests opt-in. Every unattended Rust command unsets JOBSENTINEL_LIVE_KEYRING_TESTS."
+  },
+  "review": {
+    "adversarial_verdict": "SOUND after provider-policy, URL-operation, hostile-state, and maintained-copy corrections",
+    "privacy_or_security_regression": false,
+    "open_slice_blockers": 0,
+    "remaining_findings": [
+      "Milestone 4 still needs employer discovery, regional packs, restricted Workbench, visible-capture governance, Smart Paste governance, source-context applied logging, simulator completion, and Gate 3 evidence.",
+      "Windows 11, macOS 26, Linux, installed-app, and signed-package proof remain release-matrix work.",
+      "Repository GitHub Actions must be re-enabled and verified before merge.",
+      "Commit 8a7d3439 is local-only until a non-Keychain GitHub credential becomes available."
+    ]
+  }
+}

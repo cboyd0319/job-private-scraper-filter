@@ -33,6 +33,7 @@ jobsentinel-security.workspace = true
 jobsentinel-sources.workspace = true
 jobsentinel-storage.workspace = true
 regex.workspace = true
+rustix.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 sha2.workspace = true
@@ -46,8 +47,10 @@ zeroize.workspace = true
 
 [dev-dependencies]
 futures.workspace = true
+jobsentinel-domain = { workspace = true, features = ["test-support"] }
 jobsentinel-network = { workspace = true, features = ["test-support"] }
 jobsentinel-notifications = { workspace = true, features = ["test-support"] }
+jobsentinel-security = { workspace = true, features = ["test-support"] }
 proptest.workspace = true
 
 [lints]

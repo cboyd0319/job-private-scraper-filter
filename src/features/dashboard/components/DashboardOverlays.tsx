@@ -1,3 +1,5 @@
+/** Composes Dashboard-owned modal and overlay surfaces. */
+
 import { Suspense, type ReactNode } from "react";
 import { Button } from "../../../ui/Button";
 import { FocusTrap } from "../../../ui/FocusTrap";
@@ -9,7 +11,7 @@ import ModalErrorBoundary from "../errors/ModalErrorBoundary";
 import { CheckCircleIcon } from "./DashboardIcons";
 import type { DuplicateGroup } from "../types";
 import { DuplicateGroupCard } from "./DuplicateGroupCard";
-import type { RenderCompanyResearch } from "../../../shared/companyResearch";
+import type { CompanyResearchTarget, RenderCompanyResearch } from "../../../shared/companyResearch";
 
 export function DashboardSettingsPanel({
   children,
@@ -112,15 +114,15 @@ export function DashboardLinkedInWorkbenchModal({
 }
 
 export function DashboardCompanyResearchOverlay({
-  researchCompany,
+  researchTarget,
   renderCompanyResearch,
   onClose,
 }: {
-  researchCompany: string | null;
+  researchTarget: CompanyResearchTarget | null;
   renderCompanyResearch?: RenderCompanyResearch;
   onClose: () => void;
 }) {
-  if (!researchCompany || !renderCompanyResearch) {
+  if (!researchTarget || !renderCompanyResearch) {
     return null;
   }
 
@@ -135,7 +137,7 @@ export function DashboardCompanyResearchOverlay({
       }}
       role="dialog"
       aria-modal="true"
-      aria-label={`Company research for ${researchCompany}`}
+      aria-label={`Company research for ${researchTarget.companyName}`}
     >
       <FocusTrap>
         <ComponentErrorBoundary
@@ -153,7 +155,8 @@ export function DashboardCompanyResearchOverlay({
         >
           <Suspense fallback={<PanelSkeleton />}>
             {renderCompanyResearch({
-              companyName: researchCompany,
+              companyName: researchTarget.companyName,
+              jobHash: researchTarget.jobHash,
               onClose,
             })}
           </Suspense>

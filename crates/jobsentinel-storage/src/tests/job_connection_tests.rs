@@ -14,6 +14,7 @@ mod connection_tests {
         let _ = std::fs::remove_file(path);
         let _ = std::fs::remove_file(sqlite_sidecar_path(path, "-shm"));
         let _ = std::fs::remove_file(sqlite_sidecar_path(path, "-wal"));
+        let _ = std::fs::remove_file(sqlite_sidecar_path(path, ".owner.lock"));
     }
 
     #[tokio::test]
@@ -54,6 +55,8 @@ mod connection_tests {
         // Insert a job
         let job = create_test_job("existing_test", "Test Job", 0.9);
         let id = db1.upsert_job(&job).await.unwrap();
+        db1.pool().close().await;
+        drop(db1);
 
         // Reconnect to same database
         let db2 = Database::connect(&db_path).await.unwrap();

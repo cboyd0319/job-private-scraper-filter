@@ -30,6 +30,7 @@ import type {
   MockResumeCommandResult,
   MockResumeCommandState,
 } from "./resumeCommandTypes";
+import { parseMockMatchingProfile } from "./resumeMatchingProfile";
 
 export function getMockActiveResume(
   resumes: MockResumeData[],
@@ -237,6 +238,7 @@ export function matchResumeToJob(
     matching_skills: skills.slice(0, 3),
     missing_skills: ["Role-specific evidence"],
     gap_analysis: "Matching: Existing skills align\nMissing: Add one role-specific example",
+    feedback: null,
     created_at: new Date().toISOString(),
   };
 
@@ -460,6 +462,7 @@ export function analyzeActiveResumeForJob(
         custom_sections: {},
       },
       getStringArg(args, "jobDescription") ?? "",
+      parseMockMatchingProfile(getArg(args, "matchingProfile")),
     ),
   );
 }

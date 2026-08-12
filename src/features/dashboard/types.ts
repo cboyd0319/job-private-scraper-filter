@@ -92,8 +92,10 @@ export interface DashboardProps {
   renderCompanyResearch?: RenderCompanyResearch;
   settingsPage?: ComponentType<{
     onClose: () => void;
+    initialTab?: "basic" | "advanced";
     linkedinWorkbench?: ReactNode;
   }>;
+  settingsInitialTab?: "basic" | "advanced";
   linkedinWorkbench?: ReactNode;
   showSettings?: boolean;
   onShowSettingsChange?: (show: boolean) => void;

@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "lastUpdated": "2026-06-19",
+  "lastUpdated": "2026-08-12",
   "labels": [
     "Local only",
     "External AI optional",
@@ -85,17 +85,30 @@
       "sensitivityNote": "Uses posting metadata rather than private candidate records."
     },
     {
+      "id": "employer-dossier",
+      "name": "Employer dossier",
+      "labels": ["Local only", "Sensitive"],
+      "dataCategories": ["job_posting", "public_metadata", "application_history"],
+      "defaultDataFlow": "Creates or reuses the job's local Opportunity Case and builds a read-only dossier from the saved posting, installed reviewed source metadata, and count-only application, interview, offer, and terminal-outcome history for the exact saved employer name. Opening the dossier performs no network request. Opening a saved posting is a separate visible browser action that discloses the destination URL to that site.",
+      "externalAi": {
+        "allowed": false,
+        "required": false,
+        "fallback": "Employer research remains available from dated local evidence while offline."
+      },
+      "sensitivityNote": "Employer names and aggregate outcome history can reveal a user's job-search activity. The dossier does not expose notes, contacts, resume content, offer amounts, salary floors, or application text."
+    },
+    {
       "id": "user-configured-job-source-endpoints",
       "name": "User-approved job-source feeds",
       "labels": ["Sensitive"],
       "dataCategories": ["career_goals", "location_preferences"],
-      "defaultDataFlow": "Off unless the user configures a job-source feed and approves the exact JobsWithGPT details. Source checks send only reviewed saved job titles, location, remote preference, and result limit to that feed. Latest approved contact history is stored locally as safe status details only.",
+      "defaultDataFlow": "JobsWithGPT scheduled contact is disabled while provider endpoint and usage-policy review is unresolved. Configured details, prior exact approval, and minimized contact history remain local for inspection or removal. A future reviewed feed would also require a current exact local payload approval.",
       "externalAi": {
         "allowed": false,
         "required": false,
         "fallback": "Leave the job-source feed blank and use local, official, or user-opened source paths."
       },
-      "sensitivityNote": "Search titles and locations can reveal career goals. The scheduler must skip JobsWithGPT unless the current details match the local approval record. The local contact-history ledger must not store raw titles, raw location, resumes, salary floors, private notes, application history, screening answers, profile details, or full source links."
+      "sensitivityNote": "Search titles and locations can reveal career goals. The scheduler must skip JobsWithGPT while provider governance is unresolved, regardless of a saved payload approval. The local contact-history ledger must not store raw titles, raw location, resumes, salary floors, private notes, application history, screening answers, profile details, or full source links."
     },
     {
       "id": "ghost-job-heuristic-scoring",

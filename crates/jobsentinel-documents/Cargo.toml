@@ -18,20 +18,19 @@ ocr = []
 anyhow.workspace = true
 chrono.workspace = true
 docx-rs.workspace = true
+jobsentinel-domain.workspace = true
 jobsentinel-local-ai = { workspace = true, optional = true }
 jobsentinel-security.workspace = true
 pdf-extract.workspace = true
 quick-xml.workspace = true
 regex.workspace = true
-scopeguard.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+tempfile.workspace = true
 tracing.workspace = true
-uuid.workspace = true
 zip.workspace = true
 
 [dev-dependencies]
-tempfile.workspace = true
 
 [lints]
 workspace = true

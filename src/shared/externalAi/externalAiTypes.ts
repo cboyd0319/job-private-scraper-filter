@@ -51,6 +51,7 @@ export const DEFAULT_EXTERNAL_AI_SETTINGS: ExternalAiSettings = {
 
 export interface ExternalAiRequest {
   feature: string;
+  sourceJobId: number;
   labels: FeaturePrivacyLabel[];
   dataCategories: ExternalAiDataCategory[];
   payload: Record<string, unknown>;
@@ -62,6 +63,7 @@ export interface ExternalAiRequest {
 
 export interface PreparedExternalAiRequest {
   feature: string;
+  sourceJobId: number;
   provider: Exclude<ExternalAiProvider, "none">;
   labels: FeaturePrivacyLabel[];
   dataCategories: ExternalAiDataCategory[];

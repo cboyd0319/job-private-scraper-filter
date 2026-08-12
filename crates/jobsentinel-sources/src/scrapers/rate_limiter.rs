@@ -19,6 +19,8 @@ pub struct RateLimiter {
 /// Token bucket for rate limiting
 #[derive(Debug)]
 struct TokenBucket {
+    /// Refill budget per hour
+    requests_per_hour: u32,
     /// Maximum tokens (requests) allowed
     capacity: u32,
     /// Current token count
@@ -53,15 +55,33 @@ impl RateLimiter {
     /// request limit for each call.
     #[tracing::instrument(skip(self))]
     pub async fn wait(&self, scraper_name: &str, max_requests_per_hour: u32) {
+        self.wait_with_burst(scraper_name, max_requests_per_hour, max_requests_per_hour)
+            .await;
+    }
+
+    /// Pace requests without an initial multi-request burst.
+    #[tracing::instrument(skip(self))]
+    pub async fn wait_paced(&self, scraper_name: &str, max_requests_per_hour: u32) {
+        self.wait_with_burst(scraper_name, max_requests_per_hour, 1)
+            .await;
+    }
+
+    async fn wait_with_burst(
+        &self,
+        scraper_name: &str,
+        max_requests_per_hour: u32,
+        max_burst: u32,
+    ) {
         tracing::debug!("Acquiring rate limit token for scraper");
 
         loop {
             let wait_duration = {
                 let mut buckets = self.buckets.lock().await;
 
-                let bucket = buckets
-                    .entry(scraper_name.to_string())
-                    .or_insert_with(|| TokenBucket::new(max_requests_per_hour));
+                let bucket = buckets.entry(scraper_name.to_string()).or_insert_with(|| {
+                    TokenBucket::new_with_burst(max_requests_per_hour, max_burst)
+                });
+                bucket.reconfigure(max_requests_per_hour, max_burst);
 
                 match bucket.try_take_token() {
                     Ok(()) => return,
@@ -103,14 +123,36 @@ impl Default for RateLimiter {
 
 impl TokenBucket {
     #[must_use]
+    #[cfg(test)]
     fn new(max_requests_per_hour: u32) -> Self {
-        let capacity = max_requests_per_hour.max(1);
+        Self::new_with_burst(max_requests_per_hour, max_requests_per_hour)
+    }
+
+    #[must_use]
+    fn new_with_burst(max_requests_per_hour: u32, max_burst: u32) -> Self {
+        let rate = max_requests_per_hour.max(1);
+        let capacity = max_burst.clamp(1, rate);
         Self {
+            requests_per_hour: rate,
             capacity,
             tokens: capacity,
             last_refill: Instant::now(),
-            refill_rate: capacity as f64 / 3600.0, // tokens per second
+            refill_rate: rate as f64 / 3600.0, // tokens per second
         }
+    }
+
+    fn reconfigure(&mut self, max_requests_per_hour: u32, max_burst: u32) {
+        let rate = max_requests_per_hour.max(1);
+        let capacity = max_burst.clamp(1, rate);
+        if self.capacity == capacity && self.requests_per_hour == rate {
+            return;
+        }
+        self.refill();
+        self.requests_per_hour = rate;
+        self.capacity = capacity;
+        self.tokens = self.tokens.min(capacity);
+        self.refill_rate = rate as f64 / 3600.0;
+        self.last_refill = Instant::now();
     }
 
     /// Refill tokens based on elapsed time
@@ -159,41 +201,8 @@ pub mod limits {
     /// Indeed: 500 requests/hour (more generous, has public API)
     pub const INDEED: u32 = 500;
 
-    /// Greenhouse: 1000 requests/hour (official API)
-    pub const GREENHOUSE: u32 = 1000;
-
-    /// Lever: 1000 requests/hour (official API)
-    pub const LEVER: u32 = 1000;
-
     /// JobsWithGPT: 10,000 requests/hour (MCP server)
     pub const JOBSWITHGPT: u32 = 10_000;
-
-    /// Dice: 500 requests/hour (public job board)
-    pub const DICE: u32 = 500;
-
-    /// RemoteOK: 500 requests/hour (public API)
-    pub const REMOTEOK: u32 = 500;
-
-    /// Glassdoor: 200 requests/hour (conservative due to Cloudflare)
-    pub const GLASSDOOR: u32 = 200;
-
-    /// SimplyHired: 200 requests/hour (conservative due to Cloudflare)
-    pub const SIMPLYHIRED: u32 = 200;
-
-    /// USAJobs: 1000 requests/hour (official government API)
-    pub const USAJOBS: u32 = 1000;
-
-    /// WeWorkRemotely: 300 requests/hour (RSS feed)
-    pub const WEWORKREMOTELY: u32 = 300;
-
-    /// HN Hiring: 500 requests/hour (Algolia API)
-    pub const HN_HIRING: u32 = 500;
-
-    /// YC Startup: 300 requests/hour (job board)
-    pub const YC_STARTUP: u32 = 300;
-
-    /// BuiltIn: 300 requests/hour (job board)
-    pub const BUILTIN: u32 = 300;
 }
 
 #[cfg(test)]

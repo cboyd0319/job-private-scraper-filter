@@ -5,7 +5,8 @@
 use crate::sqlite_time::parse_sqlite_datetime;
 use anyhow::Result;
 use jobsentinel_domain::{
-    screening_question_matches, ApplicationProfile, ApplicationProfileInput, ScreeningAnswer,
+    requires_user_answer, screening_question_matches, ApplicationProfile, ApplicationProfileInput,
+    ScreeningAnswer,
 };
 use sqlx::SqlitePool;
 
@@ -247,6 +248,10 @@ impl ProfileManager {
     /// OPTIMIZATION: Fetch only pattern+answer columns instead of full rows.
     /// Reduces data transfer and memory allocation for pattern matching.
     pub async fn find_answer_for_question(&self, question: &str) -> Result<Option<String>> {
+        if requires_user_answer(question) {
+            return Ok(None);
+        }
+
         // Fetch only needed columns for pattern matching
         let rows = sqlx::query(
             "SELECT question_pattern, answer FROM screening_answers ORDER BY created_at DESC",
@@ -258,6 +263,10 @@ impl ProfileManager {
         for row in rows {
             let pattern: String = row.try_get("question_pattern")?;
             let answer: String = row.try_get("answer")?;
+
+            if requires_user_answer(&pattern) {
+                continue;
+            }
 
             if screening_question_matches(&pattern, question) {
                 return Ok(Some(answer));

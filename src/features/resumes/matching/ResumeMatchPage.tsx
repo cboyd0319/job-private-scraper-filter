@@ -7,6 +7,11 @@ import { useToast } from "../../../shared/toast/useToast";
 import { logError } from "../../../shared/errorReporting/logger";
 import { ResumeMatchTools } from "./ResumeMatchTools";
 import { ResumeMatchResultsPanel } from "./ResumeMatchResultsPanel";
+import { ResumeMatchingProfileFields } from "./ResumeMatchingProfileFields";
+import {
+  readResumeMatchDraft,
+  writeResumeMatchDraft,
+} from "./resumeMatchDraft";
 import {
   getResumeAnalysisErrorAction,
   getSelectedResumeReadableStatus,
@@ -16,11 +21,7 @@ import {
   type ResumeSummary,
 } from "./resumeMatchModel";
 import { writeStoredResumeJobContext } from "../shared/resumeJobContext";
-import {
-  readStorageValue,
-  removeStorageValue,
-  writeStorageValue,
-} from "../../../shared/browserStorage";
+import type { ResumeMatchingProfile } from "../shared/atsAnalysisContracts";
 
 type Page = "dashboard" | "applications" | "resume" | "resume-builder" | "ats-optimizer" | "salary" | "market" | "automation";
 
@@ -28,45 +29,6 @@ interface ResumeMatchProps {
   onBack: () => void;
   onNavigate?: (page: Page) => void;
 }
-interface ResumeMatchDraft {
-  jobDescription: string;
-  resumeJson: string;
-  analysisResult: AtsAnalysisResult | null;
-  analysisInputSource: "active" | "copied" | null;
-  showAdvancedResumeImport: boolean;
-  showComparison: boolean;
-}
-
-const RESUME_MATCH_DRAFT_STORAGE_KEY = "jobsentinel-resume-match-draft-v1";
-
-function readResumeMatchDraft(): ResumeMatchDraft | null {
-  const raw = readStorageValue("session", RESUME_MATCH_DRAFT_STORAGE_KEY);
-  if (!raw) return null;
-
-  try {
-    const parsed = JSON.parse(raw) as Partial<ResumeMatchDraft>;
-    if (typeof parsed.jobDescription !== "string") return null;
-    if (typeof parsed.resumeJson !== "string") return null;
-
-    removeStorageValue("session", RESUME_MATCH_DRAFT_STORAGE_KEY);
-
-    return {
-      jobDescription: parsed.jobDescription,
-      resumeJson: parsed.resumeJson,
-      analysisResult: parsed.analysisResult ?? null,
-      analysisInputSource:
-        parsed.analysisInputSource === "active" || parsed.analysisInputSource === "copied"
-          ? parsed.analysisInputSource
-          : null,
-      showAdvancedResumeImport: Boolean(parsed.showAdvancedResumeImport),
-      showComparison: Boolean(parsed.showComparison),
-    };
-  } catch {
-    removeStorageValue("session", RESUME_MATCH_DRAFT_STORAGE_KEY);
-    return null;
-  }
-}
-
 async function getActiveResumeSummary(): Promise<ResumeSummary | null> {
   const selected = await invoke<unknown>("get_active_resume");
   return isResumeSummary(selected) ? selected : null;
@@ -89,6 +51,9 @@ export default function ResumeMatch({ onBack, onNavigate }: ResumeMatchProps) {
   const [activeResume, setActiveResume] = useState<ResumeSummary | null>(null);
   const [analysisInputSource, setAnalysisInputSource] = useState<"active" | "copied" | null>(
     initialDraft?.analysisInputSource ?? null,
+  );
+  const [matchingProfile, setMatchingProfile] = useState<ResumeMatchingProfile | null>(
+    initialDraft?.matchingProfile ?? null,
   );
 
   const toast = useToast();
@@ -132,18 +97,15 @@ export default function ResumeMatch({ onBack, onNavigate }: ResumeMatchProps) {
     }
 
     if (onNavigate) {
-      writeStorageValue(
-        "session",
-        RESUME_MATCH_DRAFT_STORAGE_KEY,
-        JSON.stringify({
-          jobDescription,
-          resumeJson,
-          analysisResult,
-          analysisInputSource,
-          showAdvancedResumeImport,
-          showComparison,
-        } satisfies ResumeMatchDraft),
-      );
+      writeResumeMatchDraft({
+        jobDescription,
+        resumeJson,
+        analysisResult,
+        analysisInputSource,
+        matchingProfile,
+        showAdvancedResumeImport,
+        showComparison,
+      });
       onNavigate("resume");
       return;
     }
@@ -189,10 +151,12 @@ export default function ResumeMatch({ onBack, onNavigate }: ResumeMatchProps) {
             return invoke<AtsAnalysisResult>("analyze_resume_for_job", {
               resume,
               jobDescription,
+              ...(matchingProfile ? { matchingProfile } : {}),
             });
           })()
         : await invoke<AtsAnalysisResult>("analyze_active_resume_for_job", {
             jobDescription,
+            ...(matchingProfile ? { matchingProfile } : {}),
           });
 
       setAnalysisResult(result);
@@ -343,6 +307,19 @@ export default function ResumeMatch({ onBack, onNavigate }: ResumeMatchProps) {
                 onChange={(e) => setJobDescription(e.target.value)}
                 placeholder="Paste the job post here..."
                 className="w-full h-64 px-3 py-2 text-sm rounded-lg border border-surface-200 dark:border-surface-600 bg-white dark:bg-surface-700 text-surface-900 dark:text-surface-100 placeholder-surface-400 focus:border-sentinel-500 focus-visible:ring-1 focus-visible:ring-sentinel-500 dark:focus:border-sentinel-400 dark:focus-visible:ring-sentinel-400 resize-none font-mono"
+              />
+            </Card>
+
+            <Card>
+              <ResumeMatchingProfileFields
+                disabled={analyzing}
+                initialProfile={matchingProfile}
+                onProfileChange={(profile) => {
+                  setMatchingProfile(profile);
+                  setAnalysisResult(null);
+                  setAnalysisInputSource(null);
+                  setShowComparison(false);
+                }}
               />
             </Card>
 

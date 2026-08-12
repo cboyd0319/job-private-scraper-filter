@@ -1,3 +1,5 @@
+/** Detects privacy, authorization, and error-redaction regressions in command surfaces. */
+
 import { existsSync } from "node:fs";
 import {
   readFileSync,
@@ -346,24 +348,39 @@ export function hasUnauthenticatedBookmarkletImports(root, path) {
     return false;
   }
 
-  return /if request\.starts_with\("POST \/api\/bookmarklet\/import"\)\s*\{\s*handle_import_request\(&request,\s*database\)\.await/s.test(
-    readFileSync(join(root, path), "utf8"),
-  );
+  const productionText = stripRustTestModules(readFileSync(join(root, path), "utf8"));
+  if (path.endsWith("/server.rs")) {
+    return (
+      /handle_import_request\(&request,\s*database\)\.await/.test(productionText) ||
+      (/handle_import_request\(&request/.test(productionText) &&
+        !/handle_import_request\(\s*&request,\s*&active_pairing/.test(productionText))
+    );
+  }
+  if (path.endsWith("/imports.rs") && /fn\s+handle_import_request/.test(productionText)) {
+    return (
+      !/#\[serde\(deny_unknown_fields\)\]/.test(productionText) ||
+      !/consume_active_pairing\(/.test(productionText) ||
+      !/authorize_browser_action\(/.test(productionText)
+    );
+  }
+  return false;
 }
 
-export function hasReusableBookmarkletImportToken(root, path) {
+export function hasNonAtomicBookmarkletPairing(root, path) {
   if (!rawBookmarkletLoggingPaths.has(path)) {
     return false;
   }
 
   const productionText = stripRustTestModules(readFileSync(join(root, path), "utf8"));
-  const consumesToken =
-    /fn\s+consume_valid_bookmarklet_token/.test(productionText) &&
-    /auth_token\.clear\(\)/.test(productionText) &&
-    /auth_token_expires_at\s*=\s*now\s*-/.test(productionText);
-  return (
-    /body_has_valid_bookmarklet_token|has_valid_bookmarklet_token/.test(productionText) &&
-    !consumesToken
+  if (path.endsWith("/pairing_state.rs") && /fn\s+consume_active_pairing/.test(productionText)) {
+    return (
+      !/active\s*\.as_mut\(\)[\s\S]{0,180}\.authorize\(/.test(productionText) ||
+      !/active\.take\(\)/.test(productionText) ||
+      !/pairing\.revoke\(\)/.test(productionText)
+    );
+  }
+  return /body_has_valid_bookmarklet_token|has_valid_bookmarklet_token|auth_token_expires_at/.test(
+    productionText,
   );
 }
 

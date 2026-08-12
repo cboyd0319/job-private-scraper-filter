@@ -10,7 +10,7 @@ use crate::desktop::{
 };
 use crate::ipc::errors::user_friendly_error;
 use serde::{Deserialize, Serialize};
-use tauri::Emitter;
+use tauri::{Emitter, Url};
 
 /// Generate deep links for all supported sites
 #[tauri::command]
@@ -77,6 +77,9 @@ pub(crate) async fn open_deep_link(app: tauri::AppHandle, url: String) -> Result
     use tauri_plugin_shell::ShellExt;
 
     validate_deep_link_url(&url).await?;
+    if requires_linkedin_workbench_review(&url) && !confirm_native_linkedin_open(&app).await? {
+        return Err("LinkedIn was kept closed.".to_string());
+    }
 
     let url_label = sanitize_url_for_logging(&url);
     tracing::info!(url = %url_label, "Opening deep link in browser");
@@ -97,6 +100,38 @@ pub(crate) async fn open_deep_link(app: tauri::AppHandle, url: String) -> Result
     Ok(())
 }
 
+async fn confirm_native_linkedin_open(app: &tauri::AppHandle) -> Result<bool, String> {
+    use tauri_plugin_dialog::{DialogExt, MessageDialogButtons, MessageDialogKind};
+    use tokio::sync::oneshot;
+
+    let (decision, received) = oneshot::channel();
+    app.dialog()
+        .message(
+            "Open LinkedIn yourself. JobSentinel will not automate LinkedIn, read the page, or access browser session state.",
+        )
+        .title("Open LinkedIn")
+        .kind(MessageDialogKind::Warning)
+        .buttons(MessageDialogButtons::OkCancelCustom(
+            "Open LinkedIn".to_string(),
+            "Keep Closed".to_string(),
+        ))
+        .show(move |approved| {
+            let _ = decision.send(approved);
+        });
+    received
+        .await
+        .map_err(|_| "LinkedIn confirmation could not be completed.".to_string())
+}
+
+fn requires_linkedin_workbench_review(value: &str) -> bool {
+    Url::parse(value).ok().and_then(|url| {
+        url.host_str().map(|host| {
+            let host = host.trim_end_matches('.').to_ascii_lowercase();
+            host == "linkedin.com" || host.ends_with(".linkedin.com")
+        })
+    }) == Some(true)
+}
+
 /// Event emitted when a deep link is opened
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct DeepLinkOpenedEvent {
@@ -107,6 +142,27 @@ struct DeepLinkOpenedEvent {
 mod tests {
     use super::*;
     use crate::desktop::RemoteType;
+
+    #[test]
+    fn linkedin_deep_links_require_the_restricted_workbench_review() {
+        for restricted in [
+            "https://linkedin.com/jobs/",
+            "https://www.linkedin.com/jobs/search/?keywords=security",
+            "https://jobs.linkedin.com/view/1",
+        ] {
+            assert!(
+                requires_linkedin_workbench_review(restricted),
+                "{restricted}"
+            );
+        }
+        for allowed in [
+            "https://example.com/jobs",
+            "https://linkedin.com.example/jobs",
+            "https://notlinkedin.com/jobs",
+        ] {
+            assert!(!requires_linkedin_workbench_review(allowed), "{allowed}");
+        }
+    }
 
     #[test]
     fn test_generate_deep_links_basic() {

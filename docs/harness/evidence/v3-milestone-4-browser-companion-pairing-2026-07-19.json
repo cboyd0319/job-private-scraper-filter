@@ -1,0 +1,96 @@
+{
+  "schema": "jobsentinel.feature_evidence.v1",
+  "feature_id": "v3-milestone-4-source-graph-browser-companion",
+  "slice": "browser-companion-pairing",
+  "behavior": "Browser Import requires a native-confirmed public HTTPS target, an exact one-use origin-bound pairing, rendered page fields only, persisted source authorization before queueing and saving, and explicit local review before durable storage.",
+  "result": "passing",
+  "verified_at": "2026-07-19T22:26:31Z",
+  "revision": "0104af1ba76d8cc8a2c16550fbc00c7f3b7b2e35",
+  "revision_scope": "The committed Browser Import runtime replacement, generated button, pairing state, queue and save authorization, privacy sensors, documentation, and the two stale branch-gate test repairs discovered by the routed verification lane.",
+  "platform": "local macOS arm64 host",
+  "commands": [
+    {
+      "command": "env -u JOBSENTINEL_LIVE_KEYRING_TESTS cargo test -p jobsentinel-assistance --lib bookmarklet:: --no-fail-fast",
+      "exit_status": 0,
+      "relevant_result": "All 45 focused assistance tests passed, including atomic concurrent one-use consumption, replacement and revocation, expiry, mandatory public HTTPS Origin, exact job and referer origin matching, unknown envelope rejection, queue authorization, save reauthorization, and pending retention after policy drift.",
+      "caveat": "The tests use loopback test requests and in-memory repositories. They do not launch a browser or native desktop process."
+    },
+    {
+      "command": "env -u JOBSENTINEL_LIVE_KEYRING_TESTS cargo test -p jobsentinel --lib ipc::bookmarklet::tests --no-fail-fast",
+      "exit_status": 0,
+      "relevant_result": "All 6 focused Tauri tests passed. The generated button is origin-bound before page access, declares loopback address space, carries the structured pairing, excludes JSON-LD and textContent capture, and keeps legacy token paths absent.",
+      "caveat": "Clipboard and native confirmation behavior were verified statically and through command-level tests only. No system clipboard or dialog was opened."
+    },
+    {
+      "command": "npm run test:run -- src/features/settings/sources/browser-import/BrowserImportSection.test.tsx src/features/settings/sources/browser-import/BrowserImportButtonScript.test.ts src/features/settings/SettingsPage.save-and-backup.test.tsx src/features/settings/support/settingsLocalDataBackup.test.ts",
+      "exit_status": 0,
+      "relevant_result": "All 26 focused frontend tests passed. The renderer sends only the target URL, restricted and mismatched origins stop before page reads, hidden and structured page data stay out of the payload, opaque-response copy is honest, and the corrected current settings backup contract parses.",
+      "caveat": "The generated-script test uses a deterministic DOM and fetch double, not a live browser permission or loopback transport."
+    },
+    {
+      "command": "npm run test:scripts",
+      "exit_status": 0,
+      "relevant_result": "All 839 script-contract tests passed, including sensors for structured pairing authorization, atomic active-pairing consumption, and origin checks before DOM access.",
+      "caveat": "These are static repository sensors and do not replace runtime browser proof."
+    },
+    {
+      "command": "cargo fmt --all -- --check; env -u JOBSENTINEL_LIVE_KEYRING_TESTS cargo clippy --workspace -- -D warnings; npm run typecheck; npm run lint; npm run harness:check; npm run lint:architecture; npm run lint:file-size; npm run lint:docs; npm run lint:security; git diff --check",
+      "exit_status": 0,
+      "relevant_result": "Formatting, strict workspace Clippy, frontend types and lint, harness state, architecture, hard file limits, documentation, security sensors, secret scanning, and patch whitespace passed.",
+      "caveat": "File-size review thresholds remain advisory for existing large owners; every hard limit passed."
+    },
+    {
+      "command": "env -u JOBSENTINEL_LIVE_KEYRING_TESTS cargo test -p jobsentinel-storage --lib portable_backup_refuses_a_newer_migration_ledger --no-fail-fast",
+      "exit_status": 0,
+      "relevant_result": "The stale future-migration regression now passes by deriving the unknown version from the current migration ledger.",
+      "caveat": "The routed workspace test run stopped on the stale hard-coded version after other executed tests passed. The corrected focused test passed, and thousands of unaffected tests were not rerun."
+    },
+    {
+      "command": "Two independent read-only adversarial reviews of the complete slice and requested corrections",
+      "exit_status": 0,
+      "relevant_result": "The final reviewer verdict was APPROVE after JSON-LD and hidden-state capture were removed, rendered-only selection was tested, opaque-response copy was made honest, the intermediate bearer was zeroized, and CORP was aligned with the no-cors sender while CORS remained absent.",
+      "caveat": "The reviewer performed static inspection only and preserved the live browser matrix as an explicit gap."
+    },
+    {
+      "command": "Primary browser-policy review of Chrome Local Network Access and Fetch Cross-Origin Resource Policy guidance",
+      "exit_status": 0,
+      "relevant_result": "The generated request now declares targetAddressSpace loopback, user documentation explains the per-site local-network permission, and the receiver permits an opaque cross-origin response without exposing CORS-readable data.",
+      "caveat": "Browser policy documentation cannot prove current delivery behavior on every supported browser and operating system."
+    }
+  ],
+  "source": "docs/plans/v3/master-exec-plan.md",
+  "measurements": {
+    "active_pairings": 1,
+    "successful_uses_per_pairing": 1,
+    "pairing_lifetime_minutes": 10,
+    "confirmed_origins_per_pairing": 1,
+    "assistance_tests_passed": 45,
+    "tauri_tests_passed": 6,
+    "focused_frontend_tests_passed": 26,
+    "script_contract_tests_passed": 839,
+    "adversarial_reviewers_passed": 1,
+    "live_browser_platform_matrices_passed": 0
+  },
+  "decisions": {
+    "native_authority": "Rust validates and minimizes the entered public HTTPS job URL, blocks policy-prohibited sources, and shows the exact origin plus minimized page in a native confirmation before issuing a pairing.",
+    "pairing": "The bearer stays in Rust memory and the copied Zeroizing script, expires after ten minutes, is revoked on start, stop, replacement, or successful use, and is never returned to the renderer or persisted.",
+    "origin": "The receiver requires a public HTTPS Origin. Pairing origin, request Origin, optional referer, and every submitted job URL must match exactly.",
+    "visible_data": "The generated button checks restricted sites and paired origin before DOM access, ignores JSON-LD and textContent, and reads innerText only from elements with visible computed style and a positive client rectangle.",
+    "transport": "The no-cors sender declares loopback address space. CORP permits the opaque response path, but no Access-Control-Allow-Origin or Access-Control-Allow-Headers is emitted, so page JavaScript cannot read the response.",
+    "review": "Authorization is rechecked before pending queue insertion and again before durable save. Policy drift retains the pending item for explicit retry or discard.",
+    "durable_source": "Saved jobs use user-source-actions provenance instead of the retired bookmarklet source label.",
+    "credential_tests": "Every unattended Rust command removed JOBSENTINEL_LIVE_KEYRING_TESTS. No Keychain prompt, live credential backend, signed build, Tauri launch, or live source ran."
+  },
+  "review": {
+    "adversarial_verdict": "APPROVE after rendered-only capture, honest opaque-response copy, zeroized bearer serialization, and compatible opaque response policy corrections",
+    "privacy_or_security_regression": false,
+    "open_slice_blockers": 0,
+    "remaining_findings": [
+      "Milestone 4 still needs Smart Paste and browser-origin applied-logging disposition, simulator closure, and Gate 3 evidence.",
+      "Live Chrome, Safari, and Firefox proof remains required across supported platforms for Local Network Access prompts, mixed-content and CSP behavior, Origin emission, clean-iframe DOM methods, CORP handling, and actual loopback delivery.",
+      "The final full frontend and Rust workspace suites were not rerun after narrow stale-gate repairs; focused affected tests, strict workspace Clippy, and all routed static gates passed.",
+      "Repository GitHub Actions must be re-enabled and verified before merge.",
+      "Commit 0104af1b is local-only until a non-Keychain GitHub credential becomes available."
+    ]
+  }
+}

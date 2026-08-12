@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n        UPDATE scraper_runs\n        SET finished_at = ?,\n            duration_ms = MAX(0, CAST((julianday(?) - julianday(started_at)) * 86400000 AS INTEGER)),\n            status = 'failure',\n            error_message = 'Previous source check was interrupted',\n            error_code = 'interrupted'\n        WHERE status = 'running'\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "366b2dbe71100e92cda01f641b368a32527f8e5b2277447841c513e88b531a6b"
+}

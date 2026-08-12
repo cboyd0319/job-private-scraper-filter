@@ -1,3 +1,5 @@
+<!-- Introduces JobSentinel, its release status, downloads, capabilities, and user entry points. -->
+
 # JobSentinel
 
 **JobSentinel is an open-source, local-first job-search assistant for finding
@@ -9,7 +11,7 @@ application, and protect your pay goals from one private desktop workspace.
 Core workflows work locally. JobSentinel is free, will always stay free, and
 will always remain MIT licensed.
 
-[![Source version](https://img.shields.io/badge/source-2.9.5-2563eb)](https://github.com/cboyd0319/JobSentinel/releases/tag/v2.9.5)
+[![Source version](https://img.shields.io/badge/source-3.0.0-2563eb)](package.json)
 [![Release](https://img.shields.io/github/v/release/cboyd0319/JobSentinel?label=release&color=2563eb)](https://github.com/cboyd0319/JobSentinel/releases/latest)
 [![MIT License](https://img.shields.io/badge/license-MIT-111827)](LICENSE)
 [![Rule 0](https://img.shields.io/badge/rule%200-privacy%20%26%20security-991b1b)](PRIVACY.md)
@@ -294,8 +296,9 @@ an embedded-ML build has verified model files, matching uses:
 | Blockers and evidence classes | Flags missing hard requirements, salary/location mismatch, seniority mismatch, and weak evidence. |
 | Model governance | `crates/jobsentinel-local-ai/models.lock.toml` pins model identity, revisions, hashes, sizes, licenses, and instruction profiles. |
 
-If local model files are not present, JobSentinel falls back to deterministic
-matching. Resume and job text stays local either way. See
+If no verified local model is present, JobSentinel falls back to exact-only
+deterministic matching without downloading a model. Resume and job text stays
+local either way. See
 [Local Semantic Matching](docs/developer/LOCAL_SEMANTIC_MATCHING.md) and the
 [semantic matching research notes](docs/research/semantic-resume-job-matching.md).
 
@@ -363,7 +366,7 @@ Requirements:
 - Rust 1.97.1 from `rust-toolchain.toml`
 - Platform packages from [developer setup](docs/developer/GETTING_STARTED.md)
 
-Current backend surface: **205 registered Tauri commands**.
+Current backend surface: **254 registered Tauri commands**.
 
 ```bash
 git clone https://github.com/cboyd0319/JobSentinel

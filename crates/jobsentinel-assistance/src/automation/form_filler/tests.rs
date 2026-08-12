@@ -216,6 +216,23 @@ fn screening_answer_review_topics_are_bounded() {
 }
 
 #[test]
+fn protected_screening_answers_are_never_returned_and_require_manual_review() {
+    let filler = FormFiller::new(make_test_profile(), None).with_screening_answers(vec![
+        make_screening_answer("veteran status", "Yes"),
+        make_screening_answer("Hispanic or Latino", "Decline to answer"),
+        make_screening_answer("pronouns", "they/them"),
+    ]);
+
+    for question in [
+        "Do you identify as a protected veteran?",
+        "Are you Hispanic or Latino?",
+        "What are your pronouns?",
+    ] {
+        assert_eq!(filler.find_answer_for_question(question), None);
+    }
+}
+
+#[test]
 fn question_discovery_error_does_not_echo_browser_detail() {
     let error = question_discovery_error().to_string();
 

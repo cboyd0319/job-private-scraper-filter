@@ -26,22 +26,17 @@ const fn pdftoppm_env_var() -> &'static str {
 
 pub(super) fn ocr_pdf(parser: &ResumeParser, file_path: &Path) -> Result<String> {
     use std::process::Command;
-    use uuid::Uuid;
 
     let pdftoppm_path =
         resolve_ocr_tool(OcrTool::PdfToPpm).context("pdftoppm is not available for OCR support")?;
     let tesseract_path = resolve_ocr_tool(OcrTool::Tesseract)
         .context("Tesseract OCR is not available for OCR support")?;
 
-    let temp_dir = std::env::temp_dir().join(format!("jobsentinel_ocr_{}", Uuid::new_v4()));
-    std::fs::create_dir_all(&temp_dir).context("Failed to create temp directory for OCR")?;
-
-    let temp_dir_cleanup = temp_dir.clone();
-    let _cleanup = scopeguard::guard((), |_| {
-        let _ = std::fs::remove_dir_all(&temp_dir_cleanup);
-    });
-
-    let output_prefix = temp_dir.join("page");
+    let temp_dir = tempfile::Builder::new()
+        .prefix("jobsentinel_ocr_")
+        .tempdir()
+        .context("Failed to create temp directory for OCR")?;
+    let output_prefix = temp_dir.path().join("page");
     let pdftoppm_result = Command::new(&pdftoppm_path)
         .arg("-png")
         .arg("-r")
@@ -51,10 +46,10 @@ pub(super) fn ocr_pdf(parser: &ResumeParser, file_path: &Path) -> Result<String>
         .output();
 
     let mut image_paths: Vec<PathBuf> = match pdftoppm_result {
-        Ok(output) if output.status.success() => std::fs::read_dir(&temp_dir)?
+        Ok(output) if output.status.success() => std::fs::read_dir(temp_dir.path())?
             .filter_map(|entry| entry.ok())
             .map(|entry| entry.path())
-            .filter(|path| validated_ocr_image_path(path, &temp_dir))
+            .filter(|path| validated_ocr_image_path(path, temp_dir.path()))
             .collect(),
         _ => {
             return Err(anyhow::anyhow!(

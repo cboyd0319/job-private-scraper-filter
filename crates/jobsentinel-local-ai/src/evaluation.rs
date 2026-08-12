@@ -246,6 +246,54 @@ mod tests {
     }
 
     #[test]
+    fn seed_eval_fixture_freezes_diverse_requirement_hard_negatives() {
+        let fixture = EvalFixtureSet::seed().expect("fixture should parse");
+        let hard_negatives = fixture
+            .hard_negatives
+            .iter()
+            .filter(|example| {
+                example.dataset_kind == EvalDatasetKind::JobRequirementToResumeEvidence
+            })
+            .collect::<Vec<_>>();
+
+        assert_eq!(hard_negatives.len(), 10);
+        for query in [
+            "Experience making product help clear for customers",
+            "Experience with patient intake and electronic health records",
+            "Experience building cloud audit detections for privilege escalation",
+            "Current unrestricted registered nurse (RN) license required",
+            "Experience managing at least ten software engineers",
+            "Experience owning a GAAP month-end close",
+            "Current state journeyman electrician license required",
+            "Valid Class A commercial driver's license (CDL-A) required",
+            "Current state teaching credential for secondary mathematics required",
+            "Experience owning full profit-and-loss responsibility for a retail store",
+        ] {
+            assert!(
+                hard_negatives.iter().any(|example| example.query == query),
+                "missing frozen hard negative for {query}"
+            );
+        }
+        let rn_license = hard_negatives
+            .iter()
+            .find(|example| {
+                example.query == "Current unrestricted registered nurse (RN) license required"
+            })
+            .expect("RN license hard negative should be frozen");
+
+        assert_eq!(
+            rn_license.hard_negative,
+            "Served as an Army combat medic and provided emergency care during field exercises."
+        );
+        assert_eq!(
+            rn_license.reason.as_deref(),
+            Some(
+                "Military medical experience can be relevant, but it does not evidence the required civilian registered nurse license."
+            )
+        );
+    }
+
+    #[test]
     fn fairness_counterfactual_seed_examples_keep_label_stable_for_same_evidence() {
         let fixture = EvalFixtureSet::seed().expect("fixture should parse");
         let examples: Vec<&EvidenceLabelExample> = fixture

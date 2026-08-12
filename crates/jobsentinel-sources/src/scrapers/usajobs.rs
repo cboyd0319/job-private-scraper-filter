@@ -1,28 +1,27 @@
 //! USAJobs.gov Job Scraper
 //!
 //! Scrapes federal government jobs from the official USAJobs API.
-//! Requires a free API key from https://developer.usajobs.gov/
+//! Requires a user-provided API key from https://developer.usajobs.gov/
 //!
-//! This is the safest and most reliable government job source since
-//! it's an official public API designed for programmatic access.
+//! Uses the official public API designed for programmatic access.
 
 use super::error::ScraperError;
 use super::rate_limiter::RateLimiter;
 use super::{JobScraper, ScraperResult};
-use jobsentinel_domain::normalization::infer_remote_status;
-use jobsentinel_domain::Job;
+use jobsentinel_domain::{
+    normalization::infer_remote_status, v3_source_manifest::USAJOBS_REQUEST_LIMIT_PER_HOUR, Job,
+};
 
 use async_trait::async_trait;
 use chrono::Utc;
 use jobsentinel_network::{send_external_http_text_with_retry, ExternalHttpRequest};
 use jobsentinel_security::redacted_secret_for_debug;
 use serde::Deserialize;
-use std::fmt;
+use std::{fmt, num::NonZeroU16};
 
 const BASE_URL: &str = "https://data.usajobs.gov";
 const SEARCH_ENDPOINT: &str = "/api/Search";
 const MAX_RESULTS_PER_PAGE: u32 = 500;
-
 /// USAJobs API scraper for federal government positions
 #[derive(Clone)]
 pub struct UsaJobsScraper {
@@ -46,8 +45,10 @@ pub struct UsaJobsScraper {
     pub date_posted_days: Option<u8>,
     /// Maximum results to return
     pub limit: usize,
-    /// Rate limiter for respecting USAJobs API limits
+    /// Shared source request limiter
     pub rate_limiter: RateLimiter,
+    /// JobSentinel policy ceiling for requests to this source
+    pub request_limit_per_hour: u32,
 }
 
 impl fmt::Debug for UsaJobsScraper {
@@ -63,6 +64,7 @@ impl fmt::Debug for UsaJobsScraper {
             .field("pay_grade_max", &self.pay_grade_max)
             .field("date_posted_days", &self.date_posted_days)
             .field("limit", &self.limit)
+            .field("request_limit_per_hour", &self.request_limit_per_hour)
             .field("rate_limiter", &self.rate_limiter)
             .finish()
     }
@@ -83,6 +85,7 @@ impl UsaJobsScraper {
             date_posted_days: Some(30), // Default to last 30 days
             limit: 100,
             rate_limiter: RateLimiter::shared(),
+            request_limit_per_hour: u32::from(USAJOBS_REQUEST_LIMIT_PER_HOUR),
         }
     }
 
@@ -124,6 +127,12 @@ impl UsaJobsScraper {
         self
     }
 
+    /// Apply the current JobSentinel source-policy ceiling.
+    pub fn with_request_limit_per_hour(mut self, request_limit_per_hour: NonZeroU16) -> Self {
+        self.request_limit_per_hour = u32::from(request_limit_per_hour.get());
+        self
+    }
+
     fn build_request(
         &self,
         url: &str,
@@ -143,6 +152,7 @@ impl UsaJobsScraper {
         }
 
         Ok(ExternalHttpRequest::get(url)
+            .without_retries()
             .user_agent(&self.email)
             .header("Host", "data.usajobs.gov")
             .header("Authorization-Key", &self.api_key)
@@ -202,8 +212,9 @@ impl UsaJobsScraper {
     async fn fetch_jobs(&self) -> ScraperResult {
         tracing::info!("Fetching jobs from USAJobs API");
 
-        // Use rate limiter (official API, generous limit)
-        self.rate_limiter.wait("usajobs", 1000).await;
+        self.rate_limiter
+            .wait_paced("usajobs", self.request_limit_per_hour)
+            .await;
 
         let url = format!("{}{}", BASE_URL, SEARCH_ENDPOINT);
         let params = self.build_query_params(1);
@@ -381,7 +392,7 @@ struct SearchResultItem {
 #[serde(rename_all = "PascalCase")]
 struct JobDescriptor {
     position_title: String,
-    #[serde(default)]
+    #[serde(rename = "PositionURI", default)]
     position_uri: String,
     #[serde(default)]
     position_location_display: String,

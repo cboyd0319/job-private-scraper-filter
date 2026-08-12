@@ -45,7 +45,7 @@ export function makeConfig() {
     },
     remoteok: { enabled: false, tags: [], limit: 25 },
     weworkremotely: { enabled: false, limit: 25 },
-    builtin: { enabled: false, cities: [], limit: 25 },
+    builtin: { enabled: false, remote_only: false, limit: 25 },
     hn_hiring: { enabled: false, remote_only: false, limit: 25 },
     dice: {
       enabled: false,

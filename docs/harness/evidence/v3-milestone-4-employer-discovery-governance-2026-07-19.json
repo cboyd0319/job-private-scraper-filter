@@ -1,0 +1,87 @@
+{
+  "schema": "jobsentinel.feature_evidence.v1",
+  "feature_id": "v3-milestone-4-source-graph-browser-companion",
+  "slice": "employer-discovery-governance",
+  "behavior": "A pasted public job URL is canonicalized and checked against hard source policy before trusted native review. Exact current source policy and manifest authorization is required immediately before the single credential-free HTTPS request and again before the reviewed result is stored.",
+  "result": "passing",
+  "verified_at": "2026-07-19T21:04:57Z",
+  "revision": "43675a11328afb6bb170b3e021ad1611830dd0a5",
+  "revision_scope": "The committed user-directed source policy and EmployerDiscovery manifest, Schema.org fixture, application grant and pending-review boundaries, trusted native confirmation adapter, durable source identity, source guidance, startup governance installation, and focused tests.",
+  "platform": "local macOS arm64 host",
+  "commands": [
+    {
+      "command": "env -u JOBSENTINEL_LIVE_KEYRING_TESTS cargo test -p jobsentinel-domain --lib employer_discovery --no-default-features",
+      "exit_status": 0,
+      "relevant_result": "All 3 focused domain tests passed. EmployerDiscovery requires the exact UserReview grant, rejects cross-operation or paired-browser grants, and blocks fixture drift.",
+      "caveat": "The fixture is synthetic Schema.org JSON-LD and declares incomplete source coverage."
+    },
+    {
+      "command": "env -u JOBSENTINEL_LIVE_KEYRING_TESTS cargo test -p jobsentinel-application --lib service::tests --no-default-features; env -u JOBSENTINEL_LIVE_KEYRING_TESTS cargo test -p jobsentinel-application --lib v3_source_governance_user_actions_tests --no-default-features; env -u JOBSENTINEL_LIVE_KEYRING_TESTS cargo test -p jobsentinel-application --lib pending::tests --no-default-features",
+      "exit_status": 0,
+      "relevant_result": "All 9 import-service tests, 3 user-source governance tests, and 2 bounded pending-review tests passed. Missing review blocks before transport, policy drift blocks storage without discarding pending work, and the exact in-memory grant follows only the staged job.",
+      "caveat": "Every Rust command explicitly disabled live keyring tests. No live page was fetched."
+    },
+    {
+      "command": "env -u JOBSENTINEL_LIVE_KEYRING_TESTS cargo test -p jobsentinel --lib ipc::import::tests --no-default-features",
+      "exit_status": 0,
+      "relevant_result": "All 6 focused desktop adapter tests passed. Native-review targets are canonical, policy-blocked destinations stop first, and dialog copy excludes credentials, query data, and fragments.",
+      "caveat": "The native dialog was statically reviewed but not launched under the unattended no-prompt constraint."
+    },
+    {
+      "command": "npm run test:run -- src/shared/jobSourceGuidance.test.ts src/features/dashboard/components/JobImportModal.test.tsx; npm run typecheck; npm run lint",
+      "exit_status": 0,
+      "relevant_result": "All 26 focused frontend tests passed, TypeScript passed, and ESLint passed. The durable user-source-actions identity renders as plain Saved by you guidance.",
+      "caveat": "The full frontend suite was intentionally not rerun. Focused changed-behavior tests were used per the execution plan."
+    },
+    {
+      "command": "env -u JOBSENTINEL_LIVE_KEYRING_TESTS cargo fmt --all -- --check; env -u JOBSENTINEL_LIVE_KEYRING_TESTS cargo clippy -p jobsentinel-domain -p jobsentinel-application -p jobsentinel --lib --no-default-features -- -D warnings; npm run harness:check; npm run lint:architecture; npm run lint:file-size; git diff --check",
+      "exit_status": 0,
+      "relevant_result": "Formatting, changed Rust owners with warnings denied, harness state, architecture boundaries, hard file limits, and patch whitespace passed.",
+      "caveat": "The full Rust workspace suite was intentionally not rerun. Repository GitHub Actions remain temporarily disabled by user direction and must be restored before merge."
+    },
+    {
+      "command": "npm run test:scripts",
+      "exit_status": 0,
+      "relevant_result": "All 838 repository script-contract tests passed after the canonical active-state and evidence updates.",
+      "caveat": "The first run correctly rejected temporary startup-budget overflow; the final run passed after compacting canonical state."
+    },
+    {
+      "command": "One independent read-only adversarial review of transport order, native authority, grant scope, policy and manifest drift, pending-state retention, durable source identity, repository boundaries, and fixture truth",
+      "exit_status": 0,
+      "relevant_result": "The reviewer returned APPROVE after the manifest was narrowed to the delivered EmployerDiscovery action, authorization was added before fetch and storage, grant scope moved into bounded pending state, architecture ownership was restored, and IPC tests were extracted below the source limit.",
+      "caveat": "Browser Import pairing, regional packs, generic Smart Paste, and browser-origin applied logging remain separate active Milestone 4 slices."
+    }
+  ],
+  "source": "docs/plans/v3/master-exec-plan.md",
+  "measurements": {
+    "domain_employer_discovery_tests_passed": 3,
+    "application_import_service_tests_passed": 9,
+    "application_user_source_governance_tests_passed": 3,
+    "application_pending_review_tests_passed": 2,
+    "native_import_adapter_tests_passed": 6,
+    "focused_frontend_tests_passed": 26,
+    "script_contract_tests_passed": 838,
+    "adversarial_reviewers_passed": 1
+  },
+  "decisions": {
+    "manifest_scope": "The user-directed source manifest contains only the delivered EmployerDiscovery action. RegionalPackCheck, VisiblePageCapture, SmartPaste, and AppliedLogging remain absent until their runtime owners consume exact grants.",
+    "review_authority": "Tauri canonicalizes and hard-blocks the destination, then obtains one trusted native approval before constructing the exact application-owned UserReview grant. Renderer state cannot construct or submit the grant.",
+    "transport": "Application authorization compares the exact installed policy and manifest immediately before one credential-free HTTPS request with redirects disabled.",
+    "pending_scope": "The nonsecret exact grant is retained only beside the bounded in-memory pending job and expires with that item. It is not stored in SQLite or user configuration.",
+    "durable_confirmation": "Saving reloads the retained grant and reauthorizes current policy and manifest state before the first database write. Drift keeps the pending item available for recovery.",
+    "source_identity": "New reviewed imports persist the graph-owned source id user-source-actions and render as user-saved guidance.",
+    "credential_tests": "Keep live keyring tests opt-in. Every unattended Rust command unsets JOBSENTINEL_LIVE_KEYRING_TESTS."
+  },
+  "review": {
+    "adversarial_verdict": "APPROVE after runtime authorization, pending-grant, repository-boundary, and fixture-truth corrections",
+    "privacy_or_security_regression": false,
+    "open_slice_blockers": 0,
+    "remaining_findings": [
+      "Milestone 4 still needs starter UK, EU, and India region manifests, origin-bound Browser Import pairing, generic Smart Paste and browser-origin applied-logging disposition, simulator closure, and Gate 3 evidence.",
+      "Native dialog behavior remains statically reviewed but not live-run under the unattended no-prompt constraint.",
+      "Windows 11, macOS 26, Linux, installed-app, and signed-package proof remain release-matrix work.",
+      "Repository GitHub Actions must be re-enabled and verified before merge.",
+      "Commit 43675a11 is local-only until a non-Keychain GitHub credential becomes available."
+    ]
+  }
+}

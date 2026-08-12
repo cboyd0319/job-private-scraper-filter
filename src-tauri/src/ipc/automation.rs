@@ -22,9 +22,11 @@ use tauri::State;
 
 mod responses;
 
+use responses::application_screening_answer_previews;
 pub(crate) use responses::{
-    ApplicationProfilePreviewResponse, ApplicationProfileResponse, AtsDetectionResponse,
-    AttemptResponse, ScreeningAnswerResponse,
+    ApplicationProfilePreviewResponse, ApplicationProfileResponse,
+    ApplicationScreeningAnswerPreviewResponse, AtsDetectionResponse, AttemptResponse,
+    ScreeningAnswerResponse,
 };
 
 #[path = "automation_browser_commands.rs"]
@@ -192,6 +194,22 @@ pub(crate) async fn get_screening_answers(
             .collect()),
         Err(e) => Err(user_friendly_error("Failed to get screening answers", e)),
     }
+}
+
+/// Get only non-user-controlled saved answers needed for application preview.
+#[tauri::command]
+pub(crate) async fn get_application_screening_answer_previews(
+    state: State<'_, AppState>,
+) -> Result<Vec<ApplicationScreeningAnswerPreviewResponse>, String> {
+    tracing::info!("Command: get_application_screening_answer_previews");
+
+    state
+        .database
+        .profile_manager()
+        .get_screening_answers()
+        .await
+        .map(application_screening_answer_previews)
+        .map_err(|e| user_friendly_error("Failed to get application screening previews", e))
 }
 
 /// Find the best answer for a specific question

@@ -37,11 +37,11 @@ describe("InterviewScheduler", () => {
       });
     });
 
-    it("shows upcoming and past tabs", async () => {
+    it("shows open and past tabs", async () => {
       render(<InterviewScheduler onClose={mockOnClose} />);
 
       await waitFor(() => {
-        expect(screen.getByText(/Upcoming \(\d+\)/)).toBeInTheDocument();
+        expect(screen.getByText(/Open \(\d+\)/)).toBeInTheDocument();
         expect(screen.getByText(/Past \(\d+\)/)).toBeInTheDocument();
       });
     });
@@ -159,7 +159,7 @@ describe("InterviewScheduler", () => {
       render(<InterviewScheduler onClose={mockOnClose} />);
 
       await waitFor(() => {
-        expect(screen.getByText("No upcoming interviews scheduled")).toBeInTheDocument();
+        expect(screen.getByText("No open interviews")).toBeInTheDocument();
       });
     });
   });
@@ -295,11 +295,21 @@ describe("InterviewScheduler", () => {
       await waitFor(() => {
         expect(screen.getByText(/Past \(1\)/)).toBeInTheDocument();
       });
+      expect(mockInvoke).not.toHaveBeenCalledWith(
+        "get_interview_followup",
+        expect.anything(),
+        expect.anything(),
+      );
 
       fireEvent.click(screen.getByText(/Past \(1\)/));
 
       await waitFor(() => {
         expect(screen.getByText("Send thank you note")).toBeInTheDocument();
+        expect(mockInvoke).toHaveBeenCalledWith(
+          "get_interview_followup",
+          { interviewId: mockPastInterviews[0].id },
+          expect.anything(),
+        );
       });
     });
   });

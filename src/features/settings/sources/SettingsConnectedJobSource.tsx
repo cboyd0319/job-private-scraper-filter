@@ -1,3 +1,5 @@
+/** Renders review and local history for the disabled JobsWithGPT source. */
+
 import type { Dispatch, SetStateAction } from "react";
 import { Badge } from "../../../ui/Badge";
 import { Button } from "../../../ui/Button";
@@ -46,7 +48,7 @@ function formatSourceRequestOutcome(outcome: SourceRequestOutcome): string {
       return "Took too long";
     case "started":
     default:
-      return "Started";
+      return "Outcome unknown; request may not have been sent.";
   }
 }
 
@@ -77,11 +79,8 @@ export function SettingsConnectedJobSource({
           <span className="font-medium text-surface-800 dark:text-surface-200">
             Connected job source
           </span>
-          <Badge
-            variant={jobsWithGptPayloadApproved ? "success" : "surface"}
-            size="sm"
-          >
-            {jobsWithGptPayloadApproved ? "Approved" : "Review required"}
+          <Badge variant="surface" size="sm">
+            Provider review pending
           </Badge>
         </div>
       </div>
@@ -97,8 +96,19 @@ export function SettingsConnectedJobSource({
           });
         }}
         placeholder="Leave blank unless you intentionally use an outside job feed"
-        hint="Off until you review and approve the details below"
+        hint="Saved locally; scheduled contact is currently disabled"
       />
+
+      <div className="mt-3 flex items-start gap-1.5 rounded-lg border border-amber-200 bg-amber-50 p-2 text-xs text-amber-700 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-300">
+        <SettingsSymbol
+          icon="warning"
+          className="mt-0.5 h-3.5 w-3.5 flex-shrink-0"
+        />
+        <span>
+          Scheduled contact is disabled while JobSentinel verifies the provider
+          endpoint and usage policy.
+        </span>
+      </div>
 
       {hasJobsWithGptEndpoint && !hasJobsWithGptTitles && (
         <div className="mt-3 flex items-start gap-1.5 text-xs text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-2">
@@ -116,7 +126,7 @@ export function SettingsConnectedJobSource({
       {jobsWithGptPayload && (
         <div className="mt-3 rounded-lg border border-surface-200 dark:border-surface-700 bg-surface-50 dark:bg-surface-800/50 p-3">
           <p className="text-xs font-semibold text-surface-700 dark:text-surface-200 mb-2">
-            Review before JobSentinel contacts this source
+            Approve these exact details before JobSentinel contacts this source
           </p>
           <dl className="grid grid-cols-1 gap-2 text-xs text-surface-600 dark:text-surface-300 sm:grid-cols-[8rem_1fr]">
             <dt className="font-medium">Job-source site</dt>
@@ -146,15 +156,15 @@ export function SettingsConnectedJobSource({
             <dd>{jobsWithGptPayload.limit}</dd>
           </dl>
           {jobsWithGptPayloadApproved && (
-            <p className="mt-3 text-xs text-green-700 dark:text-green-300">
-              Approved for these exact details. If anything changes, this source
-              stays off until you approve it again.
+            <p className="mt-3 text-xs text-amber-700 dark:text-amber-300">
+              These exact details were approved previously. Scheduled contact
+              remains disabled until provider review completes.
             </p>
           )}
           {(jobsWithGptLastRequest || jobsWithGptPayloadApproved) && (
             <div className="mt-3 rounded-md border border-surface-200 dark:border-surface-700 bg-white dark:bg-surface-900 p-2 text-xs text-surface-600 dark:text-surface-300">
               <p className="font-semibold text-surface-700 dark:text-surface-200">
-                Last contacted:{" "}
+                Last contacted or attempted:{" "}
                 {jobsWithGptLastRequest
                   ? formatSourceRequestTime(jobsWithGptLastRequest.sentAt)
                   : "Not yet"}
@@ -189,10 +199,11 @@ export function SettingsConnectedJobSource({
           <div className="mt-3 flex flex-wrap gap-2">
             <Button
               size="sm"
-              variant={jobsWithGptPayloadApproved ? "secondary" : "primary"}
+              variant="secondary"
               onClick={onApprove}
+              disabled
             >
-              Approve these exact details
+              Provider review pending
             </Button>
             <Button
               size="sm"

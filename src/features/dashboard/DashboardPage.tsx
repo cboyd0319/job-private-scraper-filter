@@ -41,6 +41,7 @@ import {
   DashboardLinkedInWorkbenchModal,
   DashboardSettingsPanel,
 } from "./components/DashboardOverlays";
+import type { CompanyResearchTarget } from "../../shared/companyResearch";
 import { DashboardWidgetsSection } from "./components/DashboardWidgetsSection";
 import { QuickActions } from "./components/QuickActions";
 import { getNoJobsEmptyStateCopy } from "./components/noJobsEmptyStateCopy";
@@ -51,6 +52,7 @@ export default function Dashboard({
   renderApplicationAssistAction,
   renderCompanyResearch,
   settingsPage: SettingsPage,
+  settingsInitialTab,
   linkedinWorkbench,
   showSettings: showSettingsProp,
   onShowSettingsChange,
@@ -72,7 +74,7 @@ export default function Dashboard({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showSettingsLocal, setShowSettingsLocal] = useState(false);
-  const [researchCompany, setResearchCompany] = useState<string | null>(null);
+  const [researchTarget, setResearchTarget] = useState<CompanyResearchTarget | null>(null);
   const [showImportModal, setShowImportModal] = useState(false);
   const [showLinkedInWorkbench, setShowLinkedInWorkbench] = useState(false);
   const [salaryFloorUsd, setSalaryFloorUsd] = useState<number | null>(null);
@@ -176,11 +178,11 @@ export default function Dashboard({
   );
 
   useEffect(() => {
-    if (!researchCompany) return;
+    if (!researchTarget) return;
 
     const handleResearchEscape = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        setResearchCompany(null);
+        setResearchTarget(null);
       }
     };
 
@@ -188,7 +190,7 @@ export default function Dashboard({
     return () => {
       document.removeEventListener("keydown", handleResearchEscape);
     };
-  }, [researchCompany]);
+  }, [researchTarget]);
 
   const { selectedIndex, isKeyboardActive } = useDashboardKeyboard({
     items: filters.filteredAndSortedJobs,
@@ -198,7 +200,7 @@ export default function Dashboard({
     onHide: (job) => jobOps.handleHideJob(job.id),
     onBookmark: (job) => jobOps.handleToggleBookmark(job.id),
     onNotes: (job) => jobOps.handleEditNotes(job.id, job.notes),
-    onResearch: (job) => setResearchCompany(job.company),
+    onResearch: (job) => setResearchTarget({ companyName: job.company, jobHash: job.hash }),
     onToggleSelect: (job) => {
       jobOps.setSelectedJobIds((prev) => {
         const next = new Set(prev);
@@ -270,6 +272,7 @@ export default function Dashboard({
       <DashboardSettingsPanel onClose={handleSettingsClose}>
         {SettingsPage ? (
           <SettingsPage
+            initialTab={settingsInitialTab}
             linkedinWorkbench={linkedinWorkbench}
             onClose={handleSettingsClose}
           />
@@ -397,7 +400,7 @@ export default function Dashboard({
             onHideJob={jobOps.handleHideJob}
             onToggleBookmark={jobOps.handleToggleBookmark}
             onEditNotes={jobOps.handleEditNotes}
-            onResearchCompany={setResearchCompany}
+            onResearchCompany={(companyName, jobHash) => setResearchTarget({ companyName, jobHash })}
             renderApplicationAssistAction={
               renderApplicationAssistAction && onNavigate
                 ? (job) =>
@@ -467,9 +470,9 @@ export default function Dashboard({
       />
 
       <DashboardCompanyResearchOverlay
-        researchCompany={researchCompany}
+        researchTarget={researchTarget}
         renderCompanyResearch={renderCompanyResearch}
-        onClose={() => setResearchCompany(null)}
+        onClose={() => setResearchTarget(null)}
       />
 
       <DashboardImportJobModal

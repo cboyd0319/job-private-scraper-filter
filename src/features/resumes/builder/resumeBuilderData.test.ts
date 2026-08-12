@@ -43,13 +43,15 @@ function createResumeWithEvidenceSections(): ResumeData {
         end_date: null,
       },
     ],
+    clearance: "User-confirmed current Secret clearance",
+    military_info: "Army 25B with user-confirmed network operations duties",
     created_at: "2026-06-18T00:00:00Z",
     updated_at: "2026-06-18T00:00:00Z",
   };
 }
 
 describe("resume builder data conversion", () => {
-  it("preserves certification and project evidence in the shared payload", () => {
+  it("preserves credential, project, and military evidence in the shared payload", () => {
     const resume = createResumeWithEvidenceSections();
     const structured = toStructuredResume(resume);
 
@@ -72,10 +74,18 @@ describe("resume builder data conversion", () => {
         end_date: null,
       },
     ]);
+    expect(structured.clearance).toBe("User-confirmed current Secret clearance");
+    expect(structured.military_info).toBe(
+      "Army 25B with user-confirmed network operations duties",
+    );
 
     expect(toResumeAnalysisInput(resume)).toEqual({
       resume: structured,
       custom_sections: {},
+      evidence_snapshot: {
+        source_id: "resume-draft:7",
+        revision: "2026-06-18T00:00:00Z",
+      },
     });
   });
 

@@ -1,3 +1,5 @@
+/** Verifies resume matching recovery paths and evidence-grounded bullet guidance. */
+
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -132,7 +134,7 @@ describe("ResumeMatch recovery and bullet guidance", () => {
     expect(screen.getByText("Use one simple structure")).toBeInTheDocument();
     expect(screen.getByText(/Action \+ scope \+ method \+ result/i)).toBeInTheDocument();
     expect(screen.getByText(/X-Y-Z/i)).toBeInTheDocument();
-    expect(screen.getByText(/CAR/i)).toBeInTheDocument();
+    expect(screen.getByText("CAR")).toBeInTheDocument();
     expect(screen.getByText(/Only use details that are true/i)).toBeInTheDocument();
     expect(screen.queryByText(/beat ATS/i)).not.toBeInTheDocument();
   });

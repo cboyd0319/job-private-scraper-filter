@@ -1,0 +1,31 @@
+{
+  "schema": "jobsentinel.feature_evidence.v1",
+  "feature_id": "v3-workstream-selection",
+  "behavior": "The v3 strategy package and every unfinished maintained-doc commitment are dispositioned in one ordered, user-approved master plan before implementation begins.",
+  "result": "passing",
+  "verified_at": "2026-07-18T22:46:13Z",
+  "revision": "5f120dfe40ecfb979b7a02abddde44f54279d51f",
+  "revision_scope": "The committed v3 master plan and priority disposition approved by the user before Milestone 0 activation.",
+  "platform": "local Darwin arm64 host",
+  "commands": [
+    {
+      "command": "npm run harness:check",
+      "exit_status": 0,
+      "relevant_result": "The active plan, feature state, architecture, workflow policy, and maintained-file coverage agree.",
+      "caveat": "GitHub Actions is temporarily disabled by user direction and must be restored before the draft PR is merged."
+    },
+    {
+      "command": "npm run lint:docs",
+      "exit_status": 0,
+      "relevant_result": "Maintained Markdown, links, and prose pass the documentation gate.",
+      "caveat": "This evidence approves planning authority only; no v3 runtime behavior is implemented."
+    }
+  ],
+  "source": "docs/plans/v3/master-exec-plan.md",
+  "approval": {
+    "gate": 0,
+    "approved": true,
+    "instruction": "FULLY execute on docs/plans/v3/master-exec-plan.md",
+    "next_feature": "v3-milestone-0-repository-truth"
+  }
+}

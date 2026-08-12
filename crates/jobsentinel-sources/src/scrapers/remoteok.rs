@@ -8,8 +8,9 @@ use super::rate_limiter::RateLimiter;
 use super::{JobScraper, ScraperResult, JOBSENTINEL_USER_AGENT};
 use async_trait::async_trait;
 use chrono::Utc;
-use jobsentinel_domain::Job;
+use jobsentinel_domain::{v3_source_manifest::REMOTEOK_REQUEST_LIMIT_PER_HOUR, Job};
 use jobsentinel_network::{send_external_http_text_with_retry, ExternalHttpRequest};
+use std::num::NonZeroU16;
 
 /// RemoteOK job scraper
 #[derive(Debug, Clone)]
@@ -20,6 +21,8 @@ pub struct RemoteOkScraper {
     pub limit: usize,
     /// Rate limiter for respecting RemoteOK's request limits
     pub rate_limiter: RateLimiter,
+    /// JobSentinel policy rate for this source
+    pub request_limit_per_hour: u32,
 }
 
 impl RemoteOkScraper {
@@ -28,23 +31,35 @@ impl RemoteOkScraper {
             tags,
             limit,
             rate_limiter: RateLimiter::shared(),
+            request_limit_per_hour: u32::from(REMOTEOK_REQUEST_LIMIT_PER_HOUR),
         }
+    }
+
+    #[must_use]
+    pub fn with_request_limit_per_hour(mut self, request_limit_per_hour: NonZeroU16) -> Self {
+        self.request_limit_per_hour = u32::from(request_limit_per_hour.get());
+        self
+    }
+
+    fn request(url: &str) -> ExternalHttpRequest {
+        ExternalHttpRequest::get(url)
+            .without_retries()
+            .user_agent(JOBSENTINEL_USER_AGENT)
     }
 
     /// Fetch jobs from RemoteOK API
     async fn fetch_jobs(&self) -> ScraperResult {
         tracing::info!("Fetching jobs from RemoteOK");
 
-        // Use rate limiter (500 req/hr - public API)
-        self.rate_limiter.wait("remoteok", 500).await;
+        self.rate_limiter
+            .wait_paced("remoteok", self.request_limit_per_hour)
+            .await;
 
         let url = "https://remoteok.com/api";
 
-        let response = send_external_http_text_with_retry(
-            ExternalHttpRequest::get(url).user_agent(JOBSENTINEL_USER_AGENT),
-        )
-        .await
-        .map_err(|error| ScraperError::from_external("remoteok", error))?;
+        let response = send_external_http_text_with_retry(Self::request(url))
+            .await
+            .map_err(|error| ScraperError::from_external("remoteok", error))?;
 
         if !(200..300).contains(&response.status) {
             return Err(ScraperError::http_status(

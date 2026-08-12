@@ -1,0 +1,59 @@
+{
+  "schema": "jobsentinel.feature_evidence.v1",
+  "feature_id": "v3-milestone-7-agent-pack-runtime",
+  "slice": "windows-private-storage-source-hardening",
+  "behavior": "Windows private pack storage applies a protected closed DACL for the current user, Local System, and Builtin Administrators; walks and creates descendants relative to retained directory handles; rejects reparses, hard-linked files, alternate data stream names, and clobbering promotion; and keeps restrictive unreadable files fail-closed.",
+  "result": "partial",
+  "verified_at": "2026-08-12T04:06:25Z",
+  "revision": "654d08f525fc201da9d1dd8737c42620a13b0af9",
+  "revision_scope": "The Windows ACL policy, handle-relative private directory and file primitives, signed-pack artifact integration, source tests, and dependency ownership committed at the recorded revision.",
+  "platform": {
+    "macos": "macOS 27.0 arm64 host used for focused tests and source checks.",
+    "windows": "Not live-run. Isolated x86_64-pc-windows-msvc production and test metadata compilation passed; the normal cross-target Cargo check reached ring and stopped because this host has no MSVC SDK assert.h header.",
+    "linux": "Not run for this Windows-only source slice; the affected Unix implementation is unchanged."
+  },
+  "commands": [
+    {
+      "command": "Repository-pinned rustc x86_64-pc-windows-msvc production and test metadata probes with -D warnings",
+      "exit_status": 0,
+      "relevant_result": "The complete Windows platform private-storage module graph and the Windows application artifact adapter compiled for the Windows target. Windows-only tests also compiled with warnings denied."
+    },
+    {
+      "command": "RUSTC=<repository-pinned-rustc> cargo check -p jobsentinel-platform --target x86_64-pc-windows-msvc",
+      "exit_status": 101,
+      "relevant_result": "Rust dependencies compiled until ring invoked the target C compiler.",
+      "caveat": "The check stopped outside the changed crate because the macOS host lacks the MSVC SDK assert.h header. This is an environment gap, not a passing Windows build or runtime result."
+    },
+    {
+      "command": "cargo test -p jobsentinel-platform",
+      "exit_status": 0,
+      "relevant_result": "All 37 executed platform tests passed on macOS; one existing environment-isolation test remained ignored. The platform-neutral closed ACL policy tests passed."
+    },
+    {
+      "command": "node scripts/dev/run-cargo.mjs test -p jobsentinel-application pack_runtime",
+      "exit_status": 0,
+      "relevant_result": "All 35 pack-runtime tests passed, including artifact persistence, integrity quarantine, symlink redirection rejection, lifecycle, recovery, reviewed execution, and evaluation."
+    },
+    {
+      "command": "cargo clippy -p jobsentinel-platform --lib -- -D warnings && cargo clippy -p jobsentinel-application --lib -- -D warnings",
+      "exit_status": 0,
+      "relevant_result": "Both affected production libraries passed clippy with warnings denied."
+    },
+    {
+      "command": "npm run harness:check && npm run lint:file-size && npm run lint:file-description && npm run lint:architecture && npm run lint:deps && npm run lint:deps:why && npm run lint:security && git diff --check",
+      "exit_status": 0,
+      "relevant_result": "Harness and structure coverage, hard file-size limits, changed-file responsibility headers, architecture, dependency pins and rationale, security sensors, secret scan, and patch validation passed."
+    },
+    {
+      "command": "Independent Rust, security, and adversarial source re-review",
+      "exit_status": 0,
+      "relevant_result": "Reviews first blocked missing synchronous access, overbroad ACL repair, and pre-validation hard-link mutation. The corrected directory-only repair and validated file path received final PASS, SAFE, and SOUND verdicts."
+    }
+  ],
+  "caveats": [
+    "Windows 11 native ACL ownership and privacy, reparse rejection, artifact persistence, and rollback still require live proof.",
+    "Restrictive unreadable files fail closed instead of receiving an ACL repair because link-count validation must precede any DACL mutation.",
+    "The production trust registry and startup artifact reconciliation remain blocked on approved public key identities and capability ceilings.",
+    "Milestone 7 remains active."
+  ]
+}

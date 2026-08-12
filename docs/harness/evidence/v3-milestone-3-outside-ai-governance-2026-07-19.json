@@ -1,0 +1,76 @@
+{
+  "schema": "jobsentinel.feature_evidence.v1",
+  "feature_id": "v3-milestone-3-recovery-portability-policy-repair",
+  "slice": "governed-outside-ai-approval-audit-and-recovery",
+  "behavior": "The shipped Outside AI summary can send only an unchanged, user-selected subset of backend-verified stored public job fields after a trusted native confirmation of the backend-canonical provider, destination, model, and field count. One expiring approval starts one durable metadata-only operation, records a bound privacy receipt before provider transport, never automatically retries, and preserves uncertain delivery or cancellation as ambiguous with a visible do-not-retry recovery path.",
+  "result": "passing",
+  "verified_at": "2026-07-19T10:20:02Z",
+  "revision": "02465456a7c7398c037b24d1db195f751f792cce",
+  "revision_scope": "The committed Rust provider boundary, application orchestration, SQLite Outside AI lifecycle and receipt constraints, Tauri native confirmation and cancellation adapter, bounded Settings activity projection, removal-only review UI, and closest security and capability documentation.",
+  "platform": "local macOS 27.0 arm64 host",
+  "commands": [
+    {
+      "command": "env -u JOBSENTINEL_LIVE_KEYRING_TESTS cargo test -p jobsentinel-ai --lib; env -u JOBSENTINEL_LIVE_KEYRING_TESTS cargo test -p jobsentinel-storage outside_ai --lib; env -u JOBSENTINEL_LIVE_KEYRING_TESTS cargo test -p jobsentinel-application 'external_ai::tests::' --lib; env -u JOBSENTINEL_LIVE_KEYRING_TESTS cargo test -p jobsentinel approval_ids_are_bounded_before_entering_the_active_map --lib",
+      "exit_status": 0,
+      "relevant_result": "All 13 AI boundary tests, 9 storage lifecycle tests, 12 application orchestration tests, and the focused Tauri approval-ID test passed. Coverage includes exact digest binding, stored-job provenance, single use, receipt-before-provider ordering, durable cancellation, startup reconciliation, protected-data rejection, ambiguous transport outcomes, 408 and 5xx uncertainty, and metadata-only activity.",
+      "caveat": "Live keyring tests were explicitly disabled. No provider network request, Tauri launch, signed build, or production credential path ran."
+    },
+    {
+      "command": "npm run test:run -- src/features/dashboard/components/ExternalAiJobSummary.test.tsx src/features/dashboard/components/ExternalAiReviewDialog.test.tsx src/features/settings/external-ai/SettingsExternalAiRequestHistory.test.tsx src/features/settings/external-ai/SettingsExternalAiSection.test.tsx src/shared/externalAi/externalAiBackendTransport.test.ts src/shared/externalAi/internal/aiGateway.test.ts src/shared/errorReporting/messages.test.ts; npm run lint; npm run typecheck; npm run lint:file-size; npm run lint:external-ai; npm run lint:tauri-invokes",
+      "exit_status": 0,
+      "relevant_result": "All 66 focused frontend tests passed with lint, type checks, hard file limits, external-AI ownership, and Tauri command registration. The UI permits field removal but blocks additions and rewrites, waits for durable cancellation, blocks duplicate retries after ambiguity, and shows the backend-owned recovery status without audit secrets.",
+      "caveat": "The full frontend suite was intentionally not run because the focused changed-behavior lane and static owners covered this slice."
+    },
+    {
+      "command": "env -u JOBSENTINEL_LIVE_KEYRING_TESTS cargo test -p jobsentinel-security credential_free_https_rejects_private_url_components --lib; env -u JOBSENTINEL_LIVE_KEYRING_TESTS cargo test -p jobsentinel-domain v3_contract_tests --lib; env -u JOBSENTINEL_LIVE_KEYRING_TESTS cargo test -p jobsentinel-storage migration_13_backfills_existing_policy_once --lib; env -u JOBSENTINEL_LIVE_KEYRING_TESTS cargo test -p jobsentinel-storage portable_backup_refuses_a_newer_migration_ledger --lib; env -u JOBSENTINEL_LIVE_KEYRING_TESTS npm run lint:sqlx",
+      "exit_status": 0,
+      "relevant_result": "Credential-free destination validation, all 9 v3 contract tests, migration compatibility, newer-ledger refusal, migrations 0 through 14, and SQLx offline metadata passed against isolated local databases.",
+      "caveat": "No live Keychain, network, installed-app, or platform package behavior was exercised."
+    },
+    {
+      "command": "env -u JOBSENTINEL_LIVE_KEYRING_TESTS cargo fmt --all -- --check; env -u JOBSENTINEL_LIVE_KEYRING_TESTS cargo clippy -p jobsentinel-ai -p jobsentinel-storage -p jobsentinel-application -p jobsentinel --lib -- -D warnings; npm run harness:check; npm run lint:docs; npm run lint:deps; npm run lint:architecture; npm run lint:security; git diff --check",
+      "exit_status": 0,
+      "relevant_result": "Changed production Rust libraries passed formatting and Clippy with warnings denied. Harness state, docs, dependency pins, repository architecture, security sensors, secret scanning, and patch whitespace passed.",
+      "caveat": "The broad workspace test lane was not run while the user was away because downstream on-disk tests can enter live macOS credential paths. Repository GitHub Actions remain temporarily disabled by user direction."
+    },
+    {
+      "command": "Two independent read-only adversarial reviews of approval, provenance, credential ordering, transport uncertainty, cancellation races, SQLite enforcement, renderer boundaries, recovery visibility, exports, and retry behavior",
+      "exit_status": 0,
+      "relevant_result": "Both reviewers returned PASS after corrections for trusted native confirmation, stored-job provenance, typed uncertain outcomes, SQL receipt immutability, durable cancellation arbitration, removal-only editing, bounded approval IDs, real recovery activity, and 5xx ambiguity.",
+      "caveat": "Reviewers used only focused offline checks with live keyring tests disabled. They did not edit files, launch Tauri, or access a provider."
+    }
+  ],
+  "source": "docs/plans/v3/master-exec-plan.md",
+  "measurements": {
+    "ai_tests_passed": 13,
+    "storage_lifecycle_tests_passed": 9,
+    "application_tests_passed": 12,
+    "tauri_boundary_tests_passed": 1,
+    "frontend_tests_passed": 66,
+    "registered_tauri_commands": 208,
+    "adversarial_reviewers_passed": 2
+  },
+  "decisions": {
+    "authorization": "Renderer approval booleans and browser storage are not authorization. Rust verifies and canonicalizes the request, creates a short-lived pending review, and returns its single-use approval only after a trusted native confirmation.",
+    "provenance": "The request names one stored job. Rust reloads that job and accepts only an unchanged nonempty subset of title, company, location, and description. Additions, rewrites, resumes, private notes, veteran status, clearance claims, credentials, and unrelated local history fail closed.",
+    "credential_ordering": "An exact unexpired approval becomes started before provider credential access. Credential failure records a known failed outcome and no provider future is polled.",
+    "audit": "SQLite stores bounded lifecycle metadata and a SHA-256 request binding, not payloads, responses, credentials, models, private paths, or raw errors. A matching external privacy receipt is immutable, append-only, single use, and recorded before provider transport.",
+    "transport": "Provider POSTs have no automatic retry. Timeout, request loss, body-read uncertainty, HTTP 408, HTTP 5xx, unreadable success responses, interruption, and in-flight cancellation become ambiguous with do-not-retry guidance.",
+    "cancellation": "SQLite atomically arbitrates pending cancellation as cancelled and started cancellation as ambiguous. Provider success cannot overwrite a cancellation that won.",
+    "recovery": "Settings reads at most 20 backend-owned activity rows containing only provider, credential-free destination, status, and timestamps. Approval references, request digests, payloads, responses, credentials, and raw errors never cross that projection.",
+    "exports": "Outside AI operations remain local operational metadata and are excluded from reviewed plaintext export.",
+    "red_green": "Fail-first tests reproduced missing lifecycle APIs, direct receipt injection, renderer provenance replacement, cancellation races, missing activity, invalid approval IDs, duplicate retry, and 5xx misclassification before each correction.",
+    "credential_tests": "Keep live keyring tests opt-in. Every unattended Rust test or composite Rust verification command must unset JOBSENTINEL_LIVE_KEYRING_TESTS."
+  },
+  "review": {
+    "adversarial_verdict": "PASS after approval, provenance, ambiguity, cancellation, recovery, and 5xx corrections",
+    "privacy_or_security_regression": false,
+    "open_slice_blockers": 0,
+    "remaining_findings": [
+      "Milestone 3 offline repair, platform health, and package-repair fallback work remains active.",
+      "Trusted native confirmation and Settings activity still need installed-app GUI, keyboard, screen-reader, Windows 11, macOS 26, and Linux release-matrix proof.",
+      "No live provider call was made. Provider credentials, billing, availability, and response compatibility remain external-state release evidence.",
+      "Repository GitHub Actions must be re-enabled and verified before merge."
+    ]
+  }
+}

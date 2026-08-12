@@ -1,6 +1,6 @@
 {
   "name": "jobsentinel",
-  "version": "2.9.5",
+  "version": "3.0.0",
   "description": "Privacy-preserving local-first job-search assistant for desktop",
   "type": "module",
   "packageManager": "npm@12.0.1",
@@ -24,6 +24,7 @@
     "lint:security": "node scripts/checks/security-sensors.mjs && npm run lint:secrets",
     "lint:secrets": "node scripts/checks/secrets.mjs",
     "lint:bloat": "node scripts/checks/repo-bloat.mjs",
+    "lint:file-description": "node scripts/harness/checks/file-descriptions.mjs",
     "lint:file-size": "node scripts/checks/file-sizes.mjs",
     "lint:dup": "node scripts/checks/duplication.mjs",
     "lint:external-ai": "node scripts/checks/external-ai-gateway.mjs",
@@ -44,6 +45,7 @@
     "release:check-deps": "node scripts/checks/dependency-pins.mjs --latest && node scripts/checks/action-pins.mjs --latest",
     "release:check-env": "node scripts/release/check-release-environment.mjs",
     "release:readiness": "node scripts/release/check-release-readiness.mjs",
+    "release:sign-pack": "node scripts/release/sign-pack-envelope.mjs",
     "release:sbom": "node scripts/release/generate-release-sbom.mjs",
     "release:skills": "node scripts/release/package-agent-skills.mjs",
     "release:verify:public": "node scripts/release/verify-public-release-assets.mjs",
@@ -72,7 +74,9 @@
     "tauri:build": "tauri build",
     "tauri:build:linux-appimage": "node scripts/platform/build-linux-appimage.mjs",
     "tauri:build:macos": "node scripts/platform/build-macos-dmg.mjs",
+    "tauri:build:macos:stronger-local": "node scripts/platform/build-macos-dmg.mjs --runtime-profile stronger-local",
     "tauri:verify:macos": "node scripts/release/verify-macos-package.mjs",
+    "tauri:verify:macos:stronger-local": "node scripts/release/verify-macos-package.mjs --runtime-profile stronger-local",
     "tauri:verify:macos:latest": "node scripts/release/verify-latest-macos-release.mjs",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
@@ -123,7 +127,8 @@
     "typescript": "6.0.3",
     "typescript-eslint": "8.64.0",
     "vite": "8.1.5",
-    "vitest": "4.1.10"
+    "vitest": "4.1.10",
+    "yaml": "2.9.0"
   },
   "overrides": {
     "semver": "7.8.5",

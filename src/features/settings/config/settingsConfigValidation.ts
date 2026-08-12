@@ -212,8 +212,7 @@ export function isSettingsBackupConfig(value: unknown): value is Config {
     hasNumberField(weworkremotely, "limit") &&
     !!builtin &&
     hasBooleanField(builtin, "enabled") &&
-    hasStringArrayField(builtin, "cities") &&
-    hasOptionalStringField(builtin, "category") &&
+    hasBooleanField(builtin, "remote_only") &&
     hasNumberField(builtin, "limit") &&
     !!hnHiring &&
     hasBooleanField(hnHiring, "enabled") &&

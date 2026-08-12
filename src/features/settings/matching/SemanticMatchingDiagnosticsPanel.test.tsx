@@ -2,13 +2,34 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { SemanticMatchingDiagnosticsPanel } from "./SemanticMatchingDiagnosticsPanel";
-import { getSemanticMatchingDiagnostics } from "./semanticMatchingDiagnostics";
+import {
+  cancelSemanticMatchingModelDownload,
+  downloadSemanticMatchingModels,
+  getSemanticMatchingDiagnostics,
+  removeSemanticMatchingModels,
+  repairSemanticMatchingModelCache,
+} from "./semanticMatchingDiagnostics";
 
-vi.mock("./semanticMatchingDiagnostics", () => ({
+vi.mock("../../../platform/tauri/events", () => ({
+  listen: vi.fn().mockResolvedValue(() => {}),
+}));
+
+vi.mock("./semanticMatchingDiagnostics", async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import("./semanticMatchingDiagnostics")
+  >()),
+  cancelSemanticMatchingModelDownload: vi.fn(),
+  downloadSemanticMatchingModels: vi.fn(),
   getSemanticMatchingDiagnostics: vi.fn(),
+  removeSemanticMatchingModels: vi.fn(),
+  repairSemanticMatchingModelCache: vi.fn(),
 }));
 
 const mockGetDiagnostics = vi.mocked(getSemanticMatchingDiagnostics);
+const mockRepairModel = vi.mocked(repairSemanticMatchingModelCache);
+const mockDownloadModels = vi.mocked(downloadSemanticMatchingModels);
+const mockCancelDownload = vi.mocked(cancelSemanticMatchingModelDownload);
+const mockRemoveModels = vi.mocked(removeSemanticMatchingModels);
 
 function disabledDiagnostics() {
   return {
@@ -53,6 +74,8 @@ function readyDiagnostics() {
         required_files_present: 3,
         locked_size_bytes: 641000000,
         downloaded: true,
+        cache_present: true,
+        health: "ready" as const,
         required_for_qwen3_runtime: true,
       },
       {
@@ -68,6 +91,8 @@ function readyDiagnostics() {
         required_files_present: 4,
         locked_size_bytes: 690000000,
         downloaded: true,
+        cache_present: true,
+        health: "ready" as const,
         required_for_qwen3_runtime: true,
       },
     ],
@@ -86,9 +111,23 @@ function readyDiagnostics() {
   };
 }
 
+function missingDiagnostics() {
+  const diagnostics = readyDiagnostics();
+  diagnostics.runtime_status = "needs_model_download";
+  diagnostics.active_profile = "Exact-only deterministic matching";
+  diagnostics.models.forEach((model) => {
+    model.downloaded = false;
+    model.cache_present = false;
+    model.health = "missing";
+    model.required_files_present = 0;
+  });
+  return diagnostics;
+}
+
 describe("SemanticMatchingDiagnosticsPanel", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockCancelDownload.mockResolvedValue(false);
   });
 
   it("shows the local fallback when embedded ML is not enabled", async () => {
@@ -125,6 +164,134 @@ describe("SemanticMatchingDiagnosticsPanel", () => {
 
     await user.click(screen.getByRole("button", { name: /Refresh/ }));
 
+    await waitFor(() => {
+      expect(mockGetDiagnostics).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  it("offers native-reviewed repair only for an integrity-invalid default model", async () => {
+    const user = userEvent.setup();
+    const damaged = readyDiagnostics();
+    damaged.runtime_status = "misconfigured";
+    damaged.models[0].downloaded = false;
+    damaged.models[0].health = "integrity_mismatch";
+    mockGetDiagnostics.mockResolvedValue(damaged);
+    mockRepairModel.mockResolvedValueOnce(true);
+
+    render(<SemanticMatchingDiagnosticsPanel />);
+
+    expect(await screen.findByText("Integrity check failed")).toBeInTheDocument();
+    await user.click(
+      screen.getByRole("button", { name: "Review local model repair" }),
+    );
+
+    expect(mockRepairModel).toHaveBeenCalledWith("qwen3-embedding-0.6b");
+    await waitFor(() => {
+      expect(mockGetDiagnostics).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  it("keeps built-in matching available while a governed download can be canceled", async () => {
+    const user = userEvent.setup();
+    mockGetDiagnostics.mockResolvedValue(missingDiagnostics());
+    mockDownloadModels.mockReturnValue(new Promise(() => {}));
+    mockCancelDownload.mockResolvedValueOnce(true);
+
+    render(<SemanticMatchingDiagnosticsPanel />);
+
+    await user.click(
+      await screen.findByRole("button", {
+        name: "Set up stronger local matching",
+      }),
+    );
+    expect(
+      screen.getByText(/Built-in matching remains available/),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("progressbar", {
+        name: "Local model download progress",
+      }),
+    ).toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole("button", { name: "Cancel model download" }),
+    );
+    expect(mockCancelDownload).toHaveBeenCalledOnce();
+  });
+
+  it("cancels an active download when the settings panel unmounts", async () => {
+    const user = userEvent.setup();
+    mockGetDiagnostics.mockResolvedValue(missingDiagnostics());
+    mockDownloadModels.mockReturnValue(new Promise(() => {}));
+    mockCancelDownload.mockResolvedValueOnce(true);
+    const view = render(<SemanticMatchingDiagnosticsPanel />);
+
+    await user.click(
+      await screen.findByRole("button", {
+        name: "Set up stronger local matching",
+      }),
+    );
+    view.unmount();
+
+    await waitFor(() => expect(mockCancelDownload).toHaveBeenCalledOnce());
+  });
+
+  it("does not fire a cancel when a download completes normally", async () => {
+    const user = userEvent.setup();
+    mockGetDiagnostics.mockResolvedValue(missingDiagnostics());
+    mockDownloadModels.mockResolvedValueOnce(true);
+
+    const view = render(<SemanticMatchingDiagnosticsPanel />);
+
+    await user.click(
+      await screen.findByRole("button", {
+        name: "Set up stronger local matching",
+      }),
+    );
+    await waitFor(() => {
+      expect(mockGetDiagnostics).toHaveBeenCalledTimes(2);
+    });
+    view.unmount();
+
+    expect(mockCancelDownload).not.toHaveBeenCalled();
+  });
+
+  it("recovers from an orphaned backend download by canceling it", async () => {
+    const user = userEvent.setup();
+    mockGetDiagnostics.mockResolvedValue(missingDiagnostics());
+    mockDownloadModels.mockRejectedValueOnce(
+      new Error("Another local model action is already running."),
+    );
+    mockCancelDownload.mockResolvedValueOnce(true);
+
+    render(<SemanticMatchingDiagnosticsPanel />);
+
+    await user.click(
+      await screen.findByRole("button", {
+        name: "Set up stronger local matching",
+      }),
+    );
+
+    expect(mockCancelDownload).toHaveBeenCalledOnce();
+    expect(
+      await screen.findByText(
+        "A previous model download was still running and has been canceled. Try again.",
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("offers native-reviewed removal without removing the built-in fallback", async () => {
+    const user = userEvent.setup();
+    mockGetDiagnostics.mockResolvedValue(readyDiagnostics());
+    mockRemoveModels.mockResolvedValueOnce(true);
+
+    render(<SemanticMatchingDiagnosticsPanel />);
+
+    await user.click(
+      await screen.findByRole("button", { name: "Remove local models" }),
+    );
+
+    expect(mockRemoveModels).toHaveBeenCalledOnce();
     await waitFor(() => {
       expect(mockGetDiagnostics).toHaveBeenCalledTimes(2);
     });

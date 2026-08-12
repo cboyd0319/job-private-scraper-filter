@@ -79,6 +79,12 @@ export function ScraperHealthResultsModal({
                   {formatSafeIssue(result.error)}
                 </p>
               )}
+              {result.details?.status === "skipped" &&
+                typeof result.details.reason === "string" && (
+                  <p className="mt-1 text-sm text-surface-600 dark:text-surface-300">
+                    {result.details.reason}
+                  </p>
+                )}
             </div>
           );
         })}

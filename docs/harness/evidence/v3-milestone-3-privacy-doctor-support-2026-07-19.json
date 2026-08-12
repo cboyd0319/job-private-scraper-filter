@@ -1,0 +1,76 @@
+{
+  "schema": "jobsentinel.feature_evidence.v1",
+  "feature_id": "v3-milestone-3-recovery-portability-policy-repair",
+  "slice": "local-privacy-doctor-and-safe-support-bundle",
+  "behavior": "A user can create a local safe support report containing fixed Privacy Doctor states and actions without reading secrets, prompting for Keychain access, using the network, exposing private diagnostic content, or overstating backup and system-vault availability.",
+  "result": "passing",
+  "verified_at": "2026-07-19T07:40:12Z",
+  "revision": "154408e5f3c416275b495b3c28f03622e57965bd",
+  "revision_scope": "The clean committed Privacy Doctor application use case, portable-backup history query, restricted-source acknowledgement owner, safe support composer, renderer summary reduction, final sanitizer, and development-runtime parity changes.",
+  "platform": "local macOS 27.0 arm64 host",
+  "commands": [
+    {
+      "command": "env -u JOBSENTINEL_LIVE_KEYRING_TESTS cargo test -p jobsentinel-application --lib privacy_doctor -- --nocapture; env -u JOBSENTINEL_LIVE_KEYRING_TESTS cargo test -p jobsentinel-application --lib restricted_source -- --nocapture; env -u JOBSENTINEL_LIVE_KEYRING_TESTS cargo test -p jobsentinel-storage --lib portable_backup_history -- --nocapture",
+      "exit_status": 0,
+      "relevant_result": "All 7 Privacy Doctor tests, 4 restricted-source integration tests, and 1 portable-backup history test passed. Coverage includes local-only default inspection, fixed failure states, severity precedence, backup-history honesty, same-second ordering, non-backup exclusion, external-AI safety, all current restricted sources, Browser Import code state, and injected private inputs.",
+      "caveat": "Live keyring tests were explicitly disabled. Credential inspection used SQLite-only unlock metadata and never called macOS Keychain."
+    },
+    {
+      "command": "env -u JOBSENTINEL_LIVE_KEYRING_TESTS cargo test -p jobsentinel --lib ipc::feedback -- --nocapture; npm run test:run -- src/shared/errorReporting/supportReport.test.ts",
+      "exit_status": 0,
+      "relevant_result": "All 49 Tauri feedback tests and 3 focused frontend support-report tests passed. The delivered report preserves schema 1.1 and typed Privacy Doctor fields after final sanitization while suppressing frontend messages, arbitrary context, raw field names, secrets, and complete hostile local paths.",
+      "caveat": "The support-only path boundary deliberately favors privacy-safe over-redaction. Live file dialogs, clipboard access, Tauri launch, and signed application packaging were not exercised while the user was away."
+    },
+    {
+      "command": "env -u JOBSENTINEL_LIVE_KEYRING_TESTS cargo clippy -p jobsentinel-storage -p jobsentinel-application -p jobsentinel --lib -- -D warnings; cargo fmt --all -- --check",
+      "exit_status": 0,
+      "relevant_result": "All changed production Rust libraries passed Clippy with warnings denied and Rust formatting passed.",
+      "caveat": "The broad all-target Rust lane was not run because unrelated downstream tests can enter live macOS credential paths. Focused tests and production-library Clippy were used instead."
+    },
+    {
+      "command": "npm run lint; npm run typecheck; npm run lint:file-size; npm run harness:check; npm run lint:architecture; npm run lint:security; npm run lint:docs; npm run lint:deps:why; npm run test:scripts; git diff --check",
+      "exit_status": 0,
+      "relevant_result": "Frontend lint and types, hard file limits, harness state, architecture ownership, security sensors, secret scan, documentation, dependency rationale, all 838 script tests, and patch whitespace passed.",
+      "caveat": "Repository GitHub Actions remain temporarily disabled by user direction."
+    },
+    {
+      "command": "Three read-only adversarial reviews for privacy, security, Rust, SQL ordering, platform paths, diagnostic accuracy, schema delivery, and lean ownership",
+      "exit_status": 0,
+      "relevant_result": "All three reviewers returned PASS after corrections for final-sanitizer schema destruction, uncommon Windows and Unix paths, backtick and Unicode boundaries, backup and system-vault overclaims, external-AI config drift, duplicated restricted-source policy, same-second history ordering, and mixed config snapshots.",
+      "caveat": "Reviewers inspected the final committed files without running Tauri, live-keyring, or signed-package paths."
+    }
+  ],
+  "source": "docs/plans/v3/master-exec-plan.md",
+  "measurements": {
+    "privacy_doctor_tests_passed": 7,
+    "restricted_source_tests_passed": 4,
+    "portable_backup_history_tests_passed": 1,
+    "tauri_feedback_tests_passed": 49,
+    "frontend_support_report_tests_passed": 3,
+    "hostile_path_cases": 14,
+    "adversarial_reviewers_passed": 3
+  },
+  "decisions": {
+    "privacy_doctor": "Return only versioned identifiers, fixed states, fixed messages, fixed actions, and a false connectivity requirement. Do not include paths, URLs, provider names, models, queries, credential keys, record contents, timestamps, or raw errors.",
+    "credentials": "Use CredentialService unlock metadata only. A locked passphrase vault needs attention, an unlocked passphrase vault is green, and lazy system credential storage remains an optional unchecked state so passive diagnostics never prompt for Keychain access.",
+    "backup": "Report structural portable-backup history, not current artifact availability. Even a recorded successful creation remains optional review until a caller separately confirms the file exists.",
+    "external_ai": "Disabled is safe. Enabled configurations pause when the primary provider is inconsistent, payload preview or redaction is off, or a custom endpoint is not public HTTPS. Sensitive-payload opt-in remains visible as needs attention.",
+    "sources": "Use the Config-owned restricted-source acknowledgement lookup shared by scheduler, smoke checks, and Privacy Doctor. Exact JobsWithGPT payload approval remains required when enabled.",
+    "support_schema": "Use a stable unquoted key-value schema so final free-text sanitization cannot destroy typed fields. Renderer error messages, arbitrary context, and raw keys are excluded before composition.",
+    "path_boundary": "Collapse the complete remainder of any support-report line containing an absolute Unix, Windows drive, UNC, extended, mounted, or network path. Treat punctuation, backticks, Unicode separators, and other non-alphanumeric boundaries as path starts.",
+    "red_green": "Fail-first tests reproduced missing Privacy Doctor APIs, wrong backup tie ordering, final schema destruction, path leakage, invalid external-AI green states, backup and system-vault overclaims, and dev-runtime drift before each correction.",
+    "credential_tests": "Keep live keyring tests opt-in. Every unattended Rust command unsets JOBSENTINEL_LIVE_KEYRING_TESTS."
+  },
+  "review": {
+    "adversarial_verdict": "PASS after schema, path, diagnostic-accuracy, policy-owner, and ordering corrections",
+    "privacy_or_security_regression": false,
+    "open_slice_blockers": 0,
+    "remaining_findings": [
+      "Telemetry remains a compile-time product invariant rather than an active runtime probe.",
+      "The support-only absolute-path boundary may over-redact slash-like prose, which is privacy-safe.",
+      "Privacy Doctor does not claim that a recorded backup artifact still exists or that lazy system credential storage is currently available.",
+      "Settings presentation and live clipboard, file-dialog, Windows 11, macOS 26, and Linux GUI proof remain later Milestone 3 and release-matrix work.",
+      "Policy ledger, smart consent, offline repair, and platform-health contracts remain active Milestone 3 work."
+    ]
+  }
+}

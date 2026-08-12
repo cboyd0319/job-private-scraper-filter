@@ -32,7 +32,7 @@ fn test_missing_required_hard_constraint_caps_overall_score() {
 }
 
 #[test]
-fn test_security_clearance_requirement_accepts_clearance_evidence() {
+fn test_security_clearance_wording_stays_unconfirmed_and_capped() {
     let result = AtsAnalyzer::analyze_text_for_job(
         "Jordan Lee\njordan@example.com\n\nSummary\nActive clearance.",
         &[],
@@ -44,10 +44,31 @@ fn test_security_clearance_requirement_accepts_clearance_evidence() {
         .iter()
         .find(|review| review.keyword == "security clearance")
         .expect("clearance review");
-    assert_eq!(clearance.match_state, RequirementMatchState::Direct);
+    assert_eq!(clearance.match_state, RequirementMatchState::Implied);
     assert!(clearance.hard_constraint);
     assert!(clearance.evidence_sections.contains(&"summary".to_string()));
-    assert!(!result
+    assert!(result
+        .hard_constraint_risks
+        .iter()
+        .any(|risk| risk.requirement == "security clearance"));
+    assert!(result.overall_score <= 60.0);
+}
+
+#[test]
+fn structured_clearance_wording_stays_unconfirmed_and_capped() {
+    let mut resume = sample_resume();
+    resume.resume.summary = Some("Active clearance".to_string());
+
+    let result = AtsAnalyzer::analyze_for_job(&resume, "Required: security clearance");
+    let clearance = result
+        .requirement_reviews
+        .iter()
+        .find(|review| review.keyword == "security clearance")
+        .expect("clearance review");
+
+    assert_eq!(clearance.match_state, RequirementMatchState::Implied);
+    assert!(result.overall_score <= 60.0);
+    assert!(result
         .hard_constraint_risks
         .iter()
         .any(|risk| risk.requirement == "security clearance"));
@@ -66,7 +87,7 @@ fn test_skills_only_required_hard_constraint_caps_overall_score() {
         .iter()
         .find(|review| review.keyword == "security clearance")
         .expect("clearance review");
-    assert_eq!(clearance.match_state, RequirementMatchState::Partial);
+    assert_eq!(clearance.match_state, RequirementMatchState::Implied);
     assert!(clearance.hard_constraint);
     assert!(clearance.evidence_sections.contains(&"skills".to_string()));
     assert!(result.overall_score <= 60.0);

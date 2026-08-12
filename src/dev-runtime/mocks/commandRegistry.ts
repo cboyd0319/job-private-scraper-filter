@@ -1,14 +1,20 @@
+/** Registers browser-development handlers for the desktop command surface. */
+
 import {
   applyMockApplicationAssistCommand,
   applyMockApplicationsCommand,
   applyMockCoverLetterTemplateCommand,
   applyMockDashboardCommand,
+  applyMockExternalAiCommand,
   applyMockInterviewCommand,
   applyMockJobImportCommand,
   applyMockLinkedInCommand,
   applyMockMarketCommand,
   applyMockNotificationCommand,
   applyMockOnboardingCommand,
+  applyMockOpportunityCaseCommand,
+  applyMockPackCommand,
+  applyMockRecoveryCommand,
   applyMockResumeCommand,
   applyMockSalaryCommand,
   applyMockSavedSearchCommand,
@@ -16,6 +22,7 @@ import {
   applyMockSettingsCommand,
   applyMockSourceHealthCommand,
   applyMockSupportCommand,
+  applyMockUnavailableNativeFileDropCommand,
 } from "./runtimeCommandAdapters";
 import type { MockCommandAdapter } from "./runtimeCommandAdapters";
 
@@ -79,10 +86,22 @@ const commandGroups: readonly MockCommandGroup[] = [
       "start_bookmarklet_server",
       "stop_bookmarklet_server",
       "set_bookmarklet_port",
-      "send_external_ai_request",
       "get_semantic_matching_diagnostics",
+      "download_ml_model",
+      "cancel_ml_model_download",
+      "remove_ml_models",
+      "repair_semantic_matching_model_cache",
     ],
     adapter: applyMockSettingsCommand,
+  },
+  {
+    commands: [
+      "prepare_external_ai_request",
+      "send_external_ai_request",
+      "cancel_external_ai_request",
+      "list_external_ai_activity",
+    ],
+    adapter: applyMockExternalAiCommand,
   },
   {
     commands: [
@@ -100,6 +119,20 @@ const commandGroups: readonly MockCommandGroup[] = [
   },
   {
     commands: [
+      "get_local_recovery_report",
+      "run_local_storage_cleanup",
+      "repair_local_permissions",
+      "repair_invalid_startup_config",
+      "create_portable_backup",
+      "stage_portable_restore",
+      "get_staged_restore_status",
+      "cancel_staged_restore",
+      "create_reviewed_export",
+    ],
+    adapter: applyMockRecoveryCommand,
+  },
+  {
+    commands: [
       "get_supported_sites",
       "get_sites_by_category_cmd",
       "generate_deep_links",
@@ -109,11 +142,21 @@ const commandGroups: readonly MockCommandGroup[] = [
     adapter: applyMockSearchLinksCommand,
   },
   {
-    commands: ["preview_job_import", "confirm_job_import"],
+    commands: [
+      "preview_job_import",
+      "confirm_job_import",
+      "preview_smart_paste",
+      "confirm_smart_paste",
+    ],
     adapter: applyMockJobImportCommand,
   },
   {
-    commands: ["record_linkedin_workbench_event"],
+    commands: [
+      "get_linkedin_workbench_review_status",
+      "review_linkedin_workbench",
+      "revoke_linkedin_workbench_review",
+      "record_linkedin_workbench_event",
+    ],
     adapter: applyMockLinkedInCommand,
   },
   {
@@ -139,6 +182,39 @@ const commandGroups: readonly MockCommandGroup[] = [
     adapter: applyMockApplicationsCommand,
   },
   {
+    commands: ["open_opportunity_case"],
+    adapter: applyMockOpportunityCaseCommand,
+  },
+  {
+    commands: [
+      "discard_native_file_drop",
+      "import_dropped_resume",
+      "preview_dropped_job",
+      "stage_dropped_pack",
+      "stage_dropped_portable_restore",
+    ],
+    adapter: applyMockUnavailableNativeFileDropCommand,
+  },
+  {
+    commands: [
+      "list_pack_management",
+      "choose_and_stage_pack",
+      "activate_pack",
+      "enable_pack",
+      "rollback_pack",
+      "disable_pack",
+      "uninstall_pack",
+      "retry_pack_cleanup",
+      "open_static_skill",
+      "prepare_evidence_reviewer",
+      "execute_evidence_reviewer",
+      "prepare_packet_builder",
+      "execute_packet_builder",
+      "cancel_reviewed_pack_task",
+    ],
+    adapter: applyMockPackCommand,
+  },
+  {
     commands: [
       "get_active_resume",
       "list_all_resumes",
@@ -153,6 +229,14 @@ const commandGroups: readonly MockCommandGroup[] = [
       "update_user_skill",
       "delete_user_skill",
       "get_recent_matches",
+      "set_resume_match_feedback",
+      "get_saved_match_debugger",
+      "confirm_saved_match_evidence",
+      "list_saved_match_evidence_packets",
+      "save_saved_match_evidence_packet",
+      "confirm_saved_match_military_evidence",
+      "prepare_saved_match_military_transition_review",
+      "confirm_saved_match_military_transition_review",
       "match_resume_to_job",
       "create_resume_draft",
       "get_resume_draft",
@@ -206,6 +290,7 @@ const commandGroups: readonly MockCommandGroup[] = [
       "select_application_resume_file",
       "upsert_application_profile",
       "get_screening_answers",
+      "get_application_screening_answer_previews",
       "upsert_screening_answer",
       "get_automation_stats",
       "detect_ats_platform",

@@ -19,6 +19,23 @@ export interface LinkedInWorkbenchEventResult {
   hidden: boolean;
 }
 
+export type LinkedInWorkbenchReviewStatus =
+  | "reviewed"
+  | "review_required"
+  | "policy_refresh_required";
+
+export function getLinkedInWorkbenchReviewStatus(): Promise<LinkedInWorkbenchReviewStatus> {
+  return invoke<LinkedInWorkbenchReviewStatus>("get_linkedin_workbench_review_status");
+}
+
+export function reviewLinkedInWorkbench(): Promise<boolean> {
+  return invoke<boolean>("review_linkedin_workbench");
+}
+
+export function revokeLinkedInWorkbenchReview(): Promise<boolean> {
+  return invoke<boolean>("revoke_linkedin_workbench_review");
+}
+
 export function recordLinkedInWorkbenchEvent(
   input: LinkedInWorkbenchEventInput,
 ): Promise<LinkedInWorkbenchEventResult> {

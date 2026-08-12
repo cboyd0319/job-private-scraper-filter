@@ -1,6 +1,14 @@
 use chrono::Utc;
 
-use jobsentinel_domain::{canonicalize_job_url, Job};
+use jobsentinel_domain::{
+    canonicalize_job_url,
+    v3_source_authorization::{
+        automated_url_fetch_is_blocked, visible_page_capture_is_blocked, SourceActionDecision,
+        SourceGrantState,
+    },
+    v3_source_manifest::SourceOperation,
+    Job,
+};
 use jobsentinel_sources::{parse_single_job_page, JobPageParseError, ParsedJobPage};
 use jobsentinel_storage::Database;
 
@@ -8,16 +16,39 @@ use super::{
     fetcher::fetch_job_page,
     pending::PendingUrlImports,
     types::{ImportError, ImportResult, ImportedJobSummary, JobImportPreview},
+    v3_source_governance::authorize_user_source_action,
 };
+
+pub fn prepare_job_import_target(url: &str) -> ImportResult<String> {
+    let canonical_url = canonicalize_job_url(url).map_err(ImportError::InvalidUrl)?;
+    if automated_url_fetch_is_blocked(&canonical_url) {
+        return Err(ImportError::SourcePolicyBlocked {
+            visible_capture_allowed: !visible_page_capture_is_blocked(&canonical_url),
+        });
+    }
+    Ok(canonical_url)
+}
+
+pub fn employer_discovery_review_grant() -> SourceGrantState {
+    SourceGrantState::Granted {
+        source_id: "user-source-actions".to_string(),
+        policy_ref: "jobsentinel.source-policy.user-source-actions".to_string(),
+        permission: jobsentinel_domain::v3_source_manifest::SourcePermission::UserReview,
+        operation: SourceOperation::EmployerDiscovery,
+        policy_revision: 1,
+    }
+}
 
 pub async fn preview_job_import(
     database: &Database,
     pending: &PendingUrlImports,
     url: &str,
+    grant: SourceGrantState,
 ) -> ImportResult<JobImportPreview> {
-    let canonical_url = canonicalize_job_url(url).map_err(ImportError::InvalidUrl)?;
+    let canonical_url = prepare_job_import_target(url)?;
+    require_employer_discovery_authorization(database, grant.clone()).await?;
     let html = fetch_job_page(&canonical_url).await?;
-    preview_job_from_html(database, pending, canonical_url, &html).await
+    preview_job_from_html(database, pending, canonical_url, &html, grant).await
 }
 
 pub async fn confirm_job_import(
@@ -25,10 +56,28 @@ pub async fn confirm_job_import(
     pending: &PendingUrlImports,
     import_id: &str,
 ) -> ImportResult<ImportedJobSummary> {
+    confirm_pending_job(
+        database,
+        pending,
+        import_id,
+        SourceOperation::EmployerDiscovery,
+        true,
+    )
+    .await
+}
+
+pub(super) async fn confirm_pending_job(
+    database: &Database,
+    pending: &PendingUrlImports,
+    import_id: &str,
+    operation: SourceOperation,
+    connectivity_required: bool,
+) -> ImportResult<ImportedJobSummary> {
     let now = Utc::now();
-    let job = pending
+    let (job, grant) = pending
         .find(import_id, now)
         .ok_or(ImportError::PendingImportNotFound)?;
+    require_user_source_authorization(database, operation, connectivity_required, grant).await?;
 
     match database
         .insert_job_if_new(&job)
@@ -52,11 +101,36 @@ pub async fn confirm_job_import(
     }
 }
 
+async fn require_employer_discovery_authorization(
+    database: &Database,
+    grant: SourceGrantState,
+) -> ImportResult<()> {
+    require_user_source_authorization(database, SourceOperation::EmployerDiscovery, true, grant)
+        .await
+}
+
+pub(super) async fn require_user_source_authorization(
+    database: &Database,
+    operation: SourceOperation,
+    connectivity_required: bool,
+    grant: SourceGrantState,
+) -> ImportResult<()> {
+    match authorize_user_source_action(database, operation, Utc::now().date_naive(), grant).await {
+        Ok(SourceActionDecision::Allowed {
+            connectivity_required: actual,
+            ..
+        }) if actual == connectivity_required => Ok(()),
+        Ok(SourceActionDecision::ReviewRequired) => Err(ImportError::SourceReviewRequired),
+        _ => Err(ImportError::SourceAuthorizationUnavailable),
+    }
+}
+
 async fn preview_job_from_html(
     database: &Database,
     pending: &PendingUrlImports,
     canonical_url: String,
     html: &str,
+    grant: SourceGrantState,
 ) -> ImportResult<JobImportPreview> {
     let parsed = parse_single_job_page(html).map_err(map_parse_error)?;
     let mut preview = JobImportPreview {
@@ -84,7 +158,7 @@ async fn preview_job_from_html(
         .await
         .map_err(database_error)?;
     if !preview.already_exists {
-        preview.import_id = Some(pending.queue(job, Utc::now()));
+        preview.import_id = Some(pending.queue(job, grant, Utc::now()));
     }
 
     Ok(preview)
@@ -123,7 +197,7 @@ fn job_from_page(parsed: &ParsedJobPage, preview: &JobImportPreview) -> ImportRe
             preview.company.clone(),
             preview.url.clone(),
             preview.location.clone(),
-            "import",
+            "user-source-actions",
             discovered_at,
         )
     })
@@ -135,27 +209,67 @@ fn database_error(error: impl ToString) -> ImportError {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use std::sync::LazyLock;
 
-    const JOB_HTML: &str = r#"
-        <script type="application/ld+json">
-        {
-            "@context": "https://schema.org",
-            "@type": "JobPosting",
-            "title": " Office Manager ",
-            "description": "Coordinate office operations and support staff.",
-            "hiringOrganization": {"name": " Example Services "},
-            "jobLocation": {"address": {"addressLocality": "Denver", "addressRegion": "CO"}},
-            "baseSalary": {"currency": "USD", "value": {"minValue": 25, "maxValue": 30, "unitText": "HOUR"}},
-            "datePosted": "2026-07-01T00:00:00Z"
-        }
-        </script>
-    "#;
+    use super::*;
+    use crate::v3_source_governance::{install_user_source_actions, user_source_actions_policy};
+
+    static JOB_HTML: LazyLock<String> = LazyLock::new(|| {
+        format!(
+            r#"<script type="application/ld+json">{}</script>"#,
+            include_str!(
+                "../../jobsentinel-domain/src/fixtures/source_simulator/user_source_actions_v1.json"
+            )
+        )
+    });
 
     async fn database() -> Database {
         let database = Database::connect_memory().await.unwrap();
         database.migrate().await.unwrap();
+        install_user_source_actions(&database).await.unwrap();
         database
+    }
+
+    #[tokio::test]
+    async fn url_preview_requires_reviewed_source_authorization_before_transport() {
+        let database = database().await;
+        let result = preview_job_import(
+            &database,
+            &PendingUrlImports::default(),
+            "https://job-import-authorization.invalid/private",
+            SourceGrantState::Missing,
+        )
+        .await;
+
+        assert!(matches!(result, Err(ImportError::SourceReviewRequired)));
+    }
+
+    #[tokio::test]
+    async fn url_preview_rejects_policy_blocked_sources_before_transport() {
+        let database = database().await;
+        let pending = PendingUrlImports::default();
+
+        for (url, visible_capture_allowed) in [
+            ("https://builtin.com/jobs/1", true),
+            ("https://www.builtincolorado.com/jobs/1", true),
+            ("https://www.dice.com/jobs/1", true),
+            ("https://jobs.glassdoor.com/jobs/1", true),
+            ("https://www.simplyhired.com/job/1", true),
+            ("https://linkedin.com/jobs/view/1", false),
+            ("https://www.linkedin.com/jobs/view/2", false),
+            ("https://ycombinator.com/jobs", false),
+            ("https://www.ycombinator.com/jobs", false),
+        ] {
+            let result =
+                preview_job_import(&database, &pending, url, employer_discovery_review_grant())
+                    .await;
+            assert!(matches!(
+                result,
+                Err(ImportError::SourcePolicyBlocked {
+                    visible_capture_allowed: actual
+                }) if actual == visible_capture_allowed
+            ));
+        }
     }
 
     #[tokio::test]
@@ -166,7 +280,8 @@ mod tests {
             &database,
             &pending,
             "https://example.com/jobs/office-manager?query=care".to_string(),
-            JOB_HTML,
+            JOB_HTML.as_str(),
+            employer_discovery_review_grant(),
         )
         .await
         .unwrap();
@@ -182,6 +297,7 @@ mod tests {
             .unwrap();
         let job = database.get_job_by_id(saved.job_id).await.unwrap().unwrap();
         assert_eq!(job.title, "Office Manager");
+        assert_eq!(job.source, "user-source-actions");
         assert_eq!(job.salary_min, Some(52_000));
         assert_eq!(job.salary_max, Some(62_400));
         assert_eq!(job.times_seen, 1);
@@ -195,7 +311,8 @@ mod tests {
             &database,
             &pending,
             "https://example.com/jobs/office-manager".to_string(),
-            JOB_HTML,
+            JOB_HTML.as_str(),
+            employer_discovery_review_grant(),
         )
         .await
         .unwrap();
@@ -207,7 +324,8 @@ mod tests {
             &database,
             &pending,
             "https://example.com/jobs/office-manager".to_string(),
-            JOB_HTML,
+            JOB_HTML.as_str(),
+            employer_discovery_review_grant(),
         )
         .await
         .unwrap();
@@ -224,18 +342,67 @@ mod tests {
             &database,
             &pending,
             "https://example.com/jobs/office-manager".to_string(),
-            JOB_HTML,
+            JOB_HTML.as_str(),
+            employer_discovery_review_grant(),
         )
         .await
         .unwrap();
         let import_id = preview.import_id.unwrap();
-        let staged = pending.find(&import_id, Utc::now()).unwrap();
+        let (staged, _) = pending.find(&import_id, Utc::now()).unwrap();
         database.insert_job_if_new(&staged).await.unwrap().unwrap();
 
         let result = confirm_job_import(&database, &pending, &import_id).await;
 
         assert!(matches!(result, Err(ImportError::AlreadyExists)));
         assert!(pending.find(&import_id, Utc::now()).is_none());
+    }
+
+    #[tokio::test]
+    async fn confirmation_rechecks_source_policy_before_storage() {
+        let database = database().await;
+        let pending = PendingUrlImports::default();
+        let preview = preview_job_from_html(
+            &database,
+            &pending,
+            "https://example.com/jobs/office-manager".to_string(),
+            JOB_HTML.as_str(),
+            employer_discovery_review_grant(),
+        )
+        .await
+        .unwrap();
+        let import_id = preview.import_id.unwrap();
+        let mut newer_policy = user_source_actions_policy().unwrap();
+        newer_policy.revision = 2;
+        database.upsert_source_policy(&newer_policy).await.unwrap();
+
+        let result = confirm_job_import(&database, &pending, &import_id).await;
+
+        assert!(matches!(
+            result,
+            Err(ImportError::SourceAuthorizationUnavailable)
+        ));
+        assert!(pending.find(&import_id, Utc::now()).is_some());
+    }
+
+    #[tokio::test]
+    async fn confirmation_uses_the_grant_retained_with_the_pending_job() {
+        let database = database().await;
+        let pending = PendingUrlImports::default();
+        let preview = preview_job_from_html(
+            &database,
+            &pending,
+            "https://example.com/jobs/office-manager".to_string(),
+            JOB_HTML.as_str(),
+            SourceGrantState::Missing,
+        )
+        .await
+        .unwrap();
+        let import_id = preview.import_id.unwrap();
+
+        let result = confirm_job_import(&database, &pending, &import_id).await;
+
+        assert!(matches!(result, Err(ImportError::SourceReviewRequired)));
+        assert!(pending.find(&import_id, Utc::now()).is_some());
     }
 
     #[tokio::test]
@@ -247,7 +414,8 @@ mod tests {
             &database,
             &PendingUrlImports::default(),
             "https://example.com/jobs/office-manager".to_string(),
-            JOB_HTML,
+            JOB_HTML.as_str(),
+            employer_discovery_review_grant(),
         )
         .await;
 
@@ -256,7 +424,7 @@ mod tests {
 
     #[test]
     fn multiple_job_postings_require_a_more_specific_page() {
-        let html = format!("{JOB_HTML}{JOB_HTML}");
+        let html = format!("{}{}", JOB_HTML.as_str(), JOB_HTML.as_str());
         let result = parse_single_job_page(&html).map_err(map_parse_error);
 
         assert!(matches!(result, Err(ImportError::MultipleJobPostings(2))));

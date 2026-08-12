@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n        UPDATE scraper_runs\n        SET finished_at = ?,\n            duration_ms = ?,\n            status = 'success',\n            jobs_found = ?,\n            jobs_new = ?\n        WHERE id = ? AND status = 'running'\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 5
+    },
+    "nullable": []
+  },
+  "hash": "6ff9a9f0fa6df3d9adc0e13e7bdf38452d1ab196e7ef762ae7ac2c56bbe99fb9"
+}

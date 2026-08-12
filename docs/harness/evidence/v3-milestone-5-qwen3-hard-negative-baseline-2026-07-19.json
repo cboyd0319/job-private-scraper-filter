@@ -1,0 +1,129 @@
+{
+  "schema": "jobsentinel.feature_evidence.v1",
+  "feature_id": "v3-milestone-5-local-evidence-resume-matching",
+  "slice": "qwen3-hard-negative-baseline",
+  "behavior": "Pinned local retrieval preserves reviewed positives, reranks paired hard negatives, and abstains when only a known hard negative is available.",
+  "result": "passing",
+  "verified_at": "2026-07-20T05:12:43Z",
+  "revision": "db5b74a52b54b9160ee6003a4b67be5dc73bee4e",
+  "revision_scope": "The committed Qwen3 retrieval floor, reranker acceptance floor, manifest validation, production abstention, frozen calibration test, and developer contract.",
+  "platform": "local macOS 27.0 arm64 host",
+  "commands": [
+    {
+      "command": "env -u JOBSENTINEL_LIVE_KEYRING_TESTS cargo test -q -p jobsentinel-local-ai --features embedded-ml pinned_qwen3_ranks_all_frozen_requirement_hard_negatives -- --ignored",
+      "environment": "JOBSENTINEL_QWEN3_TEST_CACHE named an explicit private local test cache; its path is intentionally not recorded.",
+      "exit_status": 0,
+      "relevant_result": "The one focused model-backed test passed in 325.27 seconds. All three positives and paired hard negatives survived dense retrieval, complete two-candidate reranker output ranked each positive first, production pair matching selected each positive, and production hard-negative-only matching abstained with an unmatched requirement and overall score 0.0.",
+      "caveat": "The test is opt-in and ignored by default. It covers three synthetic requirement-level pairs on one local platform, not broad calibration."
+    },
+    {
+      "command": "env -u JOBSENTINEL_LIVE_KEYRING_TESTS cargo test -q -p jobsentinel-local-ai --features embedded-ml --lib",
+      "exit_status": 0,
+      "relevant_result": "All 66 default local-AI library tests passed; 10 opt-in model tests remained ignored.",
+      "caveat": "The ignored calibration was run separately with the explicit verified cache."
+    },
+    {
+      "command": "env -u JOBSENTINEL_LIVE_KEYRING_TESTS cargo clippy -q -p jobsentinel-local-ai --features embedded-ml --lib -- -D warnings; env -u JOBSENTINEL_LIVE_KEYRING_TESTS cargo check -q -p jobsentinel --features embedded-ml",
+      "exit_status": 0,
+      "relevant_result": "Strict local-AI Clippy and the embedded-ML desktop compile passed.",
+      "caveat": "No Tauri process, native dialog, credential backend, or signed build ran."
+    },
+    {
+      "command": "npm run lint:docs; npm run lint:architecture; npm run lint:file-size; npm run lint:security; git diff --check",
+      "exit_status": 0,
+      "relevant_result": "Docs, harness, local links, prose, architecture, hard file limits, security sensors, secret scanning, and diff whitespace passed.",
+      "caveat": "The existing cohesive manifest owner reached the non-blocking modularization review threshold; every governed hard limit passed."
+    },
+    {
+      "command": "Read-only Adversarial Review of the settled pinned Qwen3 calibration",
+      "exit_status": 0,
+      "relevant_result": "The final verdict was APPROVE with no blocker after corrections for complete candidate proof, cross-platform margin, score drift detection, and hard-negative-only abstention.",
+      "caveat": "The review was static apart from the supplied focused verification and preserves the release matrix as an explicit gap."
+    }
+  ],
+  "model_contract": {
+    "manifest_sha256": "58c982f6a5781b9cb6b99860b53acf43c3ccfe2cfbd3c2f8e8f1e4f242ddb751",
+    "embedding_model": {
+      "id": "qwen3-embedding-0.6b",
+      "revision": "97b0c614be4d77ee51c0cef4e5f07c00f9eb65b3",
+      "required_files_checksum_verified": true
+    },
+    "reranker_model": {
+      "id": "qwen3-reranker-0.6b",
+      "revision": "e61197ed45024b0ed8a2d74b80b4d909f1255473",
+      "required_files_checksum_verified": true
+    },
+    "resume_requirement_thresholds": {
+      "retrieval": 0.3,
+      "weak": 0.48,
+      "medium": 0.65,
+      "strong": 0.82,
+      "reranker_acceptance": 3.0
+    }
+  },
+  "fixture_contract": {
+    "schema_version": 1,
+    "sha256": "ad7c1bd1f7022c178de9e5d05dd84b1a074c76b1e53a7ef110d440b59dc8c2af",
+    "dataset_kind": "job_requirement_to_resume_evidence",
+    "pair_count": 3,
+    "raw_fixture_text_recorded": false
+  },
+  "measurements": {
+    "positive_dense_scores": [
+      0.4218491,
+      0.67955077,
+      0.63454574
+    ],
+    "hard_negative_dense_scores": [
+      0.35205674,
+      0.4145699,
+      0.48090482
+    ],
+    "positive_reranker_scores": [
+      5.246351,
+      5.893036,
+      6.3774714
+    ],
+    "hard_negative_reranker_scores": [
+      -7.0783405,
+      -3.9874773,
+      1.2468202
+    ],
+    "dense_score_tolerance": 0.01,
+    "minimum_retrieval_margin": 0.04,
+    "reranker_score_tolerance": 0.1,
+    "minimum_acceptance_margin": 1.0,
+    "paired_positive_matches": 3,
+    "paired_hard_negative_selections": 0,
+    "hard_negative_only_abstentions": 3
+  },
+  "tdd_evidence": [
+    "The original 0.65 production retrieval floor returned no match for a frozen reviewed positive.",
+    "A 0.40 candidate floor excluded a paired hard negative before reranking, so it could not prove hard-negative discrimination.",
+    "Adversarial review showed that retrieval without a post-rerank acceptance floor would mark a lone hard negative as matched.",
+    "The final 0.30 retrieval floor and 3.0 reranker acceptance floor passed pairwise selection and hard-negative-only abstention through production matching."
+  ],
+  "privacy_and_network": {
+    "user_data_used": false,
+    "external_ai_used": false,
+    "credentials_used": false,
+    "keychain_accessed": false,
+    "cache_path_recorded": false,
+    "model_files_committed": false,
+    "network_during_final_calibration": false,
+    "explicit_pinned_model_downloads_before_calibration": true
+  },
+  "decisions": {
+    "retrieval": "Use a distinct 0.30 candidate-retrieval floor. Keep retrieval bounded by top-K and separate from the unchanged weak, medium, and strong score bands.",
+    "acceptance": "Require a raw resume-requirement reranker score of at least 3.0 before a retrieved candidate becomes a match.",
+    "abstention": "A top-ranked candidate below acceptance remains unmatched. Ranking first is never sufficient by itself.",
+    "default_lane": "Model download and the pinned calibration remain opt-in. Deterministic exact matching remains available without model files."
+  },
+  "remaining_findings": [
+    "Three synthetic pairs are seed evidence, not production-quality calibration.",
+    "Larger reviewed datasets and other query kinds remain required.",
+    "Windows 11, macOS 26 and later, and Linux model runs remain release-matrix work.",
+    "Modest-hardware memory, storage, and latency budgets remain Gate 4 work.",
+    "The weak, medium, and strong score bands are manifest contracts but are not current matcher classifications."
+  ]
+}

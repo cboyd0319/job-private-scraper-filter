@@ -1,3 +1,5 @@
+/** Renders the filtered dashboard job list and job-scoped actions. */
+
 import type { ReactNode, RefObject } from "react";
 import { Button } from "../../../ui/Button";
 import { Card, CardHeader } from "../../../ui/Card";
@@ -26,7 +28,7 @@ interface DashboardJobListProps {
   onHideJob: (id: number) => void;
   onToggleBookmark: (id: number) => void;
   onEditNotes: (id: number, currentNotes?: string | null) => void;
-  onResearchCompany: (company: string) => void;
+  onResearchCompany: (company: string, jobHash: string | undefined) => void;
   renderApplicationAssistAction?: (job: Job) => ReactNode;
 }
 

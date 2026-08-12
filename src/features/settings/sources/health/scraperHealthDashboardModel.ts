@@ -119,6 +119,10 @@ export function getRecentStatus(scraper: ScraperHealthMetrics) {
 }
 
 export function formatSourceNextStep(scraper: ScraperHealthMetrics): string {
+  if (scraper.scraper_name === "jobswithgpt") {
+    return "Provider endpoint and usage policy review pending.";
+  }
+
   if (!scraper.is_enabled) {
     return "Off. Turn on if useful.";
   }

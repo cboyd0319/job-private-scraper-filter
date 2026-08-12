@@ -1,6 +1,5 @@
 import { safeInvoke } from "../../platform/tauri";
 import { createExternalAiGateway } from "./internal/aiGateway";
-import { appendExternalAiRequestLog } from "./externalAiRequestLog";
 import type {
   ExternalAiGateway,
   ExternalAiProvider,
@@ -29,6 +28,10 @@ export interface ExternalAiRuntimeConfig {
     enabled: boolean;
   };
   log_requests_locally: boolean;
+}
+
+export interface BackendExternalAiGateway extends ExternalAiGateway {
+  cancelActive(): Promise<void>;
 }
 
 interface ConfigEnvelope {
@@ -136,28 +139,124 @@ export function toGatewaySettings(
   };
 }
 
-function createBackendTransport(): ExternalAiTransport {
+function readApprovalId(value: unknown): string {
+  const approvalId =
+    value && typeof value === "object" && "approvalId" in value
+      ? (value as { approvalId?: unknown }).approvalId
+      : null;
+  if (typeof approvalId !== "string" || !approvalId.trim()) {
+    throw new Error("Outside AI approval could not be verified.");
+  }
+  return approvalId;
+}
+
+type CancelOutcome = "cancelled" | "ambiguous" | "already_completed";
+
+function readCancelOutcome(value: unknown): CancelOutcome {
+  const outcome =
+    value && typeof value === "object" && "outcome" in value
+      ? (value as { outcome?: unknown }).outcome
+      : null;
+  if (
+    outcome !== "cancelled" &&
+    outcome !== "ambiguous" &&
+    outcome !== "already_completed"
+  ) {
+    throw new Error("Outside AI cancellation could not be verified.");
+  }
+  return outcome;
+}
+
+function createBackendTransport(): {
+  transport: ExternalAiTransport;
+  cancelActive: () => Promise<void>;
+} {
+  let approvalId: string | null = null;
+  let cancelRequested = false;
+  let cancelPromise: Promise<CancelOutcome> | null = null;
+  let preparation: Promise<void> | null = null;
+  let activeSend: Promise<ExternalAiResponse> | null = null;
+
+  const cancelApproval = (id: string) => {
+    cancelPromise ??= safeInvoke<unknown>(
+      "cancel_external_ai_request",
+      { approvalId: id },
+      { logContext: "Cancel reviewed outside AI request" },
+    ).then(readCancelOutcome);
+    return cancelPromise;
+  };
+
   return {
-    async send(
-      request: PreparedExternalAiRequest,
-    ): Promise<ExternalAiResponse> {
-      return await safeInvoke<ExternalAiResponse>(
-        "send_external_ai_request",
-        { request },
-        { logContext: "Send reviewed outside AI request" },
-      );
+    cancelActive: async () => {
+      cancelRequested = true;
+      await preparation?.catch(() => undefined);
+      if (!approvalId) return;
+      const outcome = await cancelApproval(approvalId);
+      const send = activeSend;
+      if (send) await send.catch(() => undefined);
+      if (outcome === "ambiguous") {
+        throw new Error(
+          "Outside AI cancellation is recorded, but the provider may have received the request. Do not retry.",
+        );
+      }
+      if (outcome === "already_completed") {
+        throw new Error(
+          "The Outside AI request completed before cancellation. Do not retry.",
+        );
+      }
+    },
+    transport: {
+      async send(
+        request: PreparedExternalAiRequest,
+      ): Promise<ExternalAiResponse> {
+        preparation = safeInvoke<unknown>(
+          "prepare_external_ai_request",
+          { request },
+          { logContext: "Prepare reviewed outside AI request" },
+        ).then((result) => {
+          approvalId = readApprovalId(result);
+        });
+        try {
+          await preparation;
+          const preparedApprovalId = approvalId;
+          if (!preparedApprovalId) {
+            throw new Error("Outside AI approval could not be verified.");
+          }
+          if (cancelRequested) {
+            await cancelApproval(preparedApprovalId);
+            throw new Error("Outside AI request cancelled.");
+          }
+
+          const send = safeInvoke<ExternalAiResponse>(
+            "send_external_ai_request",
+            { approvalId: preparedApprovalId, request },
+            { logContext: "Send reviewed outside AI request" },
+          );
+          activeSend = send;
+          try {
+            return await send;
+          } finally {
+            if (activeSend === send) activeSend = null;
+          }
+        } finally {
+          preparation = null;
+        }
+      },
     },
   };
 }
 
 export function createBackendExternalAiGateway(
   config: ExternalAiRuntimeConfig,
-): ExternalAiGateway {
-  return createExternalAiGateway(
+): BackendExternalAiGateway {
+  const { transport, cancelActive } = createBackendTransport();
+  const gateway = createExternalAiGateway(
     toGatewaySettings(config),
-    createBackendTransport(),
-    (entry) => {
-      appendExternalAiRequestLog(entry);
-    },
+    transport,
   );
+
+  return {
+    send: (request) => gateway.send(request),
+    cancelActive,
+  };
 }

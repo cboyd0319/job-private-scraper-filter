@@ -194,6 +194,61 @@ async fn test_recent_matches_include_all_sub_scores() {
 }
 
 #[tokio::test]
+async fn saved_match_feedback_is_closed_replaceable_clearable_and_local() {
+    let pool = crate::test_support::migrated_pool().await;
+    let matcher = ResumeMatcher::new(pool.clone());
+    let resume_id = create_test_resume(&pool, "Feedback Resume", "Python").await;
+    let job_hash = "job_feedback";
+    create_test_job(&pool, job_hash, "Care Coordinator", "Python").await;
+    let saved_match = matcher
+        .match_resume_to_job(resume_id, job_hash)
+        .await
+        .unwrap();
+
+    let feedback = matcher
+        .set_match_feedback(saved_match.id, Some(ResumeMatchFeedbackLabel::NotRelevant))
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(feedback.match_id, saved_match.id);
+    assert_eq!(feedback.label, ResumeMatchFeedbackLabel::NotRelevant);
+
+    matcher
+        .set_match_feedback(saved_match.id, Some(ResumeMatchFeedbackLabel::Useful))
+        .await
+        .unwrap();
+    let recent = matcher.get_recent_matches(resume_id, 10).await.unwrap();
+    assert_eq!(
+        recent[0].feedback.as_ref().map(|value| value.label),
+        Some(ResumeMatchFeedbackLabel::Useful)
+    );
+    matcher
+        .match_resume_to_job(resume_id, job_hash)
+        .await
+        .unwrap();
+    assert_eq!(
+        matcher.get_recent_matches(resume_id, 10).await.unwrap()[0]
+            .feedback
+            .as_ref()
+            .map(|value| value.label),
+        Some(ResumeMatchFeedbackLabel::Useful)
+    );
+
+    assert!(matcher
+        .set_match_feedback(saved_match.id, None)
+        .await
+        .unwrap()
+        .is_none());
+    assert!(matcher.get_recent_matches(resume_id, 10).await.unwrap()[0]
+        .feedback
+        .is_none());
+    assert!(matcher
+        .set_match_feedback(i64::MAX, Some(ResumeMatchFeedbackLabel::Useful))
+        .await
+        .is_err());
+}
+
+#[tokio::test]
 async fn test_boundary_values_for_scores() {
     let pool = crate::test_support::migrated_pool().await;
     let matcher = ResumeMatcher::new(pool.clone());

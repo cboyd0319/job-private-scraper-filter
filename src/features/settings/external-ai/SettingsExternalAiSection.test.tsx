@@ -72,6 +72,10 @@ describe("SettingsExternalAiSection", () => {
     expect(screen.getByText("Anthropic")).toBeInTheDocument();
     expect(screen.getByText("Google Gemini")).toBeInTheDocument();
     expect(screen.getByText("GitHub Copilot")).toBeInTheDocument();
+    expect(screen.getByText("Durable outside AI activity")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("checkbox", { name: "Save request history" }),
+    ).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("checkbox", { name: /OpenAI/ }));
     await user.click(screen.getByRole("checkbox", { name: /Anthropic/ }));

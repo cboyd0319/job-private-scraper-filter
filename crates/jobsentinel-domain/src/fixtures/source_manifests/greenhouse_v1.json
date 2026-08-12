@@ -1,0 +1,81 @@
+{
+  "schema": "jobsentinel.v3.source-manifest.v1",
+  "source_id": "greenhouse",
+  "display_name": "Greenhouse",
+  "source_class": "public_ats",
+  "endpoint_patterns": ["https://boards-api.greenhouse.io/v1/boards/"],
+  "documentation_url": "https://developers.greenhouse.io/job-board",
+  "auth_requirement": "none",
+  "policy_ref": "jobsentinel.source-policy.greenhouse.public-job-board-api",
+  "policy_revision": 1,
+  "actions": [
+    {
+      "operation": "scheduled_check",
+      "permission": "none"
+    },
+    {
+      "operation": "connectivity_check",
+      "permission": "none"
+    }
+  ],
+  "terms_review": {
+    "status": "reviewed",
+    "reference": "source-review.greenhouse.public-get-api",
+    "reviewed_on": "2026-08-12"
+  },
+  "robots_review": {
+    "status": "reviewed",
+    "reference": "source-review.greenhouse.api-robots",
+    "reviewed_on": "2026-08-12"
+  },
+  "parser_id": "greenhouse-job-board-api-v1",
+  "fixtures": [
+    {
+      "fixture_id": "greenhouse-list-v1",
+      "kind": "list",
+      "path": "crates/jobsentinel-sources/src/fixtures/greenhouse_list_v1.json",
+      "payload_sha256": "e3437a78c446f487d9b22d6486e916cb8c7b3d8ce51d5df443a4bf4dd9559311"
+    },
+    {
+      "fixture_id": "greenhouse-policy-review-v1",
+      "kind": "policy",
+      "path": "crates/jobsentinel-domain/src/fixtures/source_reviews/greenhouse_v1.json",
+      "payload_sha256": "0e1ce506f875e0aea1559ad6d7acbb20d0bdce42f3aaa1eee9cc21d3077ccbc8"
+    }
+  ],
+  "supported_fields": [
+    "title",
+    "company",
+    "location",
+    "application_url"
+  ],
+  "salary_coverage": "none",
+  "verified_on": "2026-08-12",
+  "max_age_days": 30,
+  "confidence_percent": 95,
+  "lineage": [
+    {
+      "link_id": "source-lineage-greenhouse-job-board-api",
+      "source_id": "greenhouse",
+      "relation": "lineage",
+      "related_id": "greenhouse-public-job-board-api",
+      "provenance": "public_source",
+      "provenance_ref": "source-review.greenhouse.public-get-api"
+    }
+  ],
+  "stop_conditions": [
+    "policy_disabled",
+    "policy_changed",
+    "review_expired",
+    "rate_limit_reached",
+    "access_blocked",
+    "parser_drift",
+    "repeated_failure"
+  ],
+  "risk_note_refs": [
+    "source-risk.greenhouse.get-only",
+    "source-risk.greenhouse.no-application-submission",
+    "source-risk.greenhouse.no-external-training"
+  ],
+  "incomplete_coverage": false
+}

@@ -1,0 +1,74 @@
+{
+  "schema": "jobsentinel.v3.region-manifest.v1",
+  "region_id": "eu",
+  "reviewed_on": "2026-07-19",
+  "country_codes": [
+    "AT",
+    "BE",
+    "BG",
+    "HR",
+    "CY",
+    "CZ",
+    "DK",
+    "EE",
+    "FI",
+    "FR",
+    "DE",
+    "GR",
+    "HU",
+    "IE",
+    "IT",
+    "LV",
+    "LT",
+    "LU",
+    "MT",
+    "NL",
+    "PL",
+    "PT",
+    "RO",
+    "SK",
+    "SI",
+    "ES",
+    "SE"
+  ],
+  "languages": ["en"],
+  "currencies": ["EUR", "CZK", "DKK", "HUF", "PLN", "RON", "SEK"],
+  "pay_periods": [
+    "hourly",
+    "daily",
+    "weekly",
+    "monthly",
+    "annual",
+    "contract",
+    "stipend",
+    "not_disclosed"
+  ],
+  "location_rules": {
+    "remote_labels": ["remote", "hybrid", "onsite"],
+    "subdivision_required": false,
+    "locality_required": false
+  },
+  "work_authorization_labels": [
+    "national_requirements_not_assessed",
+    "cross_border_requirements_not_assessed",
+    "not_disclosed"
+  ],
+  "source_classes": ["regional_board", "user_import"],
+  "cv_profiles": ["europass_cv_research"],
+  "taxonomy_ids": ["esco_research"],
+  "policy_note_refs": [
+    "docs/plans/v3/regional-readiness-framework.md",
+    "https://eures.europa.eu/legal-notice_en"
+  ],
+  "provenance_refs": [
+    "https://eures.europa.eu/",
+    "https://esco.ec.europa.eu/en/use-esco/use-esco-services-api/esco-web-service-api",
+    "https://europass.europa.eu/en/create-europass-cv",
+    "https://economy-finance.ec.europa.eu/euro/eu-countries-and-euro/bulgaria-and-euro_en"
+  ],
+  "evaluation_fixture_ids": [
+    "source-truth-official-absence-v1",
+    "accessibility-keyboard-zoom-motion-v1"
+  ],
+  "incomplete_coverage": true
+}

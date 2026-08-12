@@ -1,0 +1,47 @@
+{
+  "schema": "jobsentinel.v3.region-manifest.v1",
+  "region_id": "india",
+  "reviewed_on": "2026-07-19",
+  "country_codes": ["IN"],
+  "languages": ["en"],
+  "currencies": ["INR"],
+  "pay_periods": [
+    "hourly",
+    "daily",
+    "monthly",
+    "annual",
+    "contract",
+    "stipend",
+    "not_disclosed"
+  ],
+  "location_rules": {
+    "remote_labels": ["remote", "hybrid", "onsite"],
+    "subdivision_required": false,
+    "locality_required": false
+  },
+  "work_authorization_labels": [
+    "work_authorization_not_assessed",
+    "citizenship_requirement_mentioned",
+    "not_disclosed"
+  ],
+  "source_classes": ["regional_board", "user_import"],
+  "cv_profiles": ["india_cv_research"],
+  "taxonomy_ids": [
+    "india_nco_2015_research",
+    "india_nsqf_nos_research"
+  ],
+  "policy_note_refs": [
+    "docs/plans/v3/regional-readiness-framework.md",
+    "https://www.ncs.gov.in/pages/website-policy.aspx"
+  ],
+  "provenance_refs": [
+    "https://www.ncs.gov.in/",
+    "https://www.ncs.gov.in/documents/national%20classification%20of%20occupations%20_vol%20i-%202015.pdf",
+    "https://ncvet.gov.in/national-skills-qualification-framework/nsqf-notification/"
+  ],
+  "evaluation_fixture_ids": [
+    "source-truth-official-absence-v1",
+    "accessibility-keyboard-zoom-motion-v1"
+  ],
+  "incomplete_coverage": true
+}

@@ -10,9 +10,15 @@ use super::{
     decode_common_html_entities, strip_html_markup, JobScraper, ScraperResult,
     JOBSENTINEL_USER_AGENT,
 };
-use jobsentinel_domain::normalization::infer_remote_status;
-use jobsentinel_domain::Job;
+use jobsentinel_domain::{
+    normalization::infer_remote_status,
+    v3_source_manifest::{
+        HN_HIRING_ITEM_ENDPOINT_PREFIX, HN_HIRING_REQUEST_LIMIT_PER_HOUR, HN_HIRING_SEARCH_ENDPOINT,
+    },
+    Job,
+};
 use jobsentinel_network::{send_external_http_text_with_retry, ExternalHttpRequest};
+use std::num::NonZeroU16;
 
 use async_trait::async_trait;
 use chrono::Utc;
@@ -26,6 +32,8 @@ pub struct HnHiringScraper {
     pub remote_only: bool,
     /// Rate limiter for respecting HN API limits
     pub rate_limiter: RateLimiter,
+    /// JobSentinel policy rate for this source
+    pub request_limit_per_hour: u32,
 }
 
 impl HnHiringScraper {
@@ -34,23 +42,36 @@ impl HnHiringScraper {
             limit,
             remote_only,
             rate_limiter: RateLimiter::shared(),
+            request_limit_per_hour: u32::from(HN_HIRING_REQUEST_LIMIT_PER_HOUR),
         }
+    }
+
+    #[must_use]
+    pub fn with_request_limit_per_hour(mut self, request_limit_per_hour: NonZeroU16) -> Self {
+        self.request_limit_per_hour = u32::from(request_limit_per_hour.get());
+        self
+    }
+
+    fn request(url: &str) -> ExternalHttpRequest {
+        ExternalHttpRequest::get(url)
+            .without_retries()
+            .user_agent(JOBSENTINEL_USER_AGENT)
     }
 
     /// Fetch the latest "Who is hiring?" thread
     async fn fetch_jobs(&self) -> ScraperResult {
         tracing::info!("Fetching jobs from HN Who's Hiring");
 
-        // Use rate limiter (Algolia API, reasonable limit)
-        self.rate_limiter.wait("hn_hiring", 500).await;
+        self.rate_limiter
+            .wait_paced("hn_hiring", self.request_limit_per_hour)
+            .await;
 
-        // First, search for the latest "Who is hiring?" thread
-        let search_url =
-            "https://hn.algolia.com/api/v1/search?query=who%20is%20hiring&tags=story,ask_hn&hitsPerPage=1";
+        let search_url = HN_HIRING_SEARCH_ENDPOINT;
 
-        let response = send_external_http_text_with_retry(
-            ExternalHttpRequest::get(search_url).user_agent(JOBSENTINEL_USER_AGENT),
-        )
+        let response = send_external_http_text_with_retry(Self::request(search_url).query([
+            ("tags".to_string(), "story,author_whoishiring".to_string()),
+            ("hitsPerPage".to_string(), "10".to_string()),
+        ]))
         .await
         .map_err(|error| ScraperError::from_external("hn_hiring", error))?;
 
@@ -65,84 +86,115 @@ impl HnHiringScraper {
         let search_result: serde_json::Value =
             ScraperError::parse_json(search_url, &response.body)?;
 
-        // Get the thread ID from the search result
-        let thread_id = search_result["hits"]
-            .get(0)
-            .and_then(|h| h["objectID"].as_str())
-            .ok_or_else(|| ScraperError::SelectorNotFound {
-                url: search_url.to_string(),
-                selector: "hits[0].objectID".to_string(),
-            })?;
+        let thread_id = Self::canonical_thread_id(&search_result).ok_or_else(|| {
+            ScraperError::SelectorNotFound {
+                url: "HN API response".to_string(),
+                selector: "current whoishiring thread".to_string(),
+            }
+        })?;
 
-        // Fetch comments from the thread
-        let comments_url = format!(
-            "https://hn.algolia.com/api/v1/search?tags=comment,story_{}&hitsPerPage=500",
-            thread_id
-        );
+        self.rate_limiter
+            .wait_paced("hn_hiring", self.request_limit_per_hour)
+            .await;
+        let thread_url = format!("{HN_HIRING_ITEM_ENDPOINT_PREFIX}{thread_id}");
 
-        let comments_response = send_external_http_text_with_retry(
-            ExternalHttpRequest::get(&comments_url).user_agent(JOBSENTINEL_USER_AGENT),
-        )
-        .await
-        .map_err(|error| ScraperError::from_external("hn_hiring", error))?;
+        let comments_response = send_external_http_text_with_retry(Self::request(&thread_url))
+            .await
+            .map_err(|error| ScraperError::from_external("hn_hiring", error))?;
 
         if !(200..300).contains(&comments_response.status) {
             return Err(ScraperError::http_status(
                 comments_response.status,
-                &comments_url,
+                &thread_url,
                 format!("HN comments fetch failed: {}", comments_response.status),
             ));
         }
 
         let comments_result: serde_json::Value =
-            ScraperError::parse_json(&comments_url, &comments_response.body)?;
-        let jobs = self.parse_comments(&comments_result)?;
+            ScraperError::parse_json(&thread_url, &comments_response.body)?;
+        let jobs = self.parse_thread_item(&comments_result, thread_id)?;
 
         tracing::info!("Found {} jobs from HN Who's Hiring", jobs.len());
         Ok(jobs)
     }
 
-    /// Parse comments to extract job postings
-    fn parse_comments(&self, data: &serde_json::Value) -> Result<Vec<Job>, ScraperError> {
-        let mut jobs = Vec::new();
+    #[must_use]
+    pub fn canonical_thread_id(data: &serde_json::Value) -> Option<u64> {
+        data["hits"].as_array().and_then(|hits| {
+            hits.iter().find_map(|hit| {
+                Self::is_canonical_thread(hit["author"].as_str(), hit["title"].as_str())
+                    .then(|| hit["objectID"].as_str()?.parse().ok())
+                    .flatten()
+                    .filter(|id| *id != 0)
+            })
+        })
+    }
 
-        let hits = data["hits"].as_array().ok_or_else(|| {
+    fn is_canonical_thread(author: Option<&str>, title: Option<&str>) -> bool {
+        author == Some("whoishiring")
+            && title.is_some_and(|title| {
+                title.starts_with("Ask HN: Who is hiring? (") && title.ends_with(')')
+            })
+    }
+
+    fn parse_thread_item(
+        &self,
+        data: &serde_json::Value,
+        expected_thread_id: u64,
+    ) -> Result<Vec<Job>, ScraperError> {
+        if !Self::is_canonical_thread_item(data, expected_thread_id) {
+            return Err(ScraperError::SelectorNotFound {
+                url: "HN item API response".to_string(),
+                selector: "selected canonical whoishiring thread".to_string(),
+            });
+        }
+        self.parse_thread_children(data)
+    }
+
+    #[must_use]
+    pub fn is_canonical_thread_item(data: &serde_json::Value, expected_thread_id: u64) -> bool {
+        data["id"].as_u64() == Some(expected_thread_id)
+            && Self::is_canonical_thread(data["author"].as_str(), data["title"].as_str())
+            && data["children"].is_array()
+    }
+
+    fn parse_thread_children(&self, data: &serde_json::Value) -> Result<Vec<Job>, ScraperError> {
+        let children = data["children"].as_array().ok_or_else(|| {
             ScraperError::parse(
                 "JSON",
-                "HN API response",
-                std::io::Error::new(std::io::ErrorKind::InvalidData, "No hits in response"),
+                "HN item API response",
+                std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    "No direct children in response",
+                ),
             )
         })?;
+        let mut jobs = Vec::new();
 
-        for comment in hits.iter().take(self.limit * 2) {
-            // Take more than limit since we'll filter
-            let comment_text = comment["comment_text"].as_str().unwrap_or("").to_string();
+        for comment in children {
+            if jobs.len() >= self.limit {
+                break;
+            }
+            let text = comment["text"].as_str().unwrap_or("");
+            let Some(comment_id) = comment["id"].as_u64().filter(|id| *id != 0) else {
+                continue;
+            };
 
-            // Skip if empty or too short
-            if comment_text.len() < 50 {
+            if text.len() < 50 {
                 continue;
             }
-
-            // HN job posts typically start with company name and often include location
-            if let Some(job) = self.parse_job_comment(&comment_text, comment) {
-                // Apply remote filter if enabled
+            if let Some(job) = self.parse_job_text(text, comment_id) {
                 if self.remote_only && job.remote != Some(true) {
                     continue;
                 }
-
                 jobs.push(job);
-
-                if jobs.len() >= self.limit {
-                    break;
-                }
             }
         }
 
         Ok(jobs)
     }
 
-    /// Parse a single job comment
-    fn parse_job_comment(&self, text: &str, comment: &serde_json::Value) -> Option<Job> {
+    fn parse_job_text(&self, text: &str, comment_id: u64) -> Option<Job> {
         // Clean HTML from comment
         let clean_text = Self::strip_html(text);
 
@@ -173,19 +225,16 @@ impl HnHiringScraper {
         let is_remote = Self::is_remote(&clean_text);
 
         // Build URL to the HN comment
-        let comment_id = comment["objectID"].as_str().unwrap_or("");
         let url = format!("https://news.ycombinator.com/item?id={}", comment_id);
 
-        if url.is_empty() || title.is_empty() {
+        if title.is_empty() {
             return None;
         }
 
-        // Use first ~500 chars as description
-        let description = if clean_text.len() > 500 {
-            Some(format!("{}...", &clean_text[..500]))
-        } else {
-            Some(clean_text.clone())
-        };
+        let description = Some(clean_text.char_indices().nth(500).map_or_else(
+            || clean_text.clone(),
+            |(end, _)| format!("{}...", &clean_text[..end]),
+        ));
 
         Some(Job {
             description,
@@ -246,7 +295,7 @@ impl HnHiringScraper {
 
     /// Extract job title from text
     fn extract_title(text: &str) -> Option<String> {
-        let lower = text.to_lowercase();
+        let lower = text.to_ascii_lowercase();
 
         // Look for common title patterns
         let patterns = [

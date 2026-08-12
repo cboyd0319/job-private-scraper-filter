@@ -1,6 +1,4 @@
-//! Browser Manager
-//!
-//! Manages browser lifecycle and page creation.
+//! Manages isolated browser profiles, browser lifecycle, and guided page creation.
 
 use anyhow::{Context, Result};
 use chromiumoxide::browser::{Browser, BrowserConfig};
@@ -276,7 +274,7 @@ mod tests {
     #[test]
     fn browser_profile_dirs_are_unique_private_and_cleaned_up() {
         let temp_dir = tempfile::tempdir().unwrap();
-        let root = temp_dir.path().join("profiles");
+        let root = temp_dir.path().canonicalize().unwrap().join("profiles");
 
         let first = create_automation_browser_profile_dir_in(&root).unwrap();
         let second = create_automation_browser_profile_dir_in(&root).unwrap();

@@ -300,7 +300,7 @@ Current test coverage:
 
 ## Known Issues
 
-- Drag-and-drop can be flaky on some systems (tests include retries)
+- Drag-and-drop uses the production keyboard sensor and exact target assertions.
 - Native file-picker coverage belongs in a Tauri-level smoke test, not browser-only Playwright.
 
 ## Resources

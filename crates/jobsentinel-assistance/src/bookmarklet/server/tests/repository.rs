@@ -1,17 +1,33 @@
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
-use jobsentinel_domain::Job;
+use jobsentinel_domain::{v3_source_authorization::SourceGrantState, Job};
 
 use super::super::BookmarkletRepository;
 
-#[derive(Default)]
 pub(super) struct TestBookmarkletRepository {
+    authorization_allowed: AtomicBool,
+    applied_hashes: Mutex<Vec<String>>,
     jobs: Mutex<Vec<Job>>,
+}
+
+impl Default for TestBookmarkletRepository {
+    fn default() -> Self {
+        Self {
+            authorization_allowed: AtomicBool::new(true),
+            applied_hashes: Mutex::new(Vec::new()),
+            jobs: Mutex::new(Vec::new()),
+        }
+    }
 }
 
 #[async_trait]
 impl BookmarkletRepository for TestBookmarkletRepository {
+    async fn authorize_browser_action(&self, _grant: &SourceGrantState) -> Result<bool, String> {
+        Ok(self.authorization_allowed.load(Ordering::Relaxed))
+    }
+
     async fn job_exists_by_hash(&self, hash: &str) -> Result<bool, String> {
         Ok(self.jobs().iter().any(|job| job.hash == hash))
     }
@@ -25,14 +41,34 @@ impl BookmarkletRepository for TestBookmarkletRepository {
         jobs.push(job.clone());
         Ok(i64::try_from(jobs.len()).unwrap_or(i64::MAX))
     }
+
+    async fn mark_job_applied(&self, hash: &str) -> Result<(), String> {
+        self.applied_hashes
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .push(hash.to_string());
+        Ok(())
+    }
 }
 
 impl TestBookmarkletRepository {
+    pub(super) fn set_authorization_allowed(&self, allowed: bool) {
+        self.authorization_allowed.store(allowed, Ordering::Relaxed);
+    }
+
     pub(super) fn jobs(&self) -> Vec<Job> {
         self.jobs
             .lock()
             .unwrap_or_else(|error| error.into_inner())
             .clone()
+    }
+
+    pub(super) fn is_applied(&self, hash: &str) -> bool {
+        self.applied_hashes
+            .lock()
+            .unwrap_or_else(|error| error.into_inner())
+            .iter()
+            .any(|applied| applied == hash)
     }
 }
 

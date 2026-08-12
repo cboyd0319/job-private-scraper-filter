@@ -105,6 +105,7 @@ fn qwen3_backend_embeds_with_pinned_downloaded_model() {
         temp_dir.path().to_path_buf()
     };
 
+    crate::model::set_download_policy_env(&app_data_dir);
     let manager = ModelManager::new(app_data_dir);
     let spec =
         ModelManager::default_embedding_model_spec().expect("default embedding should exist");
@@ -142,6 +143,7 @@ fn qwen3_reranker_ranks_direct_evidence_above_near_miss() {
         temp_dir.path().to_path_buf()
     };
 
+    crate::model::set_download_policy_env(&app_data_dir);
     let manager = ModelManager::new(app_data_dir);
     let spec = ModelManager::default_reranker_model_spec().expect("reranker should exist");
     if !manager.is_model_downloaded_for(&spec) {

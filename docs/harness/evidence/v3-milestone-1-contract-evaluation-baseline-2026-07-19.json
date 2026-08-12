@@ -1,0 +1,120 @@
+{
+  "schema": "jobsentinel.feature_evidence.v1",
+  "feature_id": "v3-milestone-1-contract-evaluation-baseline",
+  "behavior": "Versioned contracts, synthetic evals, typed-job evidence, deterministic file input, and budgets fail closed.",
+  "result": "passing",
+  "verified_at": "2026-07-19T01:30:00Z",
+  "revision": "5c8d23c7d4c9ea3cc1b966ea14d2827d7e00563c",
+  "revision_scope": "The clean committed Milestone 1 implementation before the evidence-only Gate 1 state transition.",
+  "platform": "local macOS 27.0 arm64 host",
+  "commands": [
+    {
+      "command": "env -u JOBSENTINEL_LIVE_KEYRING_TESTS node scripts/dev/run-cargo.mjs test -p jobsentinel-domain --all-features",
+      "exit_status": 0,
+      "relevant_result": "All 96 domain tests and 5 documentation tests passed, including fail-closed contracts, compatibility fixtures, privacy boundaries, manifests, model provenance, and vector freshness.",
+      "caveat": "Live credential-store integration was intentionally disabled; this crate does not need it."
+    },
+    {
+      "command": "env -u JOBSENTINEL_LIVE_KEYRING_TESTS node scripts/dev/run-cargo.mjs test -p jobsentinel-domain v3_evaluation",
+      "exit_status": 0,
+      "relevant_result": "All 13 evaluation tests passed across the 11 frozen categories, including duplicate-observation, polarity, veteran evidence, protected-answer, and commercial-comparison checks.",
+      "caveat": "Fixtures are synthetic and local. They contain no personal data and invoke no external AI."
+    },
+    {
+      "command": "env -u JOBSENTINEL_LIVE_KEYRING_TESTS node scripts/dev/run-cargo.mjs test -p jobsentinel-storage health::tracking::tests",
+      "exit_status": 0,
+      "relevant_result": "All 3 focused storage health tests passed for startup interruption recovery and exactly-once terminal audit transitions.",
+      "caveat": "The tests use isolated databases and do not invoke an operating-system credential store."
+    },
+    {
+      "command": "env -u JOBSENTINEL_LIVE_KEYRING_TESTS node scripts/dev/run-cargo.mjs test -p jobsentinel-application scheduler::workers::scrapers::tests",
+      "exit_status": 0,
+      "relevant_result": "All 11 focused scraper-runner tests passed for audit admission, shutdown boundaries, partial results, timeouts, terminal failures, and sanitized diagnostics.",
+      "caveat": "No external source was contacted."
+    },
+    {
+      "command": "env -u JOBSENTINEL_LIVE_KEYRING_TESTS node scripts/dev/run-cargo.mjs test -p jobsentinel-application failed_notification_is_not_retried_automatically",
+      "exit_status": 0,
+      "relevant_result": "The focused notification test proved a failed or ambiguous provider attempt remains claimed and is not duplicated.",
+      "caveat": "Per-channel durable retry remains a later storage concern; immediate delivery is explicitly at most once."
+    },
+    {
+      "command": "env -u JOBSENTINEL_LIVE_KEYRING_TESTS node scripts/dev/run-cargo.mjs test -p jobsentinel-application test_cycle_waiting_for_admission_stops_after_shutdown",
+      "exit_status": 0,
+      "relevant_result": "The queued-cycle test proved shutdown prevents new work after scrape-lock admission.",
+      "caveat": "The test uses a disabled-source configuration and cannot retrieve credentials."
+    },
+    {
+      "command": "env -u JOBSENTINEL_LIVE_KEYRING_TESTS node scripts/dev/run-cargo.mjs test -p jobsentinel shutdown_before_bootstrap_cycle_prevents_work",
+      "exit_status": 0,
+      "relevant_result": "The focused desktop bootstrap test proved a sticky pre-cycle shutdown signal prevents scheduler work.",
+      "caveat": "No GUI or operating-system credential access occurs in this test."
+    },
+    {
+      "command": "npm run test:e2e:smoke:budget",
+      "exit_status": 0,
+      "relevant_result": "All 10 smoke journeys passed in 8,261.17 ms with no unexpected, flaky, or skipped tests.",
+      "caveat": "The enforced budget is at most 25 tests and 30,000 ms; this is the focused smoke lane, not the full release E2E lane."
+    },
+    {
+      "command": "env -u JOBSENTINEL_LIVE_KEYRING_TESTS npm run tauri:build -- --debug --bundles app --ci --no-sign",
+      "exit_status": 0,
+      "relevant_result": "The current frontend and Rust desktop application built successfully as a debug macOS app bundle.",
+      "caveat": "The local smoke bundle is intentionally unsigned and is not release evidence."
+    },
+    {
+      "command": "Computer Use installed-app smoke: finish isolated first run, open Resume Match, invoke Add Resume, cancel the native Open sheet, and exit",
+      "exit_status": 0,
+      "relevant_result": "The macOS native Open sheet appeared; no file was selected; cancel returned to No Resume Added with no retained path; no Keychain prompt appeared.",
+      "caveat": "The app used an ephemeral package-smoke root and database key. The host is macOS 27 arm64; Windows 11, macOS 26, and Linux live package proof remain release-matrix work."
+    },
+    {
+      "command": "npm run harness:check",
+      "exit_status": 0,
+      "relevant_result": "The single-active-feature transition, evidence binding, plan routing, architecture ownership, and startup budgets passed.",
+      "caveat": "Repository GitHub Actions remain temporarily disabled by user direction."
+    },
+    {
+      "command": "npm run lint:sqlx && npm run lint:security && npm run lint:file-size && cargo fmt --all -- --check && git diff --check",
+      "exit_status": 0,
+      "relevant_result": "SQLx metadata, harness ownership, security boundaries, file-size hard limits, Rust formatting, and diff hygiene passed.",
+      "caveat": "Repository GitHub Actions remain temporarily disabled by user direction."
+    },
+    {
+      "command": "node scripts/dev/run-cargo.mjs clippy -p jobsentinel-domain -p jobsentinel-storage -p jobsentinel-application -p jobsentinel --all-targets --all-features -- -D warnings",
+      "exit_status": 0,
+      "relevant_result": "The changed Rust owners passed Clippy with warnings denied.",
+      "caveat": "This focused owner set is Milestone 1 evidence, not the final release workspace lane."
+    }
+  ],
+  "source": "docs/plans/v3/master-exec-plan.md",
+  "measurements": {
+    "schema_ids_frozen": 9,
+    "evaluation_categories": 11,
+    "evaluation_tests_passed": 13,
+    "domain_tests_passed": 96,
+    "domain_doc_tests_passed": 5,
+    "smoke_tests_passed": 10,
+    "smoke_test_limit": 25,
+    "smoke_duration_ms": 8261.17,
+    "smoke_duration_limit_ms": 30000,
+    "native_files_selected": 0,
+    "database_migrations_added": 0
+  },
+  "decisions": {
+    "compatibility": "Freeze compatibility_line 3; accept typed pre-v3 objects for migration; refuse malformed, unsupported-newer, and unknown fields outside the explicit extensions map.",
+    "archive_envelopes": "Backups are encrypted. Reviewed plaintext exports contain no secrets and require explicit user review.",
+    "privacy": "Freeze local_only, external_ai_optional, sensitive, and public_data_only labels. Military service, clearance claims, and protected veteran answers remain typed protected categories outside external pack flows.",
+    "vectors": "Use sqlite_blob_v1 with model and content provenance. Add no vector service or abstraction.",
+    "packs": "V3.0 permits static content and reviewed typed workflows only. Generic script and dynamic adapter execution remain deferred.",
+    "a20": "Defer the local runtime kernel. Existing application and Tokio owners satisfy typed-job scheduling, cancellation, recovery, observability, and resource-bound requirements.",
+    "notifications": "Claim immediate delivery before provider invocation and never retry a failed or ambiguous attempt automatically, preventing duplicates until later durable per-channel retry design.",
+    "mutation_scope": "Use focused hostile field, polarity, and duplicate-observation mutations to disprove fail-closed contract and evaluation behavior; do not run a broad low-signal mutation campaign.",
+    "credential_tests": "Keep live keyring tests opt-in. Use isolated databases, fixed test vaults, or the package-smoke key path for unattended verification."
+  },
+  "review": {
+    "adversarial_verdict": "PASS after duplicate-observation and scheduler lifecycle corrections",
+    "privacy_or_security_regression": false,
+    "open_milestone_1_findings": 0
+  }
+}

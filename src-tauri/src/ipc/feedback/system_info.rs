@@ -110,25 +110,10 @@ pub(super) fn summarize_config(config: &Config) -> ConfigSummary {
         if config.weworkremotely.enabled {
             count += 1;
         }
-        if config.builtin.enabled {
-            count += 1;
-        }
         if config.hn_hiring.enabled {
             count += 1;
         }
-        if config.dice.enabled {
-            count += 1;
-        }
-        if config.yc_startup.enabled {
-            count += 1;
-        }
         if config.usajobs.enabled {
-            count += 1;
-        }
-        if config.simplyhired.enabled {
-            count += 1;
-        }
-        if config.glassdoor.enabled {
             count += 1;
         }
         count

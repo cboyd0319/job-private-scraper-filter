@@ -1,0 +1,79 @@
+{
+  "schema": "jobsentinel.v3.source-manifest.v1",
+  "source_id": "jobswithgpt",
+  "display_name": "Connected job source",
+  "source_class": "restricted_public_scheduled",
+  "endpoint_patterns": [],
+  "documentation_url": "https://corvi.careers/terms/",
+  "auth_requirement": "none",
+  "policy_ref": "jobsentinel.source-policy.jobswithgpt.provider-review",
+  "policy_revision": 1,
+  "actions": [
+    {
+      "operation": "scheduled_check",
+      "permission": "user_review"
+    }
+  ],
+  "terms_review": {
+    "status": "review_required",
+    "reference": "source-review.jobswithgpt.provider-terms",
+    "reviewed_on": null
+  },
+  "robots_review": {
+    "status": "review_required",
+    "reference": "source-review.jobswithgpt.robots",
+    "reviewed_on": null
+  },
+  "parser_id": "jobswithgpt-mcp-job-v1",
+  "fixtures": [
+    {
+      "fixture_id": "jobswithgpt-list-v1",
+      "kind": "list",
+      "path": "crates/jobsentinel-sources/src/fixtures/jobswithgpt_list_v1.json",
+      "payload_sha256": "84f98c363087ed210a73701464c2585fba29aa524a7c7a551232b9da0c220dfe"
+    },
+    {
+      "fixture_id": "jobswithgpt-policy-review-v1",
+      "kind": "policy",
+      "path": "crates/jobsentinel-domain/src/fixtures/source_reviews/jobswithgpt_v1.json",
+      "payload_sha256": "8182edef7a2eeccf9f07ce8d6879471b8553ddcd27a96a0311f3a08d4362da77"
+    }
+  ],
+  "supported_fields": [
+    "title",
+    "company",
+    "location",
+    "description",
+    "salary",
+    "application_url"
+  ],
+  "salary_coverage": "partial",
+  "verified_on": "2026-07-19",
+  "max_age_days": 30,
+  "confidence_percent": 60,
+  "lineage": [
+    {
+      "link_id": "source-lineage-jobswithgpt-provider-review",
+      "source_id": "jobswithgpt",
+      "relation": "lineage",
+      "related_id": "corvi-careers-terms",
+      "provenance": "public_source",
+      "provenance_ref": "source-review.jobswithgpt.provider-terms"
+    }
+  ],
+  "stop_conditions": [
+    "policy_disabled",
+    "policy_changed",
+    "review_expired",
+    "rate_limit_reached",
+    "access_blocked",
+    "parser_drift",
+    "repeated_failure"
+  ],
+  "risk_note_refs": [
+    "source-risk.jobswithgpt.endpoint-unverified",
+    "source-risk.jobswithgpt.provider-policy-unresolved",
+    "source-risk.jobswithgpt.sensitive-search-payload"
+  ],
+  "incomplete_coverage": true
+}

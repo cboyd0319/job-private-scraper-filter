@@ -2,7 +2,10 @@
 
 use crate::config::Config;
 use crate::credentials::CredentialService;
-use std::sync::Arc;
+use std::sync::{
+    atomic::{AtomicBool, Ordering},
+    Arc,
+};
 use tokio::sync::{broadcast, Mutex, RwLock};
 
 /// Schedule configuration
@@ -31,7 +34,14 @@ pub struct Scheduler {
     pub(crate) database: Arc<jobsentinel_storage::Database>,
     pub(crate) credentials: Arc<CredentialService>,
     pub(crate) shutdown_tx: broadcast::Sender<()>,
+    pub(crate) shutdown_requested: AtomicBool,
     pub(crate) scrape_lock: Arc<Mutex<()>>,
+}
+
+impl Scheduler {
+    pub fn is_shutdown_requested(&self) -> bool {
+        self.shutdown_requested.load(Ordering::Acquire)
+    }
 }
 
 /// Scraping result statistics

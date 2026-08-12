@@ -13,10 +13,9 @@ pub use board_urls::{
 };
 pub use job_page::{parse_single_job_page, JobPageParseError, ParsedJobPage};
 pub use scrapers::{
-    limits, BuiltInScraper, DiceScraper, GlassdoorScraper, GreenhouseCompany, GreenhouseScraper,
-    HnHiringScraper, JobQuery, JobScraper, JobsWithGptScraper, LeverCompany, LeverScraper,
-    RateLimiter, RemoteOkScraper, ScraperError, SimplyHiredScraper, UsaJobsScraper,
-    WeWorkRemotelyScraper, YcStartupScraper, LINKEDIN_AUTOMATION_DISABLED_MESSAGE,
+    limits, GreenhouseCompany, GreenhouseScraper, HnHiringScraper, JobQuery, JobScraper,
+    JobsWithGptScraper, LeverCompany, LeverScraper, RateLimiter, RemoteOkScraper, ScraperError,
+    UsaJobsScraper, WeWorkRemotelyScraper, LINKEDIN_AUTOMATION_DISABLED_MESSAGE,
 };
 
 use anyhow::{bail, Context, Result};

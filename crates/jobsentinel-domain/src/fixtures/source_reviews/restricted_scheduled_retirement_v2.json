@@ -1,0 +1,47 @@
+{
+  "reviewed_on": "2026-07-19",
+  "sources": [
+    {
+      "source_id": "builtin",
+      "terms_url": "https://builtin.com/community-terms-of-use",
+      "robots_url": "https://builtin.com/robots.txt",
+      "observed": "Built In terms prohibit bots, spiders, scrapers, web crawlers, indexing agents, and other automated mechanisms. Robots rules do not override that prohibition.",
+      "disposition": "Legacy scheduled HTML access is disabled."
+    },
+    {
+      "source_id": "dice",
+      "terms_url": "https://www.dice.com/about/terms-and-conditions",
+      "robots_url": "https://www.dice.com/robots.txt",
+      "observed": "Dice terms require prior written authorization for unapproved automated retrieval, and robots rules disallow the exact query-based jobs path used by the legacy adapter.",
+      "disposition": "Legacy scheduled HTML access is disabled. The separate official Dice MCP endpoint requires a new reviewed schema, privacy, and pacing contract before use."
+    },
+    {
+      "source_id": "simplyhired",
+      "terms_url": "https://www.indeed.com/legal?hl=en_US",
+      "robots_url": "https://www.simplyhired.com/robots.txt",
+      "observed": "SimplyHired identifies itself as part of the Indeed Site. Current Indeed terms apply to simplyhired.com and prohibit automated access or extraction without express written permission.",
+      "disposition": "Legacy scheduled search-page access is disabled."
+    },
+    {
+      "source_id": "glassdoor",
+      "terms_url": "https://www.glassdoor.com/about/terms/",
+      "robots_url": "https://www.glassdoor.com/robots.txt",
+      "observed": "Glassdoor terms prohibit automated agents and scraping, stripping, or mining without express written permission. The legacy uncredentialed HTML path is not an approved API integration.",
+      "disposition": "Legacy scheduled HTML access is disabled."
+    }
+  ],
+  "local_policy": {
+    "request_limit_per_hour": 0,
+    "automatic_retries": false,
+    "automation_authorized": false,
+    "legacy_user_consent_authorizes_transport": false,
+    "data_use": "No scheduled provider contact while disabled.",
+    "redistribution": false,
+    "external_model_training": false
+  },
+  "change_triggers": [
+    "The provider publishes an exact authorized third-party endpoint and use contract.",
+    "The provider supplies express written permission.",
+    "Terms, robots rules, endpoint identity, or ownership changes."
+  ]
+}

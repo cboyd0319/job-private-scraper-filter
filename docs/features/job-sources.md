@@ -1,3 +1,5 @@
+<!-- Defines supported job-source behavior, governance, and privacy boundaries. -->
+
 # Job Sources
 
 JobSentinel favors official-source job monitoring and public job sources
@@ -42,45 +44,93 @@ messages, and quality checks, not restricted-source acknowledgements or
 authenticated-session time gates.
 
 Do not confuse restricted public boards with authenticated sessions. A job board
-can be technically public and unauthenticated while still requiring a prominent
-user agreement because its terms, anti-automation controls, or data-use
-expectations are unclear. Those restricted public unauthenticated sources may
-run as user-approved source checks with rate limits and safe errors; they do
-not receive LinkedIn-style sign-in-session restrictions unless the flow opens an
-account-backed sign-in session.
+can be technically public and unauthenticated while still prohibiting or
+restricting automated access. Local user consent never overrides provider
+policy. Built In, Dice, SimplyHired, and Glassdoor scheduled automation is
+disabled after current first-party policy review. Pasted-URL import for those
+domains also stops before transport. Dice's official MCP remains review-required
+until privacy, schema, and pacing contracts are reviewed.
 
 The warning must be prominent in the UI and public docs because users should
 not need to understand source internals to make an informed choice. The secure
-path is the easy path: official feeds first, user-opened and reviewed paths
-next, restricted automation only after explicit local acknowledgement.
+path is the easy path: official feeds first, then user-opened and reviewed
+paths. Automation remains disabled whenever source policy does not authorize it.
 
-Saved acknowledgements can reduce repeat friction. Keep them local, tied to the
-source and warning version, and reset them when the warning, source class, or
-data behavior changes.
+Legacy acknowledgement booleans remain loadable only for config compatibility.
+They are always cleared and cannot authorize transport. Any future source
+consent must be local, append-only, and bound to the exact source, operation,
+warning, behavior revision, current policy, destination, data categories, and
+minimized request fingerprint.
 
 ## Source Model
 
 | Category | Sources |
 | -------- | ------- |
-| Scheduled job checks | Greenhouse, Lever, RemoteOK, WeWorkRemotely, BuiltIn, community hiring posts, JobsWithGPT, Dice, YC Startup Jobs, USAJobs, SimplyHired, Glassdoor |
-| Source-check helpers | Scheduled job checks plus Indeed, Wellfound, and ZipRecruiter availability checks |
+| Scheduled job checks | Greenhouse, Lever, RemoteOK, WeWorkRemotely, and community hiring posts |
+| Source awaiting reviewed access | USAJobs stops before credential access until approved-use evidence is current |
+| Disabled legacy sources | JobsWithGPT, Built In, Dice HTML, SimplyHired, and Glassdoor settings remain loadable but cannot authorize transport |
+| Source-check helpers | Active scheduled sources plus locally skipped Indeed, Wellfound, and ZipRecruiter availability checks |
 | Company careers discovery | Employer careers pages that JobSentinel can classify before choosing a safe source path |
-| User-opened search links | LinkedIn and other destination links opened by the user |
+| User-opened search links | LinkedIn, Y Combinator Jobs, and other destination links opened by the user |
 | Preferred expansion path | Official company career pages and public hiring-platform sources such as Greenhouse, Lever, Ashby, Workable, SmartRecruiters, and USAJobs |
+
+## Veteran And U.S. Public-Service References
+
+The machine-readable reviewed index is
+`crates/jobsentinel-domain/src/fixtures/v3_veteran_public_service_index_v1.json`.
+It is intentionally incomplete. Inclusion means only that JobSentinel has
+recorded a bounded use for the reference. It does not mean complete coverage,
+current employer hiring, veteran-friendly status, civilian equivalence,
+qualification, preference, protected veteran status, or federal eligibility.
+
+| Reference | Reviewed use | Runtime boundary |
+| --------- | ------------ | ---------------- |
+| [USAJOBS API](https://developer.usajobs.gov/guides/authentication) | Official federal job search | User-provided API key and registered email; secure local credential storage |
+| [O*NET Military Crosswalk](https://www.onetcenter.org/crosswalks.html) | Government-sponsored occupation linkage suggestions | Manual review only; August 2024 source and [O*NET Web Services external-data license exclusions](https://services.onetcenter.org/help/license_data) recorded |
+| [Department of Defense COOL](https://www.cool.osd.mil/research-military-occupations.htm) | Occupation and credential research | Manual review only |
+| [OPM Veteran Job Seekers guidance](https://www.opm.gov/fedshirevets/veteran-job-seekers/vets/) | General federal veteran-hiring guidance | Manual review only; never an individual eligibility decision |
+| [Department of Labor VEVRAA guidance](https://www.dol.gov/agencies/ofccp/faqs/vevraa) | General protected-status guidance | Manual review only; answers remain voluntary and user selected |
+| [VetSec remote security employer list](https://github.com/VetSec/companies-hiring-security-remote) | Community employer-discovery seed | Manual review only; verify each official careers site |
+| [VetSec resume prompt examples](https://github.com/VetSec/AI-ML/tree/main/resume/ChatGPT) | Evaluation reference | Manual review only; never an external-AI default or approval bypass |
+| [MOS Directory](https://mos.directory/) | Community occupation comparison | Manual review only |
+| [Military Money MOS lists](https://www.militarymoney.com/careers/mos-lists/) | Older commercial occupation comparison | Manual review only; page showed a September 30, 2022 update date |
+| [COECCC service-to-sector mapping](https://coeccc.net/from-service-to-sector-mapping-military-skills-to-civilian-careers/) | California San Diego and Imperial regional workforce research | Manual review only |
+| [Best Military Resume MOS chart](https://bestmilitaryresume.com/blog/career-transition/mos-to-civilian-job-chart-all-branches-2026) | Commercial occupation comparison | Manual review only |
+| [Military Transition Toolkit](https://www.militarytransitiontoolkit.com/mos) | Commercial occupation comparison | Manual review only |
+
+Occupation, credential, and sector mappings are suggestions only. JobSentinel
+may use them to help a user find civilian language, but every resulting duty,
+tool, credential, date, clearance, achievement, and qualification must come
+from user-confirmed evidence. Service history, federal hiring eligibility, and
+protected veteran status remain separate concepts. JobSentinel never derives
+one from another.
 
 ## Boundaries
 
 | Rule | Requirement |
 | ---- | ----------- |
 | Official source first | Prefer official posting sources, public feeds, and company or application-platform postings |
-| Restricted-site user gate | Warn prominently and require explicit acknowledgement before user-directed restricted-site import, browser import, search-link open, or scheduled restricted-source check |
+| Restricted-site user gate | Warn before user-directed restricted-site import or search-link open. Browser Import requires a native per-site confirmation and exact persisted pairing authority; no acknowledgement can override a provider automation prohibition |
 | Technical auth classification | Keep public unauthenticated sources, local API-key sources, authenticated user-session sources, and unknown review-required sources distinct in the shared source taxonomy |
 | Restricted-domain rationale | Every domain in `RESTRICTED_JOB_SOURCE_DOMAINS` must come from a structured record with a specific reason, category, and source reference; do not add undocumented domains |
 | No secret capture or evasion | Do not add hidden data paths, session-cookie collection, human-check workarounds, or platform-control evasion |
 | Local-first storage | Source results, run history, and notes stay local |
 | Rate limits | Every source check must wait within that source's limits |
 | Response size | JobSentinel stops reading very large responses; the current safety limit is 16 MiB |
-| User control | Job-site search links open in the user's browser; restricted-site actions continue only after acknowledgement |
+| User control | Job-site search links open in the user's browser; restricted-site actions stay user-directed and policy-bound |
+
+## Smart Paste
+
+Smart Paste turns copied job text and an optional public HTTPS job link into a
+local review draft. It does not fetch the page, use external AI, inspect the
+clipboard automatically, or read screenshots. The user pastes the text,
+reviews and edits title, company, location, and link, then confirms the exact
+draft before local storage.
+
+Pasted text and review edits are rejected before queueing if they contain
+password, token, cookie, authorization, or session-like material. Incomplete
+text remains an unsaved review draft until the user supplies the required
+fields. Screenshot and OCR import remain outside the v3.0 Smart Paste boundary.
 
 ## User-Controlled LinkedIn Workbench
 
@@ -88,31 +138,30 @@ The LinkedIn-compatible flow is user-controlled activity capture, not a
 scheduled scraper. It is reachable from Dashboard quick actions and Settings:
 
 1. The user starts the LinkedIn session from JobSentinel.
-2. JobSentinel shows short, friendly copy about what it can help with.
+2. JobSentinel shows a trusted native review with short, friendly copy about
+   what it can help with. The exact review is stored in the append-only local
+   source consent ledger.
 3. The user signs in and uses LinkedIn directly.
-4. The user can click the Browser Import button on a LinkedIn Jobs page to save
-   the visible job cards into local job records for review.
-5. JobSentinel shows local controls beside the browser: save, applied, track,
+4. JobSentinel shows local controls beside the browser: save, applied, track,
    rejected, interview, follow up, reminder, note, not interested, and paste
    details.
-6. JobSentinel stores only visible-page imports and user-confirmed local
-   records.
-7. Local analysis runs after the record exists in JobSentinel.
+5. JobSentinel stores only user-entered or user-selected details and
+   user-confirmed local records.
+6. Local analysis runs after the record exists in JobSentinel.
 
 `Log applied` should be a one-click action. If title, company, or link are not
 known yet, create a draft application record with `Needs details` fields and
 prompt the user to finish it later. Optional details should come after the
 click, not before it.
 
-Prefill is allowed only from explicit user action: Browser Import on the page
-the user opened, pasted job links, pasted details, selected text the user sends
-to JobSentinel, or previously confirmed local records. For restricted
-authenticated sites, Browser Import may read only the current visible page after
-the user clicks the button; do not prefill by reading network traffic, browser
-storage, hidden page state, screenshots, or background pages. Prefilled values
-remain suggestions until the user confirms them. Pasted Workbench notes must
-remove session-like URL query fields, cookies, and token-like fields before
-local storage.
+LinkedIn prefill is allowed only from pasted job links, pasted details,
+selected text the user sends to JobSentinel, or previously confirmed local
+records. Current LinkedIn policy prohibits third-party page capture, so
+JobSentinel blocks LinkedIn Browser Import before anything enters the review
+queue. Do not prefill by reading network traffic, browser storage, hidden page
+state, screenshots, or background pages. Prefilled values remain suggestions
+until the user confirms them. Pasted Workbench notes must remove session-like
+URL query fields, cookies, and token-like fields before local storage.
 When a user pastes selected text into the Workbench, JobSentinel may fill the
 suggestion fields immediately from that pasted text.
 
@@ -121,10 +170,15 @@ suggestion fields immediately from that pasted text.
 JobSentinel should reduce spreadsheet-style work without becoming a hidden
 scraper. The release-safe model is assistive capture:
 
-- **Capture what the user intentionally exposes.** A user-clicked Browser Import
-  action may read the visible posting or visible job cards on the current page.
+- **Capture only where current provider policy permits it.** A user-clicked
+  Browser Import action may read the visible posting on a reviewed supported
+  page. Policy-blocked domains fail closed.
 - **Queue observations locally.** Captured jobs become local records for review,
   scoring, ghost-job checks, reminders, and resume tailoring.
+- **Keep applied logging narrow.** The generic **I Just Applied** browser action
+  reads only the visible title, company, and public page address, then queues a
+  local applied draft with missing details marked. It does not read the
+  description or structured page data.
 - **Keep actions explicit.** Applied, saved, tracking, rejected, interview,
   follow-up, reminder, note, and not-interested events must come from a
   JobSentinel control, a visible user-approved import, or another explicit user
@@ -177,9 +231,10 @@ The discovery order is:
    Phenom.
 2. Normalize to a native scheduled source only when the public source path and
    source terms are reviewed.
-3. Offer a user-opened search link, pasted job link import, Browser Import, or
-   manual entry when the employer page is custom, restricted, blocked, or still
-   under review.
+3. Offer a user-opened search link, Browser Import, or manual entry when the
+   employer page is custom, restricted, blocked, or still under review. Offer
+   pasted job link import only when current provider policy permits an
+   automated fetch.
 
 Examples from the 2026-06-19 source pass:
 
@@ -233,9 +288,9 @@ Source the user turned on
   -> record safe status details
 ```
 
-First-run setup can suggest job sources before the user saves the search, but it
+First-run setup can suggest job sources before the user saves the search setup, but it
 contacts only sources the user checks in review. If no outside source is
-selected, the review summary says the setup is a local saved search only. Source
+selected, the review summary says only local search settings are saved. Source
 checks do not receive resumes, private notes, saved answers, application
 history, or unrelated profile details.
 
@@ -266,34 +321,97 @@ Representative source pacing:
 
 | Source | Check pace | Access pattern |
 | ------ | ------------- | -------------- |
-| Greenhouse | High | Official public postings |
-| Lever | High | Official public postings |
+| Greenhouse | Paced, at most 1,000/hour | Official public Job Board API |
+| Lever | Paced, at most 1,000/hour | Official public Postings API |
 | USAJobs | High | Official source with user-provided access code |
 | RemoteOK | Medium | Public job feed |
-| Community hiring posts | Medium | Public/community source |
-| Dice | Medium | Public job feed |
+| Who Is Hiring community thread | Medium | Public community posts through Algolia HN Search |
 | WeWorkRemotely | Moderate | Public feed/page |
-| BuiltIn | Moderate | Public page |
-| YC Startup Jobs | Moderate | Public page |
-| SimplyHired | Conservative | Best-effort public source; may be blocked |
-| Glassdoor | Conservative | Best-effort public source; may ask for human checks |
-| JobsWithGPT | Feed-controlled | User-approved job-source feed |
+| JobsWithGPT | Disabled | Provider endpoint and usage-policy review required |
+| Built In, Dice HTML, SimplyHired, Glassdoor | Disabled | Provider policy does not authorize the retired adapters |
 
 Checks that cannot operate within source boundaries should fail closed and
 show a clear user-facing explanation.
 
-Source Status must show a one-time review prompt before checking restricted
-public unauthenticated helpers such as Indeed, Wellfound, BuiltIn, Dice,
-ZipRecruiter, SimplyHired, and Glassdoor. The prompt explains that some job
-boards have rules about automated tools and points users to search links,
-Browser Import, pasted links, employer pages, or manual entry if a site blocks
-the check or asks for human review.
+YC Startup Jobs is user-opened only. A 2026-07-19 review of Y Combinator's
+current Terms of Use found an explicit prohibition on scraping, robots, data
+mining, and similar extraction. JobSentinel therefore does not schedule,
+recommend, probe, fetch, import, or capture YC pages.
 
-Restricted scheduled sources such as BuiltIn, Dice, SimplyHired, and Glassdoor
-must also require a saved local acknowledgement before the scheduler runs them.
-If a config file or backup turns one on without that acknowledgement, the
-scheduler skips the source and returns a plain recovery message telling the
-user to review the restricted-source risk in Settings.
+Source Status keeps Indeed, Wellfound, and ZipRecruiter connectivity helpers
+locally skipped. Built In, Dice, SimplyHired, and Glassdoor health rows are
+removed by migration and cannot be restored. A direct legacy check identifier
+still stops locally with the provider-policy explanation. Restored or
+hand-edited config cannot re-enable transport. Users can instead choose a
+user-opened search link, Browser Import, an official employer page, or manual
+entry. Pasted-URL import for these four retired domains also stops before
+transport.
+
+USAJOBS scheduled and connectivity checks are currently review-required and
+stop before JobSentinel reads the saved access code. The current terms limit API
+data to the registered consumer's approved use and prohibit derivative works.
+JobSentinel has not established that every user's registration covers
+normalized local persistence, so the manifest keeps automation fail-closed
+until that approved-use boundary is represented by dated evidence. This is a
+provider-policy boundary, not a legal conclusion.
+
+Greenhouse and Lever scheduled and connectivity checks require exact persisted
+Public ATS manifests and policies before network access. Each manifest binds
+the public GET API prefix, reviewed synthetic parser fixture, hash-bound policy
+review record, current policy revision, robots review, and a paced local
+1,000-request-per-hour ceiling with burst one and no automatic retries. That
+ceiling is JobSentinel policy, not a provider-published GET allowance.
+Greenhouse uses only its documented public Job Board API. It no longer switches
+to hosted-board HTML after an API failure or empty result. Lever uses only its
+public Postings API and never submits an application. Normalized postings
+remain local and are not sent to external model training. Missing, stale,
+disabled, or drifted governance stops both the scheduled source and its fixed
+connectivity check before network access.
+
+All six governed API, feed, community, and public ATS manifests use the same
+pure source simulator. It calls the production authorization contract, requires
+every declared parser and policy fixture exactly once, hashes the supplied bytes,
+and reports the action decision, manifest and review expiry, and risk-note
+references. Missing, changed, extra, or duplicate fixtures produce the
+`parser_drift` stop condition. Simulator checks use only committed synthetic
+fixtures and do not contact a source.
+
+RemoteOK scheduled and connectivity checks use the same exact persisted-policy
+and manifest gate before network access. The reviewed first-party API notice
+requires attribution and a followed link to the RemoteOK listing and prohibits
+unapproved logo use. The reviewed robots policy allows ordinary public paths
+with a one-second crawl delay, reserves model-training use, and excludes query
+endpoints; named AI crawler groups also exclude user profiles. JobSentinel uses
+only the exact `/api` feed for a local user-directed job search, never sends it
+to model training, paces the authorized 500-request-per-hour rate without a
+multi-request burst, and does not retry failed requests automatically.
+
+We Work Remotely scheduled and connectivity checks use only its
+[advertised public RSS feeds](https://weworkremotely.com/remote-job-rss-feed).
+That page permits anyone to populate a remote-job feed when links are
+attributed back to We Work Remotely. JobSentinel preserves the source label and
+canonical WWR listing link, keeps normalized results local, and does not send
+feed content to external model training. The separate partner API is not used.
+Its token requirement and terms do not authorize JobSentinel's job-search
+workflow. The exact persisted manifest and policy gate every RSS request, map
+legacy category settings to reviewed feed URLs, reject all other categories,
+pace one request per hour with burst one, and disable automatic retries. Policy
+drift, unexpected access controls, attribution loss, parser drift, and stale
+review stop the source before network access.
+
+Who Is Hiring community checks use the
+[Algolia HN Search API](https://hn.algolia.com/api) to locate only the monthly
+thread posted by the `whoishiring` account. JobSentinel then reads the exact
+numeric thread item and treats only its direct replies as job posts, so nested
+discussion is not imported as listings. The exact persisted manifest and
+policy gate the source action before either request, and the health check
+validates both reviewed endpoints. Checks use a paced 500-request-per-hour
+policy with burst one and no automatic retries. JobSentinel preserves canonical
+community-comment links, keeps normalized results local, and does not export
+the raw community corpus or send it to external model training. Schema drift,
+service retirement, or lost attribution fails the current check without
+storing mismatched records. Stale review or policy change stops the source
+before network access, and malformed individual replies are skipped.
 
 ## Debug And Release Verification
 
@@ -314,23 +432,37 @@ claims that source is ready:
 
 ## User-Approved Job-Source Feeds
 
-JobsWithGPT is disabled unless the user adds a job-source feed and approves the
-exact details for that feed. Source checks send only the reviewed search fields
-needed by that feed: saved job titles, location, remote preference, and result
-limit. If titles, feed, or remote settings change, the approval no longer
-matches and JobSentinel skips that source until the user reviews the new
-details. Do not send resumes, salary floors, private notes, application history,
-screening answers, or unrelated profile details to a job-source feed.
-When the user approves a job-source feed, Settings should keep showing the exact
-approved details and explain that any change turns the source off until the user
-approves again.
-Settings also shows the latest approved contact as local status details only:
-contact time, website contacted, count-only request categories, and outcome. The
-contact history must not store raw titles, raw location, resumes, salary floors,
-private notes, application history, or full source links.
+JobsWithGPT scheduled contact is disabled. The legacy terms URL now redirects
+to a differently named provider, and the reviewed first-party terms describe a
+website but do not identify an exact feed endpoint, client authorization, or
+request limits. An exact local payload approval cannot override that unresolved
+provider-policy boundary. JobSentinel stops before writing a request attempt or
+sending saved search preferences.
+
+Settings may retain a configured endpoint, prior exact approval, and minimized
+historical contact records locally so users can inspect or remove them. The
+provider must not be re-enabled until a dated manifest verifies the exact
+endpoint, permitted client behavior, pacing, and stop conditions. Re-enabling
+would also require a current exact user approval for the saved job titles,
+location, remote preference, and result limit. Any change would revoke that
+approval. Do not send resumes, salary floors, private notes, application
+history, screening answers, or unrelated profile details to a job-source feed.
+
+For any reviewed feed, JobSentinel must write minimized request metadata before
+the approved request. If that local audit write fails, nothing is sent. The
+request is attempted once without automatic retries, and interrupted or
+incomplete terminal records remain visible as uncertain attempts. Settings
+shows the latest contact attempt as local status details only: attempt time,
+website, count-only request categories, and outcome. The contact history must
+not store raw titles, raw location, resumes, salary floors, private notes,
+application history, or full source links.
 The contact summary also names sensitive data that was not sent so users can
 verify that resumes, salary floors, private notes, application history, and full
 source links stayed out of the source request.
+
+Source Status does not make a separate JobsWithGPT connectivity request.
+Scheduled request history is the status owner, which avoids unreviewed or
+repeated provider contact.
 
 ## Duplicate Handling
 

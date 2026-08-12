@@ -1,0 +1,11 @@
+{
+  "jobs": [
+    {
+      "id": "synthetic-1",
+      "title": "Program Analyst",
+      "company": "Example Public Agency",
+      "location": "Denver, CO",
+      "detail_url": "https://jobs.example.com/api/v1/jobs/synthetic-1"
+    }
+  ]
+}

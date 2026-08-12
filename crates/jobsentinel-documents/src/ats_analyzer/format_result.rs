@@ -28,6 +28,7 @@ pub(super) fn build_format_result(
         requirement_reviews: Vec::new(),
         hard_constraint_risks: Vec::new(),
         suggestions,
+        matching_profile: None,
     }
 }
 

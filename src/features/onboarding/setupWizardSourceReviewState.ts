@@ -1,5 +1,4 @@
 import {
-  buildSetupSourceQuery,
   getSuggestedJobSourceOptions,
   type SetupConfig,
   type SetupJobSourceKey,
@@ -40,24 +39,6 @@ export function toggleSetupJobSource(
           enabled,
         },
       };
-    case "simplyhired": {
-      const query = enabled
-        ? config.simplyhired.query.trim() || buildSetupSourceQuery(config)
-        : config.simplyhired.query;
-      const location = enabled
-        ? config.simplyhired.location ?? config.location_preferences.cities[0]
-        : config.simplyhired.location;
-      const simplyhired = {
-        ...config.simplyhired,
-        enabled,
-        query,
-      };
-
-      return {
-        ...config,
-        simplyhired: location ? { ...simplyhired, location } : simplyhired,
-      };
-    }
   }
 }
 
@@ -72,8 +53,6 @@ export function getSetupWizardSourceReviewOptions(
         return { ...source, checked: config.hn_hiring.enabled };
       case "weworkremotely":
         return { ...source, checked: config.weworkremotely.enabled };
-      case "simplyhired":
-        return { ...source, checked: config.simplyhired.enabled };
     }
   });
 }

@@ -1,3 +1,5 @@
+<!-- Defines user-visible job-source availability and safe recovery guidance. -->
+
 # Job Source Status
 
 Job source status helps users see whether job sources are working, having
@@ -8,10 +10,10 @@ plain-language status and safe next steps.
 
 | Area | Current behavior |
 | ---- | ---------------- |
-| Scheduled source status | Tracks Greenhouse, Lever, RemoteOK, WeWorkRemotely, BuiltIn, startup and tech job posts, JobsWithGPT, Dice, YC Startup Jobs, USAJobs, SimplyHired, and Glassdoor |
-| Source-check coverage | Includes scheduled sources plus Indeed, Wellfound, and ZipRecruiter availability checks |
+| Scheduled source status | Tracks Greenhouse, Lever, RemoteOK, WeWorkRemotely, startup and tech job posts, disabled JobsWithGPT, and review-required USAJobs |
+| Source-check coverage | Includes active scheduled sources plus locally skipped Indeed, Wellfound, and ZipRecruiter availability checks |
 | User-opened search links and Workbench | LinkedIn and similar destination links are opened by the user, with local-only Workbench actions and no background monitoring |
-| Restricted-site gate | Risky source actions explain in plain language that some sites have rules about automated tools, then continue only after user acknowledgement |
+| Restricted-site gate | User-directed actions explain site rules; provider policy prohibitions cannot be overridden locally |
 | Saved access details | Tracks user-approved external channels where applicable; LinkedIn login details are not collected |
 | Support reports | Safe support reports can be copied or saved locally, reviewed, and shared only when the user chooses |
 
@@ -50,14 +52,17 @@ Source status must follow the same rules for job sources:
 - Do not collect restricted-site session credentials.
 - Do not get around human checks or platform controls.
 - Do not imply JobSentinel condones violating any source terms.
-- Prominently warn and require saved acknowledgement before scheduled
-  restricted-source checks run.
+- Disable scheduled access when provider policy does not authorize automation.
+  Local acknowledgement cannot override that boundary.
 - Do not include raw credentials, cookies, private notes, resumes, salary floors,
   or application history in health errors or support reports.
-- For optional user-approved job-source feeds such as JobsWithGPT, disclose
-  that JobsWithGPT receives only saved job titles, location, remote preference,
-  and result limit for job-site checks. These feeds must stay off unless turned
-  on and the exact details are reviewed and approved locally.
+- JobsWithGPT scheduled contact remains disabled while its provider endpoint
+  and usage-policy review is unresolved. A saved exact-payload approval cannot
+  authorize contact by itself.
+- If a configured feed is later reviewed and enabled, disclose that it receives
+  only saved job titles, location, remote preference, and result limit. It must
+  stay off unless both provider governance and the exact local payload approval
+  are current.
   The latest approved contact can be shown locally as contact time, website
   contacted, count-only request categories, and outcome. Do not store raw
   titles, raw location, private notes, resumes, salary floors, application
@@ -76,8 +81,10 @@ rejected, interview, follow-up, reminder, notes, or not interested. It does not
 collect LinkedIn login details, read page content, inspect network traffic,
 save browser storage, or run scheduled LinkedIn checks.
 
-If a restricted source is enabled without acknowledgement, the status surface
-should tell the user to review the restricted-source warning in Settings or use
-a safer path such as a search link, pasted individual job link, employer career
-page, or manual entry. Do not expose raw source errors, cookies, tokens, full
-query links, or private profile details while explaining the recovery path.
+Built In, Dice HTML, SimplyHired, and Glassdoor scheduled checks are retired.
+Their health rows stay absent, direct legacy check identifiers stop locally,
+and stale config flags cannot restore transport. The status surface should
+point to a user-opened search link, employer career page, Browser Import, or
+manual entry. Pasted-URL import for these domains also stops before transport.
+Do not expose raw source errors, cookies, tokens, full query links, or private
+profile details while explaining the recovery path.

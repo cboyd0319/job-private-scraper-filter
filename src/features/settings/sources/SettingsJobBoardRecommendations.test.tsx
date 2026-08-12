@@ -23,12 +23,14 @@ function renderRecommendations(config: Config) {
 }
 
 describe("useJobBoardRecommendations", () => {
-  it("recommends startup sources from shared startup intent terms", () => {
+  it("does not recommend retired YC automation for startup intent", () => {
     const recommendations = renderRecommendations(
       makeConfig({ keywords_boost: ["seed stage operations"] }),
     );
 
-    expect(recommendations.map((item) => item.board)).toContain("YC Startups");
+    expect(recommendations.map((item) => item.board)).not.toContain(
+      "YC Startups",
+    );
   });
 
   it("recommends USAJobs from shared government intent terms", () => {
@@ -39,7 +41,7 @@ describe("useJobBoardRecommendations", () => {
     expect(recommendations.map((item) => item.board)).toContain("USAJobs");
   });
 
-  it("recommends BuiltIn for technical searches in shared tech city markets", () => {
+  it("does not recommend retired restricted scheduled sources", () => {
     const recommendations = renderRecommendations(
       makeConfig({
         title_allowlist: ["Software Engineer"],
@@ -52,6 +54,8 @@ describe("useJobBoardRecommendations", () => {
       }),
     );
 
-    expect(recommendations.map((item) => item.board)).toContain("BuiltIn");
+    const boards = recommendations.map((item) => item.board);
+    expect(boards).not.toContain("BuiltIn");
+    expect(boards).not.toContain("Dice");
   });
 });

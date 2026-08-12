@@ -1,0 +1,65 @@
+{
+  "schema": "jobsentinel.feature_evidence.v1",
+  "feature_id": "v3-milestone-5-local-evidence-resume-matching",
+  "slice": "stronger-local-macos-package-and-installed-gui-lifecycle",
+  "behavior": "The stronger-local macOS package declares its runtime profile, contains no model payload, launches from the mounted image and a copied install, visibly confirms model setup and removal in the installed app, downloads and verifies the exact pinned Qwen3 pair, and removes every governed model file while built-in matching remains available.",
+  "result": "pass",
+  "verified_at": "2026-07-21T22:13:29Z",
+  "revision": "fc165239cebfe21b8248b92fa2667816bc9e0ea1",
+  "revision_scope": "The committed stronger-local package contract, bounded binary scanner, command trace coverage, and main-window-parented model lifecycle confirmations through fc165239.",
+  "platform": {
+    "os": "macOS 27.0 build 26A5378j",
+    "architecture": "arm64",
+    "hardware": "Mac16,5, Apple M4 Max, 64 GiB",
+    "distribution_identity": "no-account ad-hoc signature"
+  },
+  "artifact": {
+    "path": "target/aarch64-apple-darwin/release/bundle/dmg/JobSentinel_2.9.5_stronger-local_aarch64_no-account_macos.dmg",
+    "size_bytes": 16602557,
+    "sha256": "de83f9e738e9538ee4835a4a0fffcc2e22acd5556bc2c3409506bc4a592b2f3b"
+  },
+  "commands": [
+    {
+      "command": "JOBSENTINEL_MACOS_NO_ACCOUNT=true npm run tauri:build:macos:stronger-local -- --target aarch64-apple-darwin",
+      "exit_status": 0,
+      "result": "Built the arm64 stronger-local no-account DMG without embedding .safetensors payloads."
+    },
+    {
+      "command": "npm run tauri:verify:macos:stronger-local -- --dmg target/aarch64-apple-darwin/release/bundle/dmg/JobSentinel_2.9.5_stronger-local_aarch64_no-account_macos.dmg --expected-architectures arm64 --expected-bundle-id com.jobsentinel.main --expected-product-name JobSentinel --expected-version 2.9.5 --expected-icon-file icon.icns --expected-minimum-system-version 13.0 --launch-smoke --install-smoke --require-checksum",
+      "exit_status": 0,
+      "result": "Verified checksum, DMG integrity, metadata, stronger-local native commands, absent model payloads, arm64 architecture, code-signing integrity, mounted launch, copied-install launch, private local data, and empty launch stderr."
+    },
+    {
+      "command": "cargo test -p jobsentinel --features embedded-ml --lib ipc::ml::tests",
+      "exit_status": 0,
+      "result": "2 focused model lifecycle tests passed."
+    },
+    {
+      "command": "Computer Use installed-app lifecycle against an isolated macOS package-smoke root",
+      "exit_status": 0,
+      "result": "The rebuilt copied app showed both native confirmation sheets, downloaded the exact governed Qwen3 pair to Ready, then removed it and returned every model group to Not downloaded."
+    }
+  ],
+  "measurements": {
+    "locked_required_bytes_total": 2406043460,
+    "embedding_files_ready": "7/7",
+    "reranker_files_ready": "7/7",
+    "governed_files_after_removal": 0,
+    "mounted_visible_window_upper_bound_ms": 1104,
+    "copied_install_visible_window_upper_bound_ms": 826,
+    "mounted_aggregate_observed_max_rss_kib": 265904,
+    "copied_install_aggregate_observed_max_rss_kib": 266480
+  },
+  "assertions": [
+    "The package scanner found all six stronger-local commands without spawning an output-buffer-limited strings process.",
+    "The installed confirmation sheets were attached to the main app window and named the download and removal consequences before either action.",
+    "The installed UI reached Advanced local matching is ready with both governed Qwen3 groups at 7/7 files present.",
+    "Removal returned both governed Qwen3 groups to 0/7 and the legacy MiniLM group to 0/3; the governed model root was empty.",
+    "The copied installed app used only an isolated package-smoke database and model root."
+  ],
+  "caveats": [
+    "The live installed lifecycle ran on one macOS 27 arm64 64 GiB host; it is not exact macOS 26, Windows 11, Linux stronger-local, or modest-hardware download evidence.",
+    "The no-account artifact is ad-hoc signed. Gatekeeper rejection is expected until a Developer ID signed and notarized release artifact is available.",
+    "The exact model download duration remains network-dependent and is not a release threshold."
+  ]
+}

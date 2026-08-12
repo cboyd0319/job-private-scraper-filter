@@ -1,7 +1,8 @@
-use std::sync::{Arc, RwLock};
+use std::sync::Arc;
 
 use chrono::Utc;
-use serde_json::json;
+use serde::Deserialize;
+use serde_json::{json, Value};
 
 use crate::bookmarklet::{
     pending::{
@@ -9,23 +10,39 @@ use crate::bookmarklet::{
         selected_pending_bookmarklet_imports, BookmarkletImportConfirmResult,
         BookmarkletImportQueueResult, PendingBookmarkletImport, PendingBookmarkletImports,
     },
-    BookmarkletJobData, BookmarkletRepository,
+    BookmarkletJobData, BookmarkletRepository, CompanionRequest,
 };
-use jobsentinel_domain::{calculate_job_hash, canonicalize_job_url, Job};
+use jobsentinel_domain::{
+    calculate_job_hash, canonicalize_job_url,
+    v3_source_authorization::{visible_page_capture_is_blocked, SourceGrantState},
+    v3_source_manifest::SourceOperation,
+    Job,
+};
 
 use super::{
-    bookmarklet_job_values, bookmarklet_payload_matches_request_origin,
-    consume_valid_bookmarklet_token, json_error_response, BookmarkletAuthState,
+    bookmarklet_payload_matches_request_origin, consume_active_pairing, json_error_response,
+    ActiveCompanionPairing, BOOKMARKLET_AUTHORIZATION_FAILURE_MESSAGE,
     BOOKMARKLET_DATABASE_FAILURE_MESSAGE, BOOKMARKLET_UNAUTHORIZED_MESSAGE,
     INVALID_BOOKMARKLET_PAYLOAD_MESSAGE, MAX_BOOKMARKLET_COMPANY_LENGTH,
-    MAX_BOOKMARKLET_DESCRIPTION_LENGTH, MAX_BOOKMARKLET_LOCATION_LENGTH,
-    MAX_BOOKMARKLET_TITLE_LENGTH, MAX_BOOKMARKLET_URL_LENGTH,
+    MAX_BOOKMARKLET_DESCRIPTION_LENGTH, MAX_BOOKMARKLET_JOBS_PER_REQUEST,
+    MAX_BOOKMARKLET_LOCATION_LENGTH, MAX_BOOKMARKLET_TITLE_LENGTH, MAX_BOOKMARKLET_URL_LENGTH,
 };
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct BookmarkletImportEnvelope {
+    pairing: CompanionRequest,
+    job: Option<Value>,
+    jobs: Option<Vec<Value>>,
+}
+
+const MISSING_TITLE: &str = "Job title not added";
+const MISSING_COMPANY: &str = "Company not added";
 
 /// Handle import request
 pub(super) async fn handle_import_request(
     request: &str,
-    auth_state: &Arc<RwLock<BookmarkletAuthState>>,
+    active_pairing: &ActiveCompanionPairing,
     pending_imports: PendingBookmarkletImports,
     repository: Arc<dyn BookmarkletRepository>,
 ) -> (String, String) {
@@ -60,18 +77,29 @@ pub(super) async fn handle_import_request(
         );
     }
 
-    if !consume_valid_bookmarklet_token(auth_state, request, &body_value, Utc::now()) {
+    let (pairing_request, job_values, batch_mode) = match parse_import_envelope(body_value) {
+        Ok(envelope) => envelope,
+        Err(message) => {
+            return (json_error_response(message), "application/json".to_string());
+        }
+    };
+
+    if super::external_https_origin(&pairing_request.origin)
+        != super::request_header_value(request, "origin").and_then(super::external_https_origin)
+    {
         return (
-            json_error_response(BOOKMARKLET_UNAUTHORIZED_MESSAGE),
+            json_error_response("Invalid browser import origin"),
             "application/json".to_string(),
         );
     }
 
-    let batch_mode = body_value.get("jobs").is_some();
-    let job_values = match bookmarklet_job_values(&body_value) {
-        Ok(values) => values,
-        Err(message) => {
-            return (json_error_response(message), "application/json".to_string());
+    let grant = match consume_active_pairing(active_pairing, &pairing_request, Utc::now()) {
+        Ok(grant) => grant,
+        Err(_) => {
+            return (
+                json_error_response(BOOKMARKLET_UNAUTHORIZED_MESSAGE),
+                "application/json".to_string(),
+            );
         }
     };
     let mut job_data_values = Vec::with_capacity(job_values.len());
@@ -88,10 +116,6 @@ pub(super) async fn handle_import_request(
             }
         };
 
-        if let Err(message) = job_data.validate() {
-            return (json_error_response(message), "application/json".to_string());
-        }
-
         job_data_values.push(job_data);
     }
 
@@ -100,6 +124,7 @@ pub(super) async fn handle_import_request(
         &pending_imports,
         job_data_values,
         batch_mode,
+        grant,
     )
     .await
     {
@@ -134,20 +159,40 @@ pub(super) async fn handle_import_request(
     )
 }
 
+fn parse_import_envelope(
+    body: Value,
+) -> Result<(CompanionRequest, Vec<Value>, bool), &'static str> {
+    let envelope: BookmarkletImportEnvelope =
+        serde_json::from_value(body).map_err(|_| INVALID_BOOKMARKLET_PAYLOAD_MESSAGE)?;
+    match (envelope.job, envelope.jobs) {
+        (Some(job), None) => Ok((envelope.pairing, vec![job], false)),
+        (None, Some(jobs))
+            if !jobs.is_empty() && jobs.len() <= MAX_BOOKMARKLET_JOBS_PER_REQUEST =>
+        {
+            Ok((envelope.pairing, jobs, true))
+        }
+        _ => Err(INVALID_BOOKMARKLET_PAYLOAD_MESSAGE),
+    }
+}
+
 async fn queue_bookmarklet_jobs_for_review(
     repository: &dyn BookmarkletRepository,
     pending_imports: &PendingBookmarkletImports,
     job_data_values: Vec<BookmarkletJobData>,
     batch_mode: bool,
+    grant: jobsentinel_domain::v3_source_authorization::SourceGrantState,
 ) -> Result<BookmarkletImportQueueResult, String> {
+    let operation = granted_operation(&grant)?;
+    require_browser_action_authorization(repository, &grant).await?;
     let mut pending_jobs = Vec::with_capacity(job_data_values.len());
     let mut skipped = 0usize;
 
     for job_data in job_data_values {
-        let job_data = normalize_bookmarklet_job_data(job_data)?;
+        let (job_data, missing_fields) = normalize_bookmarklet_job_data(job_data, operation)?;
         let job_hash = bookmarklet_job_hash(&job_data);
 
         match repository.job_exists_by_hash(&job_hash).await {
+            Ok(true) if operation == SourceOperation::AppliedLogging => {}
             Ok(true) if batch_mode => {
                 skipped += 1;
                 continue;
@@ -165,7 +210,13 @@ async fn queue_bookmarklet_jobs_for_review(
             }
         }
 
-        pending_jobs.push(PendingBookmarkletImport::new(job_hash, job_data));
+        pending_jobs.push(PendingBookmarkletImport::new(
+            job_hash,
+            job_data,
+            grant.clone(),
+            operation,
+            missing_fields,
+        ));
     }
 
     let mut result = queue_pending_bookmarklet_imports(pending_imports, pending_jobs);
@@ -191,12 +242,18 @@ pub async fn confirm_pending_bookmarklet_imports(
     let mut skipped = 0usize;
 
     for pending_import in selected {
-        match store_bookmarklet_job(repository, pending_import.job_data()).await {
-            Ok(Some(_job_id)) => {
+        match store_bookmarklet_job(
+            repository,
+            pending_import.job_data(),
+            &pending_import.grant(),
+        )
+        .await
+        {
+            Ok(true) => {
                 imported += 1;
                 confirmed_ids.push(pending_import.id().to_string());
             }
-            Ok(None) => {
+            Ok(false) => {
                 skipped += 1;
                 confirmed_ids.push(pending_import.id().to_string());
             }
@@ -219,8 +276,11 @@ pub fn discard_pending_bookmarklet_imports(
 async fn store_bookmarklet_job(
     repository: &dyn BookmarkletRepository,
     job_data: BookmarkletJobData,
-) -> Result<Option<i64>, String> {
-    let job_data = normalize_bookmarklet_job_data(job_data)?;
+    grant: &jobsentinel_domain::v3_source_authorization::SourceGrantState,
+) -> Result<bool, String> {
+    require_browser_action_authorization(repository, grant).await?;
+    let operation = granted_operation(grant)?;
+    let job_data = normalize_bookmarklet_job_data(job_data, operation)?.0;
     let title = job_data.title.clone();
     let company = job_data.get_company().unwrap_or_default();
     let description = if job_data.description.trim().is_empty() {
@@ -238,9 +298,14 @@ async fn store_bookmarklet_job(
     let job_hash = bookmarklet_job_hash(&job_data);
 
     match repository.job_exists_by_hash(&job_hash).await {
-        Ok(true) => {
-            return Ok(None);
+        Ok(true) if operation == SourceOperation::AppliedLogging => {
+            repository
+                .mark_job_applied(&job_hash)
+                .await
+                .map_err(|_| BOOKMARKLET_DATABASE_FAILURE_MESSAGE.to_string())?;
+            return Ok(true);
         }
+        Ok(true) => return Ok(false),
         Ok(false) => {}
         Err(_e) => {
             tracing::error!(
@@ -260,13 +325,19 @@ async fn store_bookmarklet_job(
             company.clone(),
             url.clone(),
             location.clone(),
-            "bookmarklet",
+            "user-source-actions",
             created_at,
         )
     };
 
     match repository.upsert_job(&job).await {
         Ok(job_id) => {
+            if operation == SourceOperation::AppliedLogging {
+                repository
+                    .mark_job_applied(&job_hash)
+                    .await
+                    .map_err(|_| BOOKMARKLET_DATABASE_FAILURE_MESSAGE.to_string())?;
+            }
             tracing::info!(
                 job_id,
                 job_hash_len = job_hash.len(),
@@ -276,7 +347,7 @@ async fn store_bookmarklet_job(
                 remote,
                 "Job imported from bookmarklet"
             );
-            Ok(Some(job_id))
+            Ok(true)
         }
         Err(_e) => {
             tracing::error!(
@@ -288,10 +359,48 @@ async fn store_bookmarklet_job(
     }
 }
 
+async fn require_browser_action_authorization(
+    repository: &dyn BookmarkletRepository,
+    grant: &SourceGrantState,
+) -> Result<(), String> {
+    match repository.authorize_browser_action(grant).await {
+        Ok(true) => Ok(()),
+        _ => Err(BOOKMARKLET_AUTHORIZATION_FAILURE_MESSAGE.to_string()),
+    }
+}
+
 fn normalize_bookmarklet_job_data(
     mut job_data: BookmarkletJobData,
-) -> Result<BookmarkletJobData, String> {
-    job_data.validate()?;
+    operation: SourceOperation,
+) -> Result<(BookmarkletJobData, Vec<String>), String> {
+    let mut missing_fields = Vec::new();
+    if operation == SourceOperation::AppliedLogging {
+        canonicalize_job_url(job_data.url.trim())
+            .map_err(|_| "Job link must be a public https address".to_string())?;
+        if !job_data.description.is_empty()
+            || job_data.location.is_some()
+            || job_data.salary.is_some()
+            || job_data.remote.is_some()
+            || job_data.schema_type.is_some()
+            || job_data.hiring_organization.is_some()
+            || job_data.job_location.is_some()
+            || job_data.base_salary.is_some()
+            || job_data.date_posted.is_some()
+            || job_data.job_location_type.is_some()
+        {
+            return Err(INVALID_BOOKMARKLET_PAYLOAD_MESSAGE.to_string());
+        }
+        if job_data.title.trim().is_empty() {
+            job_data.title = MISSING_TITLE.to_string();
+            missing_fields.push("title".to_string());
+        }
+        if job_data.company.trim().is_empty() {
+            job_data.company = MISSING_COMPANY.to_string();
+            missing_fields.push("company".to_string());
+        }
+    } else {
+        job_data.validate()?;
+    }
 
     job_data.title = job_data.title.trim().to_string();
     job_data.company = job_data
@@ -305,9 +414,19 @@ fn normalize_bookmarklet_job_data(
         .filter(|value| !value.is_empty());
     job_data.url = canonicalize_job_url(job_data.url.trim())
         .map_err(|_| "Job link must be a public https address".to_string())?;
+    if visible_page_capture_is_blocked(&job_data.url) {
+        return Err("Browser Import is unavailable for this source".to_string());
+    }
     validate_bookmarklet_job_storage_lengths(&job_data)?;
 
-    Ok(job_data)
+    Ok((job_data, missing_fields))
+}
+
+fn granted_operation(grant: &SourceGrantState) -> Result<SourceOperation, String> {
+    match grant {
+        SourceGrantState::Granted { operation, .. } => Ok(*operation),
+        _ => Err(BOOKMARKLET_AUTHORIZATION_FAILURE_MESSAGE.to_string()),
+    }
 }
 
 fn validate_bookmarklet_job_storage_lengths(job_data: &BookmarkletJobData) -> Result<(), String> {

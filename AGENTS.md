@@ -1,3 +1,5 @@
+<!-- Defines the canonical repository-wide operating contract for JobSentinel contributors and agents. -->
+
 # JobSentinel Agent Contract
 
 JobSentinel is a privacy-first desktop job-search application for technical and
@@ -35,6 +37,8 @@ with `npm run tauri:dev`.
   state, or mutate user-level configuration without explicit authority.
 - Use repo-relative paths and structured APIs. Do not commit secrets or local
   home paths.
+- Every maintained hand-authored file that supports comments starts with a one- or two-line native description
+  of its exact responsibility, after required shebang, front matter, or format directives.
 - `scripts/harness/contracts/repository-structure.json` covers every maintained text file. New or
   changed files must stay within their scope; exceptions need an owner, measured
   baseline, reason, and removal trigger.

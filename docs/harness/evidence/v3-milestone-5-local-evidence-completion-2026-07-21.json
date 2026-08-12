@@ -1,0 +1,124 @@
+{
+  "schema": "jobsentinel.feature_evidence.v1",
+  "feature_id": "v3-milestone-5-local-evidence-resume-matching",
+  "slice": "milestone-5-and-gate-4-decision-closure",
+  "behavior": "Local evidence keeps resume and match claims bounded and reproducible.",
+  "result": "passing",
+  "verified_at": "2026-07-22T00:34:25Z",
+  "revision": "a450f883aa691d21e9c2148707ee9ba2405416a2",
+  "revision_scope": "The committed Milestone 5 evidence graph, requirement diagnostics, local matching profiles, governed model lifecycle, match feedback, debugger, reviewed packet claims, native military review, and visible military-transition wording through a450f883.",
+  "platform": "local macOS arm64 host; prior structured evidence covers the controlled Linux 8 GiB Essentials journey",
+  "commands": [
+    {
+      "command": "npm run harness:check",
+      "exit_status": 0,
+      "relevant_result": "Canonical state records Milestone 5 as passing with structured evidence and Milestone 6 as the sole active feature.",
+      "caveat": "Harness validation checks state and repository contracts, not live platform behavior."
+    },
+    {
+      "command": "npm run test:run -- src/dev-runtime/features/resumes/resumeMilitaryTransition.test.ts src/features/resumes/library/MilitaryTransitionReviewModal.test.tsx src/features/resumes/library/ResumeLibraryPage.test.tsx src/features/resumes/library/ResumeLibraryPage.match-debugger.test.tsx",
+      "exit_status": 0,
+      "relevant_result": "All 25 focused frontend and mock-runtime tests passed. They cover debugger and packet review, exact military evidence, one-use review drafts, async match changes, safe output, and Rust-compatible Unicode boundaries.",
+      "caveat": "The tests use the development command runtime. Native command behavior is covered separately."
+    },
+    {
+      "command": "env -u JOBSENTINEL_LIVE_KEYRING_TESTS cargo test -p jobsentinel-application saved_match --lib --no-fail-fast; env -u JOBSENTINEL_LIVE_KEYRING_TESTS cargo test -p jobsentinel-storage saved_match --lib --no-fail-fast; env -u JOBSENTINEL_LIVE_KEYRING_TESTS cargo test -p jobsentinel-storage evidence_packet --lib --no-fail-fast",
+      "exit_status": 0,
+      "relevant_result": "All 15 focused application saved-match tests, 7 storage confirmation tests, and 7 durable packet and reviewed-export tests passed.",
+      "caveat": "The storage tests use isolated SQLite databases and do not read user data."
+    },
+    {
+      "command": "env -u JOBSENTINEL_LIVE_KEYRING_TESTS cargo test -p jobsentinel --lib saved_match_debugger --no-fail-fast; env -u JOBSENTINEL_LIVE_KEYRING_TESTS cargo test -p jobsentinel --lib resume_military_transition --no-fail-fast",
+      "exit_status": 0,
+      "relevant_result": "Two debugger serialization and argument tests and three military command boundary tests passed, including the fixed renderer-safe confirmation projection.",
+      "caveat": "No installed desktop process or native dialog ran in this focused command test."
+    },
+    {
+      "command": "env -u JOBSENTINEL_LIVE_KEYRING_TESTS cargo test -p jobsentinel-documents --lib --no-fail-fast",
+      "exit_status": 0,
+      "relevant_result": "All 318 maintained document and matching tests passed; one private-path smoke test remained explicitly ignored.",
+      "caveat": "The ignored test requires private local resume paths and is not release evidence."
+    },
+    {
+      "command": "node scripts/dev/run-cargo.mjs test -p jobsentinel-local-ai --features embedded-ml",
+      "exit_status": 0,
+      "relevant_result": "All 89 default embedded local-AI tests passed with 13 explicit live-model tests ignored. Model locks, thresholds, hard negatives, poisoned-input rejection, cache health, repair, stale provenance, and fallback contracts passed.",
+      "caveat": "Pinned live-model calibration and the governed download lifecycle are bound by their separate structured evidence records."
+    },
+    {
+      "command": "env -u JOBSENTINEL_LIVE_KEYRING_TESTS cargo test -p jobsentinel-application --features embedded-ml poisoned_job_input_is_rejected_before_cache_mutation --lib --no-fail-fast",
+      "exit_status": 0,
+      "relevant_result": "The semantic application owner rejected poisoned job input before cache mutation.",
+      "caveat": "This is one focused regression; broader untrusted-input coverage also passed in the documents and local-AI owner suites."
+    },
+    {
+      "command": "npm run lint:docs",
+      "exit_status": 0,
+      "relevant_result": "Documentation structure, links, prose, and canonical planning markers passed.",
+      "caveat": "Documentation checks do not prove runtime behavior."
+    },
+    {
+      "command": "npm run test:scripts",
+      "exit_status": 0,
+      "relevant_result": "All 852 script and repository-contract tests passed, including state selection, v3 disposition, security boundaries, package verification, and cross-platform command routing.",
+      "caveat": "Script contracts are deterministic checks and do not replace installed release-platform proof."
+    },
+    {
+      "command": "npm run lint:security",
+      "exit_status": 0,
+      "relevant_result": "Security sensors and secret scanning passed for the evidence, model, storage, IPC, and renderer boundaries.",
+      "caveat": "Static security checks supplement the focused behavior tests and adversarial reviews."
+    },
+    {
+      "command": "npm run lint; npm run typecheck; npm run lint:file-size; npm run lint:tauri-invokes; npm run lint:architecture; cargo fmt --all -- --check; env -u JOBSENTINEL_LIVE_KEYRING_TESTS cargo clippy -p jobsentinel-documents -p jobsentinel-storage -p jobsentinel-application -p jobsentinel -- -D warnings; env -u JOBSENTINEL_LIVE_KEYRING_TESTS cargo clippy -p jobsentinel-local-ai --features embedded-ml -- -D warnings; git diff --check",
+      "exit_status": 0,
+      "relevant_result": "Frontend lint and types, file ownership, native command registration, architecture, Rust formatting, strict affected-owner Clippy, and patch whitespace passed.",
+      "caveat": "Focused verification was used instead of the full workspace and browser suites."
+    },
+    {
+      "command": "Read-only adversarial Milestone 5 and Gate 4 closure review",
+      "exit_status": 0,
+      "relevant_result": "Review confirmed that the implementation satisfies the seven Milestone 5 criteria and that Gate 4 closes on decisions while later release proofs remain explicitly assigned.",
+      "caveat": "The review was static; live platform gaps remain named below."
+    }
+  ],
+  "completion": {
+    "evidence_graph": "Current opaque citations join requirement, saved-match, case-file, and reviewed packet workflows without duplicating source text.",
+    "matching": "Five requirement states, hard constraints, seniority and recency signals, explicit profession and regional profiles, blockers, and why-not diagnostics remain bounded and deterministic.",
+    "military_transition": "User-confirmed occupation, responsibility, credential, and optional clearance evidence is reviewed beside proposed wording; confirmation returns only the safe civilian projection and fixed non-verification boundaries.",
+    "local_models": "Model-free matching is the default. Qwen3 retrieval and reranking use the exact lock-owned pair, calibrated thresholds, stale-vector rebuilds, and deterministic fallback.",
+    "model_doctor": "The plain-language Local Match Check is the Model Doctor surface. It reports lock-owned model status and integrity, keeps fallback visible, and permits native-reviewed repair only for integrity-invalid governed caches.",
+    "review_surfaces": "Recent saved matches expose local feedback, debugger evidence confirmation, reviewed packet claims, and military wording review."
+  },
+  "gate_4": {
+    "state": "approved",
+    "supersedes": "docs/harness/evidence/v3-milestone-5-gate-4-operating-decisions-2026-07-20.json",
+    "model_and_setup": "Deterministic model-free matching is default; stronger-local uses only the exact Qwen3 Candle pair after explicit setup; MiniLM remains a legacy verified fallback; external AI is disabled and is not a matching provider.",
+    "employer_data": "Live-first source-specific evidence plus local user history is the minimum. Optional static source packs require source-specific license, size, cadence, provenance, and expiry review.",
+    "regional_data": "Optional static Region packs have no executable, credential, external-AI, or network authority. Live sources keep separate manifests and grants.",
+    "expiry": "Runtime source manifests own verified_on plus max_age_days. Static reviewed_on is visible provenance, not network authority or a universal expiry.",
+    "essentials": "Essentials is model-free. The numeric thresholds in the evaluation and release bar are approved only for their measured platforms; the stronger-local payload remains lock-owned at 2406043460 bytes."
+  },
+  "retained_release_gaps": [
+    {
+      "owner": "Milestone 8",
+      "gap": "Employer dossier accuracy, conflicts, freshness, uncertainty, and novice task completion are not yet release-proven."
+    },
+    {
+      "owner": "Milestone 9",
+      "gap": "Region-pack fixtures, pay and location normalization, taxonomy bridges, Qwen3 terminology behavior, lifecycle, and manual review are not yet release-proven."
+    },
+    {
+      "owner": "Milestone 11",
+      "gap": "Exact Windows 11 and macOS 26 installed behavior, full platform matrices, signed and notarized artifacts, SBOMs, attestations, and public downloads remain unproven."
+    }
+  ],
+  "privacy_and_network": {
+    "external_ai_used": false,
+    "credentials_used": false,
+    "keychain_accessed": false,
+    "user_resume_data_used": false,
+    "live_sources_contacted_in_closure_checks": false
+  },
+  "source": "docs/plans/v3/master-exec-plan.md"
+}

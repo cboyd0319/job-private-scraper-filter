@@ -47,3 +47,24 @@ test("pinned cargo command preserves argument boundaries on Windows", () => {
     cwd: "C:\\repo with spaces",
   });
 });
+
+test("pinned cargo never inherits the live Keychain test opt-in", () => {
+  const original = {
+    PATH: "/system/bin",
+    JOBSENTINEL_LIVE_KEYRING_TESTS: "1",
+    Jobsentinel_Live_Keyring_Tests: "also-on",
+  };
+  let cargoEnv;
+  const status = runPinnedCargo("/repo", ["test"], {
+    env: original,
+    spawnSync: (command, args, options) => {
+      if (command === "cargo") cargoEnv = options.env;
+      return args[0] === "which" ? { status: 1, stdout: "" } : { status: 0 };
+    },
+  });
+
+  assert.equal(status, 0);
+  assert.equal(cargoEnv.JOBSENTINEL_LIVE_KEYRING_TESTS, undefined);
+  assert.equal(cargoEnv.Jobsentinel_Live_Keyring_Tests, undefined);
+  assert.equal(original.JOBSENTINEL_LIVE_KEYRING_TESTS, "1");
+});

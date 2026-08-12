@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { AtsLiveScorePanel } from "./AtsLiveScorePanel";
 import type { AtsAnalysisResult } from "./AtsLiveScorePanel";
 import { mockAnalysis, mockResumeData } from "./AtsLiveScorePanel.testData";
@@ -145,6 +145,62 @@ describe("AtsLiveScorePanel details modal", () => {
       );
     });
     expect(screen.queryByText("Found in: current experience, skills")).not.toBeInTheDocument();
+  });
+
+  it("shows keyboard-visible safe requirement evidence locations", async () => {
+    const evidenceId = "e".repeat(64);
+    const sourceRevision = "private-revision";
+    mockInvoke.mockResolvedValue({
+      ...mockAnalysis,
+      requirement_reviews: [
+        {
+          keyword: "Scheduling",
+          importance: "Required",
+          match_state: "Direct",
+          evidence_sections: ["current experience", "skills"],
+          evidence_citations: [
+            {
+              evidence_id: evidenceId,
+              source_revision: sourceRevision,
+              field_path: "resume_text.3",
+            },
+            {
+              evidence_id: "f".repeat(64),
+              source_revision: sourceRevision,
+              field_path: "skills.0",
+            },
+          ],
+          hard_constraint: false,
+          recommendation: "Keep the wording tied to your real experience.",
+        },
+      ],
+    } satisfies AtsAnalysisResult);
+
+    render(
+      <AtsLiveScorePanel
+        resumeData={mockResumeData}
+        currentStep={1}
+        debounceMs={10}
+      />,
+    );
+    await waitForAnalysis();
+    fireEvent.click(await screen.findByRole("button", { name: /review details/i }));
+
+    expect(screen.getByText("Where Matching Wording Was Found")).toBeInTheDocument();
+    const locations = screen.getByRole("list", {
+      name: "Evidence locations for Scheduling",
+    });
+    const modalBody = locations.closest(".app-modal-body");
+    expect(modalBody).toHaveClass("overflow-y-auto");
+    expect(locations.parentElement?.closest(".overflow-y-auto")).toBe(modalBody);
+    expect(within(locations).getByText("Resume text, line 4")).toBeInTheDocument();
+    expect(within(locations).getByText("Skills list, item 1")).toBeInTheDocument();
+    expect(
+      screen.getByText("These locations show matching wording, not verification of a claim."),
+    ).toBeInTheDocument();
+    for (const internal of [evidenceId, sourceRevision, "resume_text.3", "skills.0"]) {
+      expect(screen.queryByText(internal)).not.toBeInTheDocument();
+    }
   });
 
   it("displays words to review in modal", async () => {

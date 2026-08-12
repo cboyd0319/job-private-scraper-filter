@@ -1,0 +1,43 @@
+{
+  "schema": "jobsentinel.v3.region-manifest.v1",
+  "region_id": "uk",
+  "reviewed_on": "2026-07-19",
+  "country_codes": ["GB"],
+  "languages": ["en"],
+  "currencies": ["GBP"],
+  "pay_periods": [
+    "hourly",
+    "daily",
+    "weekly",
+    "monthly",
+    "annual",
+    "contract",
+    "not_disclosed"
+  ],
+  "location_rules": {
+    "remote_labels": ["remote", "hybrid", "onsite"],
+    "subdivision_required": false,
+    "locality_required": false
+  },
+  "work_authorization_labels": [
+    "right_to_work_not_assessed",
+    "sponsorship_mentioned",
+    "not_disclosed"
+  ],
+  "source_classes": ["regional_board", "user_import"],
+  "cv_profiles": ["uk_cv_research"],
+  "taxonomy_ids": ["uk_soc_2020_research"],
+  "policy_note_refs": [
+    "docs/plans/v3/regional-readiness-framework.md",
+    "https://www.gov.uk/help/terms-conditions"
+  ],
+  "provenance_refs": [
+    "https://www.gov.uk/find-a-job",
+    "https://www.ons.gov.uk/methodology/classificationsandstandards/standardoccupationalclassificationsoc/soc2020"
+  ],
+  "evaluation_fixture_ids": [
+    "source-truth-official-absence-v1",
+    "accessibility-keyboard-zoom-motion-v1"
+  ],
+  "incomplete_coverage": true
+}

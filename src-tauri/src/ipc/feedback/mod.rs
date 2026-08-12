@@ -12,7 +12,7 @@ use debug_log::{clear_debug_log, format_debug_log, get_debug_log, TimestampedEve
 use sanitizer::{ConfigSummary, Sanitizer};
 use system_info::SystemInfo;
 
-use crate::bootstrap::AppState;
+use crate::bootstrap::{AppState, StartupRecoveryState};
 use serde::Serialize;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -223,11 +223,19 @@ pub(crate) async fn get_config_summary(
 #[tauri::command]
 pub(crate) async fn generate_feedback_report(
     state: State<'_, AppState>,
+    recovery: State<'_, StartupRecoveryState>,
     category: String,
     description: String,
     include_debug_info: bool,
 ) -> Result<String, String> {
-    report::generate_feedback_report_impl(state, category, description, include_debug_info).await
+    report::generate_feedback_report_impl(
+        state,
+        recovery,
+        category,
+        description,
+        include_debug_info,
+    )
+    .await
 }
 
 /// Sanitize renderer-composed feedback text before clipboard or file use.
@@ -395,8 +403,8 @@ mod tests {
         let content = concat!(
             "User john@example.com saved report from /",
             "Users",
-            "/johnsmith/Desktop/report.txt ",
-            "with webhook https://discord.com/api/webhooks/123456789/secret-token\n",
+            "/johnsmith/Desktop/report.txt\n",
+            "Webhook https://discord.com/api/webhooks/123456789/secret-token\n",
             "Salary floor: $125,000\n",
             "Resume excerpt: Led retention project for oncology team\n",
             "Private note: laid off last month\n"
@@ -408,7 +416,7 @@ mod tests {
         assert!(!sanitized.contains("johnsmith"));
         assert!(!sanitized.contains("discord.com/api/webhooks"));
         assert!(sanitized.contains("[EMAIL]"));
-        assert!(sanitized.contains("[USER_PATH]"));
+        assert!(sanitized.contains("[LOCAL_PATH]"));
         assert!(sanitized.contains("[WEBHOOK_CONFIGURED]"));
         assert!(sanitized.contains("Salary floor: [JOB_SEARCH_DETAIL_REDACTED]"));
         assert!(sanitized.contains("Resume excerpt: [JOB_SEARCH_DETAIL_REDACTED]"));
@@ -416,6 +424,7 @@ mod tests {
         assert!(!sanitized.contains("$125,000"));
         assert!(!sanitized.contains("oncology team"));
         assert!(!sanitized.contains("laid off"));
+        assert!(!sanitized.contains("report.txt"));
     }
 
     #[test]
@@ -433,8 +442,8 @@ mod tests {
     #[test]
     fn test_sanitize_feedback_text_redacts_renderer_content() {
         let content = concat!(
-            "Crash from C:\\Users\\Alice\\Desktop\\secret.txt ",
-            "using token ghp_123456789 and john@example.com\n",
+            "Crash from C:\\Users\\Alice\\Desktop\\secret.txt\n",
+            "Using token ghp_123456789 and john@example.com\n",
             "Screening answer: I need sponsorship next year"
         );
 
@@ -443,7 +452,8 @@ mod tests {
         assert!(!sanitized.contains("Alice"));
         assert!(!sanitized.contains("ghp_123456789"));
         assert!(!sanitized.contains("john@example.com"));
-        assert!(sanitized.contains("[USER_PATH]"));
+        assert!(sanitized.contains("[LOCAL_PATH]"));
+        assert!(!sanitized.contains("secret.txt"));
         assert!(sanitized.contains("[TOKEN]"));
         assert!(sanitized.contains("[EMAIL]"));
         assert!(sanitized.contains("Screening answer: [JOB_SEARCH_DETAIL_REDACTED]"));

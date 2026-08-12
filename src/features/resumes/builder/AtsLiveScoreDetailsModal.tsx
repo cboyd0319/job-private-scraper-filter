@@ -3,6 +3,7 @@ import { Badge } from "../../../ui/Badge";
 import { Button } from "../../../ui/Button";
 import { Modal, ModalFooter } from "../../../ui/Modal";
 import { Tooltip } from "../../../ui/Tooltip";
+import { ResumeRequirementEvidence } from "../shared/ResumeRequirementEvidence";
 import { getScoreColor, getScoreLabel } from "../shared/resumeScore";
 import {
   formatHardConstraintRiskCategory,
@@ -28,6 +29,11 @@ export function AtsLiveScoreDetailsModal({
   isOpen,
   onClose,
 }: AtsLiveScoreDetailsModalProps) {
+  const requirementEvidence =
+    analysis?.requirement_reviews?.filter(
+      (review) => (review.evidence_citations?.length ?? 0) > 0,
+    ) ?? [];
+
   return (
     <Modal
             isOpen={isOpen}
@@ -36,7 +42,7 @@ export function AtsLiveScoreDetailsModal({
             size="lg"
           >
             {analysis && (
-              <div className="space-y-6 max-h-[70vh] overflow-y-auto">
+              <div className="space-y-6">
                 {/* Match overview */}
                 <div className="grid grid-cols-4 gap-4">
                   <ScoreCard label="Overall" score={analysis.overall_score} />
@@ -71,6 +77,27 @@ export function AtsLiveScoreDetailsModal({
                             {match.keyword}
                           </Badge>
                         </Tooltip>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {requirementEvidence.length > 0 && (
+                  <div>
+                    <h4 className="mb-3 text-sm font-semibold text-surface-800 dark:text-surface-200">
+                      Where Matching Wording Was Found
+                    </h4>
+                    <div className="space-y-3">
+                      {requirementEvidence.map((review, index) => (
+                        <div
+                          key={`${review.keyword}-${index}`}
+                          className="rounded-lg border border-surface-200 bg-surface-50 p-3 dark:border-surface-600 dark:bg-surface-700"
+                        >
+                          <p className="text-sm font-medium text-surface-800 dark:text-surface-200">
+                            {review.keyword}
+                          </p>
+                          <ResumeRequirementEvidence review={review} />
+                        </div>
                       ))}
                     </div>
                   </div>

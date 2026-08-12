@@ -17,6 +17,19 @@ describe("messages", () => {
       expect(result.message).toContain("connect");
     });
 
+    it("preserves outside AI do-not-retry recovery guidance", () => {
+      const result = getUserFriendlyError(
+        new Error(
+          "The Outside AI outcome is unknown. Open Settings > Outside AI to check durable activity. Do not retry this request.",
+        ),
+      );
+
+      expect(result.title).toBe("Outside AI Outcome Unknown");
+      expect(result.message).toContain("Do not retry");
+      expect(result.action).toContain("Settings > Outside AI");
+      expect(result.action).toContain("durable activity");
+    });
+
     it("handles rate limit errors", () => {
       const result = getUserFriendlyError(new Error("429 Too Many Requests"));
       expect(result.title).toBe("Job Board Asked JobSentinel to Slow Down");

@@ -40,6 +40,24 @@ pub enum ImportError {
     #[error("Import preview is missing or expired")]
     PendingImportNotFound,
 
+    #[error("Pasted job details exceed the local draft limit")]
+    SmartPasteTooLarge,
+
+    #[error("Pasted {field} exceeds the local draft limit")]
+    SmartPasteFieldTooLong { field: &'static str },
+
+    #[error("Pasted job details contain session or credential material")]
+    SmartPasteCredentialMaterial,
+
+    #[error("Automated source access is unavailable")]
+    SourcePolicyBlocked { visible_capture_allowed: bool },
+
+    #[error("Source review is required")]
+    SourceReviewRequired,
+
+    #[error("Reviewed source authorization is unavailable")]
+    SourceAuthorizationUnavailable,
+
     #[error("Timeout while fetching URL")]
     Timeout,
 

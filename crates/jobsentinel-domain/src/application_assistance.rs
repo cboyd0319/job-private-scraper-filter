@@ -14,6 +14,7 @@ static APPLICATION_SCREENING_ALIAS_TAXONOMY: LazyLock<ApplicationScreeningAliasT
 #[serde(rename_all = "camelCase")]
 struct ApplicationScreeningAliasTaxonomy {
     schema_version: u32,
+    requires_user_answer_patterns: Vec<String>,
     plain_screening_pattern_aliases: Vec<PlainScreeningPatternAlias>,
     legacy_screening_patterns: Vec<LegacyScreeningPatternAlias>,
 }
@@ -47,6 +48,14 @@ fn load_application_screening_alias_taxonomy() -> ApplicationScreeningAliasTaxon
     assert_eq!(
         taxonomy.schema_version, 1,
         "unsupported application screening alias taxonomy schema version"
+    );
+    assert!(
+        !taxonomy.requires_user_answer_patterns.is_empty()
+            && taxonomy
+                .requires_user_answer_patterns
+                .iter()
+                .all(|pattern| !pattern.trim().is_empty()),
+        "application screening user-answer patterns must be non-empty"
     );
     assert!(
         !taxonomy.plain_screening_pattern_aliases.is_empty()
@@ -398,4 +407,4 @@ pub struct ModificationExample {
 
 mod matching;
 
-pub use matching::screening_question_matches;
+pub use matching::{requires_user_answer, screening_question_matches};

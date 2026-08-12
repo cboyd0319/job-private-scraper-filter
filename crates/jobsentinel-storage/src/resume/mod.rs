@@ -65,10 +65,12 @@ pub use jobsentinel_documents::{
     AtsAnalysisResult, AtsAnalyzer, AtsSuggestion, DegreeLevel, EducationRequirement,
     ExperienceRequirement, FormatIssue, HardConstraintCategory, HardConstraintRisk, IssueSeverity,
     JobSkill, KeywordImportance, KeywordMatch, MatchResult, MatchResultWithJob, MissingKeyword,
-    NewSkill, RequirementMatchState, RequirementReview, Resume, ResumeAnalysisInput,
-    ResumeCertification, ResumeEducation, ResumeExperience, ResumeExporter, ResumePersonalInfo,
-    ResumeProject, ResumeSkill, ResumeSkillCategory, SkillUpdate, StructuredResume,
-    SuggestionCategory, Template, TemplateId, TemplateRenderer, UserSkill,
+    NewSkill, ProfessionMatchingProfile, RegionalMatchingProfile, RequirementMatchState,
+    RequirementReview, Resume, ResumeAnalysisInput, ResumeCertification, ResumeEducation,
+    ResumeEvidenceSnapshot, ResumeExperience, ResumeExporter, ResumeMatchFeedback,
+    ResumeMatchFeedbackLabel, ResumeMatchingProfile, ResumePersonalInfo, ResumeProject,
+    ResumeSkill, ResumeSkillCategory, SkillUpdate, StructuredResume, SuggestionCategory, Template,
+    TemplateId, TemplateRenderer, UserSkill,
 };
 
 /// Main resume matcher service
@@ -145,6 +147,30 @@ impl ResumeMatcher {
         })
     }
 
+    /// Read the reproducible identity of a saved resume without loading its contents.
+    pub async fn get_resume_evidence_snapshot(
+        &self,
+        resume_id: i64,
+    ) -> Result<Option<ResumeEvidenceSnapshot>> {
+        let revision = sqlx::query_scalar::<_, String>(
+            "SELECT updated_at
+             FROM resumes
+             WHERE id = ?",
+        )
+        .bind(resume_id)
+        .fetch_optional(&self.db)
+        .await?;
+
+        revision
+            .map(|revision| {
+                Ok(ResumeEvidenceSnapshot {
+                    source_id: format!("resume:{resume_id}"),
+                    revision: parse_sqlite_datetime(&revision)?.to_rfc3339(),
+                })
+            })
+            .transpose()
+    }
+
     /// Get active resume (most recently created)
     pub async fn get_active_resume(&self) -> Result<Option<Resume>> {
         let row = sqlx::query(
@@ -189,6 +215,7 @@ impl ResumeMatcher {
 
         // Extract skills using keyword-based approach
         let extracted_skills = self.skill_extractor.extract_skills(&text);
+        let mut transaction = self.db.begin().await?;
 
         // Insert skills into database
         for skill in &extracted_skills {
@@ -205,9 +232,11 @@ impl ResumeMatcher {
             .bind(&skill.skill_name)
             .bind(&skill.skill_category)
             .bind(skill.confidence_score)
-            .execute(&self.db)
+            .execute(&mut *transaction)
             .await?;
         }
+        skill_store::advance_resume_snapshot(&mut transaction, resume_id).await?;
+        transaction.commit().await?;
 
         // Fetch inserted skills
         self.get_user_skills(resume_id).await

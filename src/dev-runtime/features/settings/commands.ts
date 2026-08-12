@@ -1,7 +1,4 @@
-import {
-  hasConfiguredJobsWithGpt,
-  hasEnabledMockScraperSource,
-} from "./sources/scraperHealth";
+import { hasEnabledMockScraperSource } from "./sources/scraperHealth";
 import {
   getArg,
   getDefaultGhostConfig,
@@ -191,7 +188,7 @@ export function handleMockSettingsCommand(
     case "validate_slack_webhook":
     case "test_email_notification":
     case "copy_bookmarklet_code":
-      return withoutSave(state, undefined);
+      return withoutSave(state, true);
 
     case "get_bookmarklet_config":
       return withoutSave(state, state.bookmarkletConfig);
@@ -226,13 +223,6 @@ export function handleMockSettingsCommand(
         state.bookmarkletConfig.enabled,
       );
 
-    case "send_external_ai_request":
-      return withoutSave(state, {
-        text: "Mock outside AI summary: review the original posting before using this summary.",
-        provider: "open_ai",
-        model: "mock-local-development",
-      });
-
     case "get_semantic_matching_diagnostics":
       return withoutSave(state, {
         build_enabled: true,
@@ -257,6 +247,8 @@ export function handleMockSettingsCommand(
             required_files_present: 0,
             locked_size_bytes: 641000000,
             downloaded: false,
+            cache_present: false,
+            health: "missing",
             required_for_qwen3_runtime: true,
           },
           {
@@ -272,6 +264,8 @@ export function handleMockSettingsCommand(
             required_files_present: 0,
             locked_size_bytes: 690000000,
             downloaded: false,
+            cache_present: false,
+            health: "missing",
             required_for_qwen3_runtime: true,
           },
         ],
@@ -299,6 +293,12 @@ export function handleMockSettingsCommand(
         user_action:
           "Download the pinned local models before using Qwen3 semantic matching.",
       });
+
+    case "download_ml_model":
+    case "cancel_ml_model_download":
+    case "remove_ml_models":
+    case "repair_semantic_matching_model_cache":
+      return withoutSave(state, true);
 
     default:
       return {
@@ -482,7 +482,6 @@ function anyMockJobSourceEnabled(config: MockConfig): boolean {
   return (
     hasEnabledMockScraperSource(configRecord) ||
     hasConfiguredUrlList(configRecord, "greenhouse_urls") ||
-    hasConfiguredUrlList(configRecord, "lever_urls") ||
-    hasConfiguredJobsWithGpt(configRecord)
+    hasConfiguredUrlList(configRecord, "lever_urls")
   );
 }

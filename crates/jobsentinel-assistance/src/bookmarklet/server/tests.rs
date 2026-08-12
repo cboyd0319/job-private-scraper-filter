@@ -1,11 +1,16 @@
+// Verifies local bookmarklet HTTP validation, pairing, imports, and confirmations.
+
 use super::*;
+use crate::bookmarklet::{companion_request_for_test, CompanionPairing, CompanionPairingCode};
+use chrono::TimeDelta;
+use jobsentinel_domain::v3_source_manifest::SourceOperation;
 use std::sync::Arc;
 use tokio::io::AsyncWriteExt;
 
 mod repository;
 use repository::*;
 
-const TEST_AUTH_TOKEN: &str = "secret-token";
+mod applied_logging_tests;
 
 #[test]
 fn job_hash_is_stable() {
@@ -49,55 +54,6 @@ fn test_json_error_response_escapes_message() {
 }
 
 #[test]
-fn test_bookmarklet_token_validation_requires_matching_header() {
-    let request = "POST /api/bookmarklet/import HTTP/1.1\r\nHost: localhost\r\nX-JobSentinel-Token: secret-token\r\n\r\n{}";
-
-    assert!(has_valid_bookmarklet_token(request, "secret-token"));
-    assert!(!has_valid_bookmarklet_token(request, "other-token"));
-    assert!(!has_valid_bookmarklet_token(request, ""));
-    assert!(!has_valid_bookmarklet_token(
-        "POST /api/bookmarklet/import HTTP/1.1\r\nHost: localhost\r\n\r\n{}",
-        "secret-token"
-    ));
-    assert!(!has_valid_bookmarklet_token(
-        "POST /api/bookmarklet/import HTTP/1.1\r\nHost: localhost\r\n\r\nX-JobSentinel-Token: secret-token",
-        "secret-token"
-    ));
-}
-
-#[test]
-fn test_bookmarklet_token_validation_requires_exact_token() {
-    let request = "POST /api/bookmarklet/import HTTP/1.1\r\nHost: localhost\r\nX-JobSentinel-Token: secret-token\r\n\r\n{}";
-
-    assert!(constant_time_ascii_eq(TEST_AUTH_TOKEN, TEST_AUTH_TOKEN));
-    assert!(!constant_time_ascii_eq("secret", TEST_AUTH_TOKEN));
-    assert!(!constant_time_ascii_eq(
-        "secret-token-extra",
-        TEST_AUTH_TOKEN
-    ));
-    assert!(!constant_time_ascii_eq("secret-taken", TEST_AUTH_TOKEN));
-    assert!(!constant_time_ascii_eq("", TEST_AUTH_TOKEN));
-    assert!(!has_valid_bookmarklet_token(request, "secret"));
-    assert!(!has_valid_bookmarklet_token(request, "secret-token-extra"));
-}
-
-#[test]
-fn test_bookmarklet_token_validation_accepts_body_envelope() {
-    let body = serde_json::json!({
-        "token": TEST_AUTH_TOKEN,
-        "job": {
-            "title": "Care Coordinator",
-            "company": "Community Care",
-            "url": "https://example.com/jobs/1"
-        }
-    });
-
-    assert!(body_has_valid_bookmarklet_token(&body, TEST_AUTH_TOKEN));
-    assert!(!body_has_valid_bookmarklet_token(&body, "other-token"));
-    assert!(!body_has_valid_bookmarklet_token(&body, ""));
-}
-
-#[test]
 fn test_bookmarklet_host_validation_requires_loopback_host_with_port() {
     let localhost = "POST /api/bookmarklet/import HTTP/1.1\r\nHost: localhost:4321\r\n\r\n{}";
     let loopback = "POST /api/bookmarklet/import HTTP/1.1\r\nHost: 127.0.0.1:4321\r\n\r\n{}";
@@ -124,13 +80,17 @@ fn test_bookmarklet_host_validation_requires_loopback_host_with_port() {
 fn test_bookmarklet_origin_validation_rejects_non_web_contexts() {
     let no_origin = "POST /api/bookmarklet/import HTTP/1.1\r\nHost: localhost:4321\r\n\r\n{}";
     let https_origin = "POST /api/bookmarklet/import HTTP/1.1\r\nHost: localhost:4321\r\nOrigin: https://jobs.example\r\nReferer: https://jobs.example/posting\r\n\r\n{}";
+    let http_origin = "POST /api/bookmarklet/import HTTP/1.1\r\nHost: localhost:4321\r\nOrigin: http://jobs.example\r\n\r\n{}";
+    let local_origin = "POST /api/bookmarklet/import HTTP/1.1\r\nHost: localhost:4321\r\nOrigin: https://localhost\r\n\r\n{}";
     let null_origin =
         "POST /api/bookmarklet/import HTTP/1.1\r\nHost: localhost:4321\r\nOrigin: null\r\n\r\n{}";
     let file_referer = "POST /api/bookmarklet/import HTTP/1.1\r\nHost: localhost:4321\r\nReferer: file:///Users/example/job.html\r\n\r\n{}";
     let extension_origin = "POST /api/bookmarklet/import HTTP/1.1\r\nHost: localhost:4321\r\nOrigin: chrome-extension://abcdef\r\n\r\n{}";
 
-    assert!(has_allowed_bookmarklet_origin(no_origin));
+    assert!(!has_allowed_bookmarklet_origin(no_origin));
     assert!(has_allowed_bookmarklet_origin(https_origin));
+    assert!(!has_allowed_bookmarklet_origin(http_origin));
+    assert!(!has_allowed_bookmarklet_origin(local_origin));
     assert!(!has_allowed_bookmarklet_origin(null_origin));
     assert!(!has_allowed_bookmarklet_origin(file_referer));
     assert!(!has_allowed_bookmarklet_origin(extension_origin));
@@ -139,7 +99,6 @@ fn test_bookmarklet_origin_validation_rejects_non_web_contexts() {
 #[test]
 fn test_bookmarklet_payload_origin_must_match_job_url() {
     let body = serde_json::json!({
-        "token": TEST_AUTH_TOKEN,
         "job": {
             "title": "Care Coordinator",
             "company": "Community Care",
@@ -165,9 +124,8 @@ fn test_bookmarklet_payload_origin_must_match_job_url() {
 }
 
 #[test]
-fn test_bookmarklet_payload_origin_allows_legacy_requests_without_origin_headers() {
+fn test_bookmarklet_payload_origin_rejects_legacy_requests_without_origin_headers() {
     let body = serde_json::json!({
-        "token": TEST_AUTH_TOKEN,
         "job": {
             "title": "Care Coordinator",
             "company": "Community Care",
@@ -176,7 +134,7 @@ fn test_bookmarklet_payload_origin_allows_legacy_requests_without_origin_headers
     });
     let request = "POST /api/bookmarklet/import HTTP/1.1\r\nHost: localhost:4321\r\n\r\n{}";
 
-    assert!(bookmarklet_payload_matches_request_origin(request, &body));
+    assert!(!bookmarklet_payload_matches_request_origin(request, &body));
 }
 
 #[test]
@@ -195,7 +153,7 @@ fn test_bookmarklet_http_response_has_defensive_headers() {
     assert!(response.contains("Pragma: no-cache"));
     assert!(response.contains("X-Content-Type-Options: nosniff"));
     assert!(response.contains("Referrer-Policy: no-referrer"));
-    assert!(response.contains("Cross-Origin-Resource-Policy: same-origin"));
+    assert!(response.contains("Cross-Origin-Resource-Policy: cross-origin"));
     assert!(response.contains("Connection: close"));
 }
 
@@ -209,45 +167,6 @@ fn test_bookmarklet_connection_limit_releases_permits() {
 
     drop(permit);
     assert!(try_bookmarklet_connection_permit(&connection_limit).is_some());
-}
-
-#[test]
-fn test_bookmarklet_config_refreshes_auth_token_with_expiry() {
-    let mut config = BookmarkletConfig {
-        port: 4321,
-        auth_token: "old-token".to_string(),
-        auth_token_expires_at: Utc::now() - TimeDelta::minutes(1),
-    };
-
-    assert!(!config.auth_token_is_current(Utc::now()));
-    config.refresh_auth_token();
-
-    assert_ne!(config.auth_token, "old-token");
-    assert!(config.auth_token_is_current(Utc::now()));
-}
-
-#[test]
-fn test_bookmarklet_server_updates_auth_state_without_restart() {
-    let original_expires_at = Utc::now() + TimeDelta::minutes(5);
-    let next_expires_at = Utc::now() + TimeDelta::minutes(10);
-    let mut server = BookmarkletServer::new(BookmarkletConfig {
-        port: 4321,
-        auth_token: "old-token".to_string(),
-        auth_token_expires_at: original_expires_at,
-    });
-
-    let original_auth = current_bookmarklet_auth(&server.auth_state);
-    assert_eq!(original_auth.auth_token, "old-token");
-    assert_eq!(original_auth.auth_token_expires_at, original_expires_at);
-
-    server.update_auth_token("new-token".to_string(), next_expires_at);
-    let next_auth = current_bookmarklet_auth(&server.auth_state);
-
-    assert_eq!(server.config().auth_token, "new-token");
-    assert_eq!(server.config().auth_token_expires_at, next_expires_at);
-    assert_eq!(next_auth.auth_token, "new-token");
-    assert_eq!(next_auth.auth_token_expires_at, next_expires_at);
-    assert!(!server.is_running());
 }
 
 #[test]
@@ -288,7 +207,7 @@ async fn test_bookmarklet_connection_times_out_incomplete_body() {
         .local_addr()
         .expect("test listener should expose address");
     let database = bookmarklet_test_database().await;
-    let auth_state = bookmarklet_auth_state(TEST_AUTH_TOKEN, bookmarklet_auth_expiry());
+    let active_pairing = new_active_pairing();
     let pending_imports = new_pending_bookmarklet_imports();
 
     let server_task = tokio::spawn(async move {
@@ -296,7 +215,7 @@ async fn test_bookmarklet_connection_times_out_incomplete_body() {
             .accept()
             .await
             .expect("test connection should be accepted");
-        handle_connection(stream, auth_state, pending_imports, database).await
+        handle_connection(stream, active_pairing, pending_imports, database).await
     });
 
     let mut client = tokio::net::TcpStream::connect(addr)
@@ -318,10 +237,10 @@ async fn test_bookmarklet_connection_times_out_incomplete_body() {
 }
 
 fn bookmarklet_import_request(body: &str) -> String {
-    format!(
-        "POST /api/bookmarklet/import HTTP/1.1\r\nHost: localhost\r\nContent-Length: {}\r\n\r\n{}",
-        body.len(),
-        body
+    bookmarklet_import_request_from_origin(
+        body,
+        "https://example.com",
+        "https://example.com/jobs/1",
     )
 }
 
@@ -335,30 +254,62 @@ fn bookmarklet_import_request_from_origin(body: &str, origin: &str, referer: &st
     )
 }
 
-fn bookmarklet_import_body(job: serde_json::Value) -> String {
+fn bookmarklet_pairing(origin: &str) -> (ActiveCompanionPairing, CompanionPairingCode) {
+    bookmarklet_pairing_at(origin, Utc::now())
+}
+
+fn bookmarklet_pairing_for_operation(
+    origin: &str,
+    operation: SourceOperation,
+) -> (ActiveCompanionPairing, CompanionPairingCode) {
+    let (pairing, code) = CompanionPairing::issue(
+        "browser-import",
+        "user-source-actions",
+        "jobsentinel.source-policy.user-source-actions",
+        1,
+        origin,
+        vec![operation],
+        Utc::now(),
+    )
+    .unwrap();
+    let active = new_active_pairing();
+    replace_active_pairing(&active, pairing);
+    (active, code)
+}
+
+fn bookmarklet_pairing_at(
+    origin: &str,
+    now: chrono::DateTime<Utc>,
+) -> (ActiveCompanionPairing, CompanionPairingCode) {
+    let (pairing, code) = CompanionPairing::issue(
+        "browser-import",
+        "user-source-actions",
+        "jobsentinel.source-policy.user-source-actions",
+        1,
+        origin,
+        vec![SourceOperation::VisiblePageCapture],
+        now,
+    )
+    .unwrap();
+    let active = new_active_pairing();
+    replace_active_pairing(&active, pairing);
+    (active, code)
+}
+
+fn bookmarklet_import_body(code: &CompanionPairingCode, job: serde_json::Value) -> String {
     serde_json::json!({
-        "token": TEST_AUTH_TOKEN,
+        "pairing": companion_request_for_test(code, "test-nonce"),
         "job": job,
     })
     .to_string()
 }
 
-fn bookmarklet_import_batch_body(jobs: serde_json::Value) -> String {
+fn bookmarklet_import_batch_body(code: &CompanionPairingCode, jobs: serde_json::Value) -> String {
     serde_json::json!({
-        "token": TEST_AUTH_TOKEN,
+        "pairing": companion_request_for_test(code, "test-nonce"),
         "jobs": jobs,
     })
     .to_string()
-}
-
-fn bookmarklet_auth_state(
-    token: &str,
-    expires_at: DateTime<Utc>,
-) -> Arc<RwLock<BookmarkletAuthState>> {
-    Arc::new(RwLock::new(BookmarkletAuthState {
-        auth_token: token.to_string(),
-        auth_token_expires_at: expires_at,
-    }))
 }
 
 fn bookmarklet_pending_imports() -> PendingBookmarkletImports {
@@ -381,16 +332,19 @@ fn test_bookmarklet_import_route_requires_exact_path() {
 #[tokio::test]
 async fn test_bookmarklet_import_rejects_unsafe_url_without_insert() {
     let database = bookmarklet_test_database().await;
-    let auth_state = bookmarklet_auth_state(TEST_AUTH_TOKEN, bookmarklet_auth_expiry());
-    let body = bookmarklet_import_body(serde_json::json!({
-        "title": "Care Coordinator",
-        "company": "Community Care",
-        "url": "javascript:alert(1)"
-    }));
+    let (active_pairing, code) = bookmarklet_pairing("https://example.com");
+    let body = bookmarklet_import_body(
+        &code,
+        serde_json::json!({
+            "title": "Care Coordinator",
+            "company": "Community Care",
+            "url": "javascript:alert(1)"
+        }),
+    );
 
     let (response, content_type) = handle_import_request(
         &bookmarklet_import_request(&body),
-        &auth_state,
+        &active_pairing,
         bookmarklet_pending_imports(),
         database.clone(),
     )
@@ -404,10 +358,11 @@ async fn test_bookmarklet_import_rejects_unsafe_url_without_insert() {
 }
 
 #[tokio::test]
-async fn test_bookmarklet_import_rejects_missing_body_token_without_insert() {
+async fn test_bookmarklet_import_rejects_legacy_token_without_insert() {
     let database = bookmarklet_test_database().await;
-    let auth_state = bookmarklet_auth_state(TEST_AUTH_TOKEN, bookmarklet_auth_expiry());
+    let active_pairing = new_active_pairing();
     let body = serde_json::json!({
+        "token": "legacy-token",
         "job": {
             "title": "Care Coordinator",
             "company": "Community Care",
@@ -418,7 +373,7 @@ async fn test_bookmarklet_import_rejects_missing_body_token_without_insert() {
 
     let (response, content_type) = handle_import_request(
         &bookmarklet_import_request(&body),
-        &auth_state,
+        &active_pairing,
         bookmarklet_pending_imports(),
         database.clone(),
     )
@@ -427,23 +382,27 @@ async fn test_bookmarklet_import_rejects_missing_body_token_without_insert() {
         serde_json::from_str(&response).expect("error response should be JSON");
 
     assert_eq!(content_type, "application/json");
-    assert_eq!(parsed["error"], BOOKMARKLET_UNAUTHORIZED_MESSAGE);
+    assert_eq!(parsed["error"], INVALID_BOOKMARKLET_PAYLOAD_MESSAGE);
     assert_eq!(stored_job_count(&database).await, 0);
 }
 
 #[tokio::test]
-async fn test_bookmarklet_import_rejects_expired_token_without_insert() {
+async fn test_bookmarklet_import_rejects_expired_pairing_without_insert() {
     let database = bookmarklet_test_database().await;
-    let auth_state = bookmarklet_auth_state(TEST_AUTH_TOKEN, Utc::now() - TimeDelta::minutes(1));
-    let body = bookmarklet_import_body(serde_json::json!({
-        "title": "Care Coordinator",
-        "company": "Community Care",
-        "url": "https://example.com/jobs/1"
-    }));
+    let (active_pairing, code) =
+        bookmarklet_pairing_at("https://example.com", Utc::now() - TimeDelta::minutes(11));
+    let body = bookmarklet_import_body(
+        &code,
+        serde_json::json!({
+            "title": "Care Coordinator",
+            "company": "Community Care",
+            "url": "https://example.com/jobs/1"
+        }),
+    );
 
     let (response, content_type) = handle_import_request(
         &bookmarklet_import_request(&body),
-        &auth_state,
+        &active_pairing,
         bookmarklet_pending_imports(),
         database.clone(),
     )
@@ -459,16 +418,19 @@ async fn test_bookmarklet_import_rejects_expired_token_without_insert() {
 #[tokio::test]
 async fn test_bookmarklet_import_uses_shared_job_length_validation() {
     let database = bookmarklet_test_database().await;
-    let auth_state = bookmarklet_auth_state(TEST_AUTH_TOKEN, bookmarklet_auth_expiry());
-    let body = bookmarklet_import_body(serde_json::json!({
-        "title": "T".repeat(501),
-        "company": "Community Care",
-        "url": "https://example.com/jobs/1"
-    }));
+    let (active_pairing, code) = bookmarklet_pairing("https://example.com");
+    let body = bookmarklet_import_body(
+        &code,
+        serde_json::json!({
+            "title": "T".repeat(501),
+            "company": "Community Care",
+            "url": "https://example.com/jobs/1"
+        }),
+    );
 
     let (response, content_type) = handle_import_request(
         &bookmarklet_import_request(&body),
-        &auth_state,
+        &active_pairing,
         bookmarklet_pending_imports(),
         database.clone(),
     )
@@ -482,5 +444,7 @@ async fn test_bookmarklet_import_uses_shared_job_length_validation() {
 }
 
 mod lifecycle;
+#[path = "tests/pairing_state_tests.rs"]
+mod pairing_state_tests;
 #[path = "tests/queued_import_tests.rs"]
 mod queued_import_tests;

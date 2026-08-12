@@ -1,0 +1,69 @@
+{
+  "schema": "jobsentinel.v3.source-manifest.v1",
+  "source_id": "builtin",
+  "display_name": "Built In",
+  "source_class": "restricted_public_scheduled",
+  "endpoint_patterns": [],
+  "documentation_url": "https://builtin.com/community-terms-of-use",
+  "auth_requirement": "none",
+  "policy_ref": "jobsentinel.source-policy.builtin.scheduled",
+  "policy_revision": 2,
+  "actions": [
+    {
+      "operation": "scheduled_check",
+      "permission": "user_review"
+    }
+  ],
+  "terms_review": {
+    "status": "reviewed",
+    "reference": "source-review.builtin.terms",
+    "reviewed_on": "2026-07-19"
+  },
+  "robots_review": {
+    "status": "reviewed",
+    "reference": "source-review.builtin.robots",
+    "reviewed_on": "2026-07-19"
+  },
+  "parser_id": "builtin-retired-v2",
+  "fixtures": [
+    {
+      "fixture_id": "restricted-scheduled-retirement-v2",
+      "kind": "policy",
+      "path": "crates/jobsentinel-domain/src/fixtures/source_reviews/restricted_scheduled_retirement_v2.json",
+      "payload_sha256": "f88c6c4606286b70e3feef82845fea5424b31da13f1703e5a984b86f443ebbcc"
+    }
+  ],
+  "supported_fields": [
+    "title",
+    "company",
+    "location",
+    "description",
+    "application_url"
+  ],
+  "salary_coverage": "none",
+  "verified_on": "2026-07-19",
+  "max_age_days": 30,
+  "confidence_percent": 100,
+  "lineage": [
+    {
+      "link_id": "source-lineage-builtin-policy-v2",
+      "source_id": "builtin",
+      "relation": "lineage",
+      "related_id": "builtin-terms",
+      "provenance": "public_source",
+      "provenance_ref": "source-review.builtin.terms"
+    }
+  ],
+  "stop_conditions": [
+    "policy_disabled",
+    "policy_changed",
+    "review_expired",
+    "access_blocked",
+    "parser_drift",
+    "repeated_failure"
+  ],
+  "risk_note_refs": [
+    "source-risk.builtin.automation-prohibited"
+  ],
+  "incomplete_coverage": true
+}

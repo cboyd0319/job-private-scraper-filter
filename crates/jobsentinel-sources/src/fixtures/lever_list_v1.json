@@ -1,0 +1,15 @@
+[
+  {
+    "id": "example-posting",
+    "text": "Program Coordinator",
+    "hostedUrl": "https://jobs.lever.co/example/example-posting",
+    "applyUrl": "https://jobs.lever.co/example/example-posting/apply",
+    "categories": {
+      "location": "Remote",
+      "team": "Operations",
+      "commitment": "Full-time"
+    },
+    "descriptionPlain": "Support a distributed public-service program.",
+    "workplaceType": "remote"
+  }
+]

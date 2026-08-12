@@ -324,17 +324,6 @@ export function SettingsExternalAiSection({
             />
             Private details after review
           </label>
-          <label className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              checked={config.external_ai.log_requests_locally}
-              onChange={(event) =>
-                updateExternalAi({ log_requests_locally: event.target.checked })
-              }
-              className="rounded border-surface-300 text-sentinel-600 focus:ring-sentinel-500"
-            />
-            Save request history
-          </label>
         </div>
 
         <SettingsExternalAiRequestHistory />

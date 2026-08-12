@@ -8,7 +8,7 @@ mod tests;
 
 use sqlx::SqlitePool;
 
-use types::IntegrityStatus;
+pub(crate) use types::IntegrityStatus;
 
 struct DatabaseIntegrity {
     db: SqlitePool,
@@ -90,4 +90,15 @@ pub(super) async fn verify_startup(pool: &SqlitePool) -> Result<(), sqlx::Error>
             "Database relational integrity check failed".into(),
         )),
     }
+}
+
+pub(crate) async fn inspect_status(pool: &SqlitePool) -> Result<IntegrityStatus, sqlx::Error> {
+    let integrity = DatabaseIntegrity::new(pool.clone());
+    if !integrity.quick_check().await?.is_ok {
+        return Ok(IntegrityStatus::Corrupted);
+    }
+    if integrity.foreign_key_violation_count().await? > 0 {
+        return Ok(IntegrityStatus::ForeignKeyViolations);
+    }
+    Ok(IntegrityStatus::Healthy)
 }

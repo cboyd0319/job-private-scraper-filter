@@ -1,5 +1,15 @@
 use super::*;
 
+#[test]
+fn jobswithgpt_post_disables_automatic_retries() {
+    let request = jobswithgpt_request(
+        "https://api.jobswithgpt.example/mcp",
+        serde_json::json!({"jsonrpc": "2.0"}),
+    );
+
+    assert!(format!("{request:?}").contains("max_retries: 0"));
+}
+
 // MCP job parsing tests
 #[test]
 fn test_parse_mcp_job_complete() {
@@ -39,6 +49,28 @@ fn test_parse_mcp_job_complete() {
     assert_eq!(job.salary_min, Some(55000));
     assert_eq!(job.salary_max, Some(72000));
     assert_eq!(job.currency, Some("USD".to_string()));
+    assert_eq!(job.source, "jobswithgpt");
+}
+
+#[test]
+fn manifest_fixture_remains_parseable_by_the_jobswithgpt_adapter() {
+    let scraper = JobsWithGptScraper::new(
+        "https://api.jobswithgpt.example/mcp".to_string(),
+        JobQuery {
+            titles: vec!["Case Manager".to_string()],
+            location: None,
+            remote_only: true,
+            limit: 100,
+        },
+    );
+    let fixture: serde_json::Value =
+        serde_json::from_str(include_str!("../../fixtures/jobswithgpt_list_v1.json")).unwrap();
+
+    let job = scraper.parse_mcp_job(&fixture).unwrap().unwrap();
+
+    assert_eq!(job.title, "Case Manager");
+    assert_eq!(job.company, "Community Care Network");
+    assert_eq!(job.url, "https://example.com/jobs/case-manager");
     assert_eq!(job.source, "jobswithgpt");
 }
 

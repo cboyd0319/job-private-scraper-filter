@@ -78,7 +78,9 @@ pub struct Config {
     #[serde(default)]
     pub linkedin: LinkedInConfig,
 
-    /// User acknowledgements for restricted scheduled job-board checks.
+    /// Legacy restricted-source review flags retained for config compatibility.
+    ///
+    /// These booleans never authorize a source request and are always cleared.
     #[serde(default)]
     pub restricted_source_acknowledgements: RestrictedSourceAcknowledgements,
 
@@ -90,7 +92,7 @@ pub struct Config {
     #[serde(default)]
     pub weworkremotely: WeWorkRemotelyConfig,
 
-    /// BuiltIn scraper configuration
+    /// Legacy Built In configuration retained for deserialization compatibility.
     #[serde(default)]
     pub builtin: BuiltInConfig,
 
@@ -98,7 +100,7 @@ pub struct Config {
     #[serde(default)]
     pub hn_hiring: HnHiringConfig,
 
-    /// Dice scraper configuration
+    /// Legacy Dice configuration retained for deserialization compatibility.
     #[serde(default)]
     pub dice: DiceConfig,
 
@@ -110,11 +112,11 @@ pub struct Config {
     #[serde(default)]
     pub usajobs: UsaJobsConfig,
 
-    /// SimplyHired job aggregator scraper configuration (v2.5.5)
+    /// Legacy SimplyHired configuration retained for deserialization compatibility.
     #[serde(default)]
     pub simplyhired: SimplyHiredConfig,
 
-    /// Glassdoor job board scraper configuration (v2.5.5)
+    /// Legacy Glassdoor configuration retained for deserialization compatibility.
     #[serde(default)]
     pub glassdoor: GlassdoorConfig,
 

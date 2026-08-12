@@ -1,8 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  DEFAULT_EXTERNAL_AI_CONFIG,
-  type Config,
-} from "./SettingsConfig";
+import { DEFAULT_EXTERNAL_AI_CONFIG, type Config } from "./SettingsConfig";
 import {
   getCredentialValidationError,
   type CredentialKey,
@@ -146,35 +143,12 @@ describe("getCredentialValidationError", () => {
     ).toBeNull();
   });
 
-  it("blocks restricted scheduled sources until the user accepts the risk", () => {
+  it("ignores retired scheduled source flags from legacy config", () => {
     const config = makeConfig();
-    config.dice = {
-      ...config.dice,
-      enabled: true,
-      query: "care coordinator",
-    };
-
-    expect(
-      getCredentialValidationError(
-        makeCredentials(),
-        config,
-        makeCredentialStatus(),
-      ),
-    ).toEqual({
-      title: "Review restricted source risk",
-      message:
-        "Check the acknowledgement box for Dice, or turn those scheduled checks off.",
-    });
-  });
-
-  it("allows a restricted scheduled source after explicit acknowledgement", () => {
-    const config = makeConfig();
-    config.glassdoor = {
-      ...config.glassdoor,
-      enabled: true,
-      query: "care coordinator",
-    };
-    config.restricted_source_acknowledgements.glassdoor = true;
+    config.builtin.enabled = true;
+    config.dice.enabled = true;
+    config.simplyhired.enabled = true;
+    config.glassdoor.enabled = true;
 
     expect(
       getCredentialValidationError(

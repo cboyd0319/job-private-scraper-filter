@@ -1,0 +1,20 @@
+{
+  "id": 44234567,
+  "author": "whoishiring",
+  "title": "Ask HN: Who is hiring? (July 2026)",
+  "children": [
+    {
+      "id": 44234678,
+      "author": "example_hiring",
+      "text": "Example Cooperative | Distributed Systems Engineer | Remote\n\nBuild reliable local-first systems with a distributed team. Work from anywhere.",
+      "children": [
+        {
+          "id": 44234679,
+          "author": "example_reply",
+          "text": "Nested Reply Company | Senior Engineer | Remote\n\nThis job-shaped nested discussion reply must never become a listing.",
+          "children": []
+        }
+      ]
+    }
+  ]
+}

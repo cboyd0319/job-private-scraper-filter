@@ -1,0 +1,172 @@
+{
+  "schema": "jobsentinel.feature_evidence.v1",
+  "feature_id": "v3-milestone-5-local-evidence-resume-matching",
+  "slice": "essentials-macos-model-free-footprint",
+  "behavior": "The default model-free Essentials package has a repeatable macOS arm64 size and native launch baseline without model files, external AI, live sources, credentials, or user data.",
+  "result": "partial",
+  "verified_at": "2026-07-20T12:29:09Z",
+  "revision": "8a321b551b8271d03627e69b7368d262fdc7095f",
+  "revision_scope": "The committed launch verifier, exact LaunchServices coalition attribution, observed aggregate RSS sampling, bounded app-scoped cleanup, and the evidence recorded here.",
+  "artifact_source_revision": "62405463c0f447096134e26f2fe210e9b7746474",
+  "artifact_revision_equivalence": {
+    "statement": "The artifact predates the verifier commit. The only files changed between the artifact source revision and the evidence revision are release verifier and verifier-test files, so application, frontend, Rust, configuration, lockfile, and package inputs are identical.",
+    "changed_files": [
+      "scripts/release/macos-package-performance.mjs",
+      "scripts/release/verify-macos-package.mjs",
+      "scripts/tests/release/verify-macos-package.test.mjs"
+    ]
+  },
+  "platform": {
+    "os": "macOS 27.0 build 26A5378j",
+    "architecture": "arm64",
+    "hardware": "Mac16,5, Apple M4 Max",
+    "physical_memory_bytes": 68719476736,
+    "node": "v26.5.0",
+    "rustc": "1.97.1 (8bab26f4f 2026-07-14)"
+  },
+  "commands": [
+    {
+      "command": "env -u JOBSENTINEL_LIVE_KEYRING_TESTS JOBSENTINEL_MACOS_NO_ACCOUNT=true npm run tauri:build:macos",
+      "exit_status": 0,
+      "relevant_result": "Built and ad hoc signed the default arm64 no-account app and DMG, verified the DMG, and wrote its checksum without Apple signing or notarization credentials.",
+      "caveat": "The artifact reports product version 2.9.5 because v3 is still an unreleased branch. Optional Gatekeeper checks correctly reject the ad hoc, non-notarized artifact."
+    },
+    {
+      "command": "cargo tree --locked --offline -p jobsentinel -e features | rg -q 'candle|hf-hub|tokenizers'; find <mounted-app> -type f | rg -i 'safetensors|onnx|gguf|tokenizer|qwen|minilm'",
+      "exit_status": 1,
+      "relevant_result": "Both negative searches found no embedded model dependency activation and no model payload file. The check wrapper reported model_free_dependency_and_payload_checks=passed.",
+      "caveat": "Exit status 1 is the expected no-match result for both rg predicates."
+    },
+    {
+      "command": "env -u JOBSENTINEL_LIVE_KEYRING_TESTS npm run tauri:verify:macos -- --dmg target/release/bundle/dmg/JobSentinel_2.9.5_aarch64_no-account_macos.dmg --expected-architectures arm64 --expected-bundle-id com.jobsentinel.main --expected-product-name JobSentinel --expected-version 2.9.5 --expected-icon-file icon.icns --expected-minimum-system-version 13.0 --launch-smoke --require-checksum",
+      "exit_status": 0,
+      "relevant_result": "Three consecutive final-verifier runs passed checksum, DMG integrity, metadata, arm64 architecture, signature integrity, visible native window, isolated local data, owner-only database, 12-second process survival, empty stderr, and app-scoped cleanup.",
+      "caveat": "These are low-pressure observations on a 64 GiB host, not an 8 GiB responsiveness claim. The visible-window duration is a polling upper bound and RSS is the maximum observed across the exact LaunchServices coalition."
+    },
+    {
+      "command": "env -u JOBSENTINEL_LIVE_KEYRING_TESTS npm run tauri:verify:macos -- --dmg target/release/bundle/dmg/JobSentinel_2.9.5_aarch64_no-account_macos.dmg --expected-architectures arm64 --expected-bundle-id com.jobsentinel.main --expected-product-name JobSentinel --expected-version 2.9.5 --expected-icon-file icon.icns --expected-minimum-system-version 13.0 --launch-smoke --install-smoke --require-checksum",
+      "exit_status": 0,
+      "relevant_result": "The same checks passed from both the mounted image and a copied application. The copied app created only the isolated test data tree and owner-only database.",
+      "caveat": "This proves launch and local-data behavior, not the complete installed Essentials journey."
+    },
+    {
+      "command": "env -u JOBSENTINEL_LIVE_KEYRING_TESTS npm run test:e2e:smoke:budget",
+      "exit_status": 0,
+      "relevant_result": "All 10 expected browser smoke tests passed with no unexpected, flaky, or skipped tests in 26070.156 ms under the 30000 ms suite budget.",
+      "caveat": "This is a browser mock proxy. It does not prove installed setup, resume import, deterministic matching, tracker update, pay review, and support-report completion."
+    },
+    {
+      "command": "node --test scripts/tests/release/verify-macos-package.test.mjs; npm run test:scripts",
+      "exit_status": 0,
+      "relevant_result": "All 19 focused macOS verifier tests and all 842 script contract tests passed.",
+      "caveat": "No live source, model, external AI, credential, or Keychain path ran."
+    },
+    {
+      "command": "npm run harness:check; npm run lint:file-size -- --hard; npm run lint:security; git diff --check",
+      "exit_status": 0,
+      "relevant_result": "Harness state, hard file limits, security sensors, secret scanning, and diff validation passed.",
+      "caveat": "Two changed verifier files reached the soft modularization review threshold but remain below the enforced hard limit."
+    },
+    {
+      "command": "Independent adversarial review of the performance verifier",
+      "exit_status": 0,
+      "relevant_result": "After corrections for process attribution, zero-sample rejection, sampling disclosure, historical PID safety, and bounded cleanup, the final reviewer verdict was APPROVE.",
+      "caveat": "Review does not replace actual modest-hardware or cross-platform measurement."
+    }
+  ],
+  "artifact": {
+    "path": "target/release/bundle/dmg/JobSentinel_2.9.5_aarch64_no-account_macos.dmg",
+    "sha256": "74bfbafd20c41c387d085c1de5000d38b21b9a71cdf21b30f78cbcd69ba6228f",
+    "installer_bytes": 14224509,
+    "installed_app_bytes": 29704192,
+    "executable_bytes": 28797104,
+    "bundle_file_count": 4,
+    "model_payload_matches": 0,
+    "bundle_identifier": "com.jobsentinel.main",
+    "architecture": "arm64",
+    "signature": "ad hoc",
+    "notarized": false
+  },
+  "launch_samples": [
+    {
+      "visible_window_upper_bound_ms": 825,
+      "aggregate_observed_max_rss_kib": 240944,
+      "max_process_count": 6,
+      "rss_sample_count": 80,
+      "max_rss_sample_gap_ms": 401
+    },
+    {
+      "visible_window_upper_bound_ms": 823,
+      "aggregate_observed_max_rss_kib": 239488,
+      "max_process_count": 6,
+      "rss_sample_count": 80,
+      "max_rss_sample_gap_ms": 396
+    },
+    {
+      "visible_window_upper_bound_ms": 826,
+      "aggregate_observed_max_rss_kib": 240480,
+      "max_process_count": 6,
+      "rss_sample_count": 80,
+      "max_rss_sample_gap_ms": 399
+    }
+  ],
+  "launch_summary": {
+    "visible_window_upper_bound_ms_median": 825,
+    "visible_window_upper_bound_ms_range": [
+      823,
+      826
+    ],
+    "aggregate_observed_max_rss_kib_median": 240480,
+    "aggregate_observed_max_rss_kib_range": [
+      239488,
+      240944
+    ],
+    "max_process_count": 6,
+    "rss_sample_count_per_run": 80,
+    "max_rss_sample_gap_ms_median": 399,
+    "max_rss_sample_gap_ms_range": [
+      396,
+      401
+    ]
+  },
+  "installed_copy_sample": {
+    "visible_window_upper_bound_ms": 816,
+    "aggregate_observed_max_rss_kib": 239520,
+    "max_process_count": 6,
+    "rss_sample_count": 32,
+    "max_rss_sample_gap_ms": 391,
+    "result": "pass"
+  },
+  "measurement_contract": {
+    "startup": "Monotonic time from the native open request until the first observed on-screen app window, rounded up.",
+    "memory": "Maximum observed aggregate RSS across the exact selected LaunchServices coalition, including app WebKit and app-launched XPC helpers.",
+    "sampling": "Sampling begins after the launch request. The synchronous native window probe can create a visible sampling gap, which every result records.",
+    "cleanup": "The verifier re-resolves the live coalition, targets the unique launch ASN, waits within a bound, and uses an exact executable-command fallback only when no ASN exists. It never signals a historical PID."
+  },
+  "gate_4_status": {
+    "state": "open",
+    "proved": [
+      "Default macOS arm64 package and installed-app size baseline.",
+      "No default embedded model dependency activation or model payload.",
+      "Repeatable low-pressure native window and aggregate observed RSS baseline.",
+      "Mounted and copied app launch with isolated private local data and empty stderr."
+    ],
+    "not_proved": [
+      "Responsiveness, swapping behavior, or memory safety on an actual 8 GiB profile.",
+      "Complete installed Essentials journey from setup through support report.",
+      "Windows 11, macOS 26 and later, and Linux package and runtime matrix.",
+      "Approved numeric release thresholds.",
+      "Developer ID signing, notarization, and public Gatekeeper acceptance."
+    ],
+    "next_trigger": "Run the complete installed Essentials journey on actual 8 GiB hardware or an equivalent controlled guest, then extend the package matrix."
+  },
+  "privacy_and_network": {
+    "user_data_used": false,
+    "external_ai_used": false,
+    "credentials_used": false,
+    "keychain_accessed": false,
+    "model_files_downloaded": false,
+    "live_sources_contacted": false,
+    "network_required": false
+  }
+}

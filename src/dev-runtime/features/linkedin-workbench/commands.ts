@@ -37,6 +37,7 @@ interface MockLinkedInWorkbenchState {
   jobs: MockJob[];
   applications: MockApplications;
   pendingReminders: MockPendingReminder[];
+  reviewed: boolean;
 }
 
 interface MockLinkedInWorkbenchValue {
@@ -51,13 +52,33 @@ interface MockLinkedInWorkbenchValue {
 
 interface MockLinkedInWorkbenchResult {
   state: MockLinkedInWorkbenchState;
-  value: MockLinkedInWorkbenchValue;
+  value:
+    | MockLinkedInWorkbenchValue
+    | boolean
+    | "reviewed"
+    | "review_required";
 }
 
 export function handleMockLinkedInWorkbenchCommand(
+  command: string,
   args: Record<string, unknown> | undefined,
   state: MockLinkedInWorkbenchState,
 ): MockLinkedInWorkbenchResult {
+  if (command === "get_linkedin_workbench_review_status") {
+    return { state, value: state.reviewed ? "reviewed" : "review_required" };
+  }
+  if (command === "review_linkedin_workbench") {
+    return { state: { ...state, reviewed: true }, value: true };
+  }
+  if (command === "revoke_linkedin_workbench_review") {
+    return { state: { ...state, reviewed: false }, value: state.reviewed };
+  }
+  if (command !== "record_linkedin_workbench_event") {
+    throw new Error(`Unsupported LinkedIn Workbench command: ${command}`);
+  }
+  if (!state.reviewed) {
+    throw new Error("Review LinkedIn Workbench before recording work.");
+  }
   let { jobs, applications, pendingReminders } = state;
   const input = getRecordArg(args, "input");
   const eventType = getLinkedInWorkbenchEventType(input.eventType);
@@ -164,7 +185,7 @@ export function handleMockLinkedInWorkbenchCommand(
   }
 
   return {
-    state: { jobs, applications, pendingReminders },
+    state: { jobs, applications, pendingReminders, reviewed: state.reviewed },
     value: {
       jobId,
       jobHash,

@@ -1,4 +1,28 @@
+// Verifies shared scraper execution, audit, cancellation, and failure behavior.
+
 use super::*;
+use std::sync::atomic::{AtomicBool, Ordering};
+
+static RUNNING: AtomicBool = AtomicBool::new(false);
+
+async fn run_closing_scraper<S: JobScraper>(
+    database: &Arc<Database>,
+    scraper: &S,
+) -> (ScraperRunOutcome, Vec<Job>, Vec<String>) {
+    let mut jobs = Vec::new();
+    let mut errors = Vec::new();
+    let outcome = run_scraper(
+        database,
+        scraper,
+        "stub",
+        "Stub",
+        &RUNNING,
+        &mut jobs,
+        &mut errors,
+    )
+    .await;
+    (outcome, jobs, errors)
+}
 
 enum StubOutcome {
     Success(Vec<Job>),
@@ -18,6 +42,42 @@ impl JobScraper for StubScraper {
             StubOutcome::Timeout => Err(ScraperError::Timeout { timeout_secs: 10 }),
             StubOutcome::Failure => Err(ScraperError::Network),
         }
+    }
+}
+
+struct ObservedScraper {
+    called: AtomicBool,
+}
+
+#[async_trait::async_trait]
+impl JobScraper for ObservedScraper {
+    async fn scrape(&self) -> Result<Vec<Job>, ScraperError> {
+        self.called.store(true, Ordering::Release);
+        Ok(vec![test_job()])
+    }
+}
+
+struct ClosingScraper {
+    database: Arc<Database>,
+}
+
+#[async_trait::async_trait]
+impl JobScraper for ClosingScraper {
+    async fn scrape(&self) -> Result<Vec<Job>, ScraperError> {
+        self.database.close().await;
+        Ok(vec![test_job()])
+    }
+}
+
+struct ClosingFailureScraper {
+    database: Arc<Database>,
+}
+
+#[async_trait::async_trait]
+impl JobScraper for ClosingFailureScraper {
+    async fn scrape(&self) -> Result<Vec<Job>, ScraperError> {
+        self.database.close().await;
+        Err(ScraperError::Network)
     }
 }
 
@@ -47,7 +107,16 @@ async fn scraper_runner_records_and_accumulates_success() {
     let mut jobs = Vec::new();
     let mut errors = Vec::new();
 
-    let outcome = run_scraper(&database, &scraper, "stub", "Stub", &mut jobs, &mut errors).await;
+    let outcome = run_scraper(
+        &database,
+        &scraper,
+        "stub",
+        "Stub",
+        &RUNNING,
+        &mut jobs,
+        &mut errors,
+    )
+    .await;
 
     assert_eq!(outcome, ScraperRunOutcome::Success { jobs_found: 1 });
     assert_eq!(jobs.len(), 1);
@@ -71,6 +140,7 @@ async fn scraper_runner_preserves_partial_results_after_a_later_failure() {
         &successful,
         "first",
         "First",
+        &RUNNING,
         &mut jobs,
         &mut errors,
     )
@@ -80,6 +150,7 @@ async fn scraper_runner_preserves_partial_results_after_a_later_failure() {
         &failed,
         "second",
         "Second",
+        &RUNNING,
         &mut jobs,
         &mut errors,
     )
@@ -99,11 +170,109 @@ async fn scraper_runner_preserves_timeout_outcome() {
     let mut jobs = Vec::new();
     let mut errors = Vec::new();
 
-    let outcome = run_scraper(&database, &scraper, "stub", "Stub", &mut jobs, &mut errors).await;
+    let outcome = run_scraper(
+        &database,
+        &scraper,
+        "stub",
+        "Stub",
+        &RUNNING,
+        &mut jobs,
+        &mut errors,
+    )
+    .await;
 
     assert_eq!(outcome, ScraperRunOutcome::Timeout);
     assert!(jobs.is_empty());
     assert_eq!(errors, ["Stub source check failed (timeout)"]);
+}
+
+#[tokio::test]
+async fn scraper_runner_does_not_call_external_source_without_audit_row() {
+    let database = Arc::new(Database::connect_memory().await.unwrap());
+    let scraper = ObservedScraper {
+        called: AtomicBool::new(false),
+    };
+    let mut jobs = Vec::new();
+    let mut errors = Vec::new();
+
+    let outcome = run_scraper(
+        &database,
+        &scraper,
+        "stub",
+        "Stub",
+        &RUNNING,
+        &mut jobs,
+        &mut errors,
+    )
+    .await;
+
+    assert_eq!(outcome, ScraperRunOutcome::Failure);
+    assert!(!scraper.called.load(Ordering::Acquire));
+    assert!(jobs.is_empty());
+    assert_eq!(errors, ["Stub source check failed (audit_unavailable)"]);
+}
+
+#[tokio::test]
+async fn scraper_runner_does_not_report_success_when_terminal_audit_write_fails() {
+    let database = test_database().await;
+    let scraper = ClosingScraper {
+        database: Arc::clone(&database),
+    };
+    let (outcome, jobs, errors) = run_closing_scraper(&database, &scraper).await;
+
+    assert_eq!(outcome, ScraperRunOutcome::Failure);
+    assert!(jobs.is_empty());
+    assert_eq!(errors, ["Stub source check failed (audit_unavailable)"]);
+}
+
+#[tokio::test]
+async fn scraper_runner_reports_failed_terminal_error_audit_write() {
+    let database = test_database().await;
+    let scraper = ClosingFailureScraper {
+        database: Arc::clone(&database),
+    };
+    let (outcome, jobs, errors) = run_closing_scraper(&database, &scraper).await;
+
+    assert_eq!(outcome, ScraperRunOutcome::Failure);
+    assert!(jobs.is_empty());
+    assert_eq!(
+        errors,
+        [
+            "Stub source check failed (network)",
+            "Stub source check failed (audit_unavailable)"
+        ]
+    );
+}
+
+#[tokio::test]
+async fn scraper_runner_stops_before_the_next_external_source() {
+    let database = test_database().await;
+    let scraper = ObservedScraper {
+        called: AtomicBool::new(false),
+    };
+    let shutdown_requested = AtomicBool::new(true);
+    let mut jobs = Vec::new();
+    let mut errors = Vec::new();
+
+    let outcome = run_scraper(
+        &database,
+        &scraper,
+        "stub",
+        "Stub",
+        &shutdown_requested,
+        &mut jobs,
+        &mut errors,
+    )
+    .await;
+
+    assert_eq!(outcome, ScraperRunOutcome::Cancelled);
+    assert!(!scraper.called.load(Ordering::Acquire));
+    assert!(jobs.is_empty());
+    assert!(errors.is_empty());
+    assert!(crate::health::get_scraper_runs(&database, "stub", 1)
+        .await
+        .unwrap()
+        .is_empty());
 }
 
 #[test]
@@ -129,60 +298,40 @@ fn scraper_failure_kind_keeps_coarse_timeout_category() {
 }
 
 #[test]
-fn restricted_source_acknowledged_reads_local_user_acceptance() {
-    let mut config = Config {
-        title_allowlist: vec![],
-        title_blocklist: vec![],
-        keywords_boost: vec![],
-        keywords_exclude: vec![],
-        location_preferences: crate::config::LocationPreferences {
-            allow_remote: true,
-            allow_hybrid: false,
-            allow_onsite: false,
-            cities: vec![],
-            states: vec![],
-            country: "US".to_string(),
-        },
-        salary_floor_usd: 0,
-        salary_target_usd: None,
-        penalize_missing_salary: false,
-        auto_refresh: Default::default(),
-        bookmarklet_port: 4321,
-        immediate_alert_threshold: 0.9,
-        scraping_interval_hours: 2,
-        alerts: Default::default(),
-        greenhouse_urls: vec![],
-        lever_urls: vec![],
-        linkedin: Default::default(),
-        restricted_source_acknowledgements: Default::default(),
-        remoteok: Default::default(),
-        weworkremotely: Default::default(),
-        builtin: Default::default(),
-        hn_hiring: Default::default(),
-        dice: Default::default(),
-        yc_startup: Default::default(),
-        usajobs: Default::default(),
-        simplyhired: Default::default(),
-        glassdoor: Default::default(),
-        jobswithgpt_endpoint: String::new(),
-        jobswithgpt_approval: Default::default(),
-        external_ai: Default::default(),
-        ghost_config: None,
-        use_resume_matching: false,
-        preferred_companies: vec![],
-        blocked_companies: vec![],
-    };
-
-    assert!(!restricted_source_acknowledged(&config, "dice"));
-    config.restricted_source_acknowledgements.dice = true;
-    assert!(restricted_source_acknowledged(&config, "dice"));
-    assert!(!restricted_source_acknowledged(&config, "unknown"));
+fn retired_restricted_source_message_does_not_offer_local_override() {
+    assert_eq!(
+        retired_restricted_source_message("Dice"),
+        "Dice scheduled access is unavailable after provider policy review. Use the user-opened search link, Browser Import, or manual entry."
+    );
 }
 
-#[test]
-fn restricted_source_acknowledgement_message_is_user_recoverable() {
+#[tokio::test]
+async fn restored_retired_source_flags_stop_before_transport() {
+    let database = test_database().await;
+    let credentials =
+        CredentialService::with_fixed_master_key(database.credentials(), [7_u8; 32], false);
+    let mut config = Config::first_run();
+    config.builtin.enabled = true;
+    config.dice.enabled = true;
+    config.simplyhired.enabled = true;
+    config.glassdoor.enabled = true;
+
+    let (jobs, errors) = run_scrapers(&Arc::new(config), &database, &credentials, &RUNNING).await;
+
+    assert!(jobs.is_empty());
     assert_eq!(
-        restricted_source_acknowledgement_missing_message("Dice"),
-        "Dice source check skipped until you review and accept restricted-source risk in Settings"
+        errors,
+        [
+            retired_restricted_source_message("BuiltIn"),
+            retired_restricted_source_message("Dice"),
+            retired_restricted_source_message("SimplyHired"),
+            retired_restricted_source_message("Glassdoor"),
+        ]
     );
+    for source_id in ["builtin", "dice", "simplyhired", "glassdoor"] {
+        assert!(crate::health::get_scraper_runs(&database, source_id, 1)
+            .await
+            .unwrap()
+            .is_empty());
+    }
 }

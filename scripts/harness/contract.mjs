@@ -1,7 +1,10 @@
+// Aggregates canonical repository, state, startup, and verification contract checks.
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { extname, join } from "node:path";
 
 import { collectRepositoryFileSizeViolations } from "./checks/repo-file-size.mjs";
+import { collectFileDescriptionViolations } from "./checks/file-descriptions.mjs";
+import { collectV3PlanViolations } from "./checks/v3-plan.mjs";
 import { collectStateViolations } from "./state.mjs";
 import { checkRepositoryArchitecture } from "../checks/repository-architecture.mjs";
 
@@ -114,7 +117,7 @@ function validatePackageScripts(root, manifest, violations) {
   const packageJson = readJson(root, "package.json", violations);
   if (!packageJson) return;
   const required = [
-    "harness:check", "harness:plan", "harness:session", "lint:file-size",
+    "harness:check", "harness:plan", "harness:session", "lint:file-description", "lint:file-size",
     "clean:generated", "typecheck", "test:smoke", "verify:full",
   ];
   for (const name of required) {
@@ -266,6 +269,8 @@ export function collectHarnessContractViolations(root) {
   validateHostedWorkflows(root, manifest, violations);
   validateRetirement(root, manifest, violations);
   violations.push(...collectStateViolations(root));
+  violations.push(...collectV3PlanViolations(root));
+  violations.push(...collectFileDescriptionViolations(root));
   violations.push(...collectRepositoryFileSizeViolations(root));
   violations.push(...checkRepositoryArchitecture(root));
   return [...new Set(violations)].sort();

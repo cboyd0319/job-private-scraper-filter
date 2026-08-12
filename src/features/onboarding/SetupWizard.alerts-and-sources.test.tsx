@@ -153,7 +153,7 @@ describe("SetupWizard alerts and sources", () => {
     });
   });
 
-  it("offers a broad source for non-technical searches and saves it only after selection", async () => {
+  it("does not offer retired scheduled sources for non-technical searches", async () => {
     const user = userEvent.setup();
     mockInvoke.mockResolvedValue(undefined);
     renderWithProviders(<SetupWizard onComplete={mockOnComplete} />);
@@ -164,17 +164,12 @@ describe("SetupWizard alerts and sources", () => {
     await user.click(screen.getByRole("button", { name: /^continue$/i }));
     await user.click(screen.getByRole("button", { name: /^continue$/i }));
 
-    const broadSource = screen.getByRole("checkbox", {
-      name: /SimplyHired/i,
-    });
-
-    expect(broadSource).not.toBeChecked();
+    expect(
+      screen.queryByRole("checkbox", { name: /SimplyHired/i }),
+    ).not.toBeInTheDocument();
     expect(
       screen.getByText("No outside job sources selected; add reviewed sources in Settings."),
     ).toBeInTheDocument();
-
-    await user.click(broadSource);
-    expect(screen.getByText("SimplyHired selected.")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: /start finding jobs/i }));
 
@@ -186,8 +181,8 @@ describe("SetupWizard alerts and sources", () => {
             title_allowlist: ["Office Manager"],
             keywords_boost: ["Scheduling"],
             simplyhired: expect.objectContaining({
-              enabled: true,
-              query: "Office Manager Scheduling",
+              enabled: false,
+              query: "",
             }),
           }),
         }),

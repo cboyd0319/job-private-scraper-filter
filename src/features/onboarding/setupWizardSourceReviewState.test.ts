@@ -6,43 +6,25 @@ import {
 } from "./setupWizardSourceReviewState";
 
 describe("setup wizard source review state", () => {
-  it("marks suggested broad sources unchecked until selected", () => {
+  it("does not offer a retired broad source", () => {
     const config = {
       ...createDefaultSetupConfig(),
       title_allowlist: ["Office Manager"],
       keywords_boost: ["Scheduling"],
     };
 
-    expect(getSetupWizardSourceReviewOptions(config)).toEqual([
-      expect.objectContaining({
-        key: "simplyhired",
-        checked: false,
-      }),
-    ]);
+    expect(getSetupWizardSourceReviewOptions(config)).toEqual([]);
   });
 
-  it("fills SimplyHired query from reviewed search words only after opt-in", () => {
+  it("toggles an active suggested source", () => {
     const config = {
       ...createDefaultSetupConfig(),
-      title_allowlist: ["Office Manager"],
-      keywords_boost: ["Scheduling"],
-      location_preferences: {
-        ...createDefaultSetupConfig().location_preferences,
-        cities: ["Denver"],
-      },
+      title_allowlist: ["Software Engineer"],
     };
 
-    expect(config.simplyhired).toMatchObject({
-      enabled: false,
-      query: "",
-    });
+    const toggled = toggleSetupJobSource(config, "remoteok", true);
 
-    const toggled = toggleSetupJobSource(config, "simplyhired", true);
-
-    expect(toggled.simplyhired).toMatchObject({
-      enabled: true,
-      query: "Office Manager Scheduling",
-      location: "Denver",
-    });
+    expect(toggled.remoteok.enabled).toBe(true);
+    expect(toggled.simplyhired.enabled).toBe(false);
   });
 });

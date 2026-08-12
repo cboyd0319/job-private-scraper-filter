@@ -1,0 +1,85 @@
+{
+  "schema": "jobsentinel.v3.source-manifest.v1",
+  "source_id": "usajobs",
+  "display_name": "USAJOBS",
+  "source_class": "official_public_api",
+  "endpoint_patterns": ["https://data.usajobs.gov/api/Search"],
+  "documentation_url": "https://developer.usajobs.gov/guides/authentication",
+  "auth_requirement": "local_credential",
+  "policy_ref": "jobsentinel.source-policy.usajobs.api",
+  "policy_revision": 1,
+  "actions": [
+    {
+      "operation": "scheduled_check",
+      "permission": "none"
+    },
+    {
+      "operation": "connectivity_check",
+      "permission": "none"
+    }
+  ],
+  "terms_review": {
+    "status": "review_required",
+    "reference": "source-review.usajobs.terms",
+    "reviewed_on": null
+  },
+  "robots_review": {
+    "status": "not_applicable",
+    "reference": null,
+    "reviewed_on": null
+  },
+  "parser_id": "usajobs-search-v1",
+  "fixtures": [
+    {
+      "fixture_id": "usajobs-list-v1",
+      "kind": "list",
+      "path": "crates/jobsentinel-sources/src/fixtures/usajobs_list_v1.json",
+      "payload_sha256": "a672298785a332d99556eae9ff5593d6c70a366828dfb608ba313f2c38450947"
+    },
+    {
+      "fixture_id": "usajobs-detail-v1",
+      "kind": "detail",
+      "path": "crates/jobsentinel-sources/src/fixtures/usajobs_detail_v1.json",
+      "payload_sha256": "3f76a979052028e4f7a0db151384bfae2f7a93e3f5945b6d1e4b88f2af6b4cd4"
+    },
+    {
+      "fixture_id": "usajobs-policy-review-v1",
+      "kind": "policy",
+      "path": "crates/jobsentinel-domain/src/fixtures/source_reviews/usajobs_v1.json",
+      "payload_sha256": "c717362fb36ee684332bdaf65f111192de18d2dffb7c98b1b4af71a457f5175c"
+    }
+  ],
+  "supported_fields": [
+    "title",
+    "company",
+    "location",
+    "description",
+    "salary",
+    "application_url"
+  ],
+  "salary_coverage": "partial",
+  "verified_on": "2026-07-19",
+  "max_age_days": 90,
+  "confidence_percent": 95,
+  "lineage": [
+    {
+      "link_id": "source-lineage-usajobs-api",
+      "source_id": "usajobs",
+      "relation": "lineage",
+      "related_id": "usajobs-developer-authentication",
+      "provenance": "public_source",
+      "provenance_ref": "source-review.usajobs.terms"
+    }
+  ],
+  "stop_conditions": [
+    "policy_disabled",
+    "policy_changed",
+    "review_expired",
+    "rate_limit_reached",
+    "access_blocked",
+    "parser_drift",
+    "repeated_failure"
+  ],
+  "risk_note_refs": ["source-risk.usajobs.user-key-terms"],
+  "incomplete_coverage": true
+}

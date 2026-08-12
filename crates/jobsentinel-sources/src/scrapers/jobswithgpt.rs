@@ -107,13 +107,10 @@ impl JobsWithGptScraper {
             "Sending JobsWithGPT MCP request"
         );
 
-        let response = send_external_http_text_with_retry(
-            ExternalHttpRequest::post(&endpoint_url)
-                .user_agent(BROWSER_USER_AGENT)
-                .json(request),
-        )
-        .await
-        .map_err(|error| ScraperError::from_external("jobswithgpt", error))?;
+        let response =
+            send_external_http_text_with_retry(jobswithgpt_request(&endpoint_url, request))
+                .await
+                .map_err(|error| ScraperError::from_external("jobswithgpt", error))?;
 
         if !(200..300).contains(&response.status) {
             return Err(ScraperError::http_status(
@@ -212,6 +209,13 @@ impl JobsWithGptScraper {
             ..Job::newly_discovered(title, company, url, location, "jobswithgpt", Utc::now())
         }))
     }
+}
+
+fn jobswithgpt_request(endpoint: &str, body: serde_json::Value) -> ExternalHttpRequest {
+    ExternalHttpRequest::post(endpoint)
+        .user_agent(BROWSER_USER_AGENT)
+        .json(body)
+        .without_retries()
 }
 
 #[async_trait]

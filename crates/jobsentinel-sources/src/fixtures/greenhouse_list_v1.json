@@ -1,0 +1,12 @@
+{
+  "jobs": [
+    {
+      "id": 123456,
+      "title": "Inventory Planner",
+      "location": {
+        "name": "Remote"
+      },
+      "absolute_url": "https://job-boards.greenhouse.io/example/jobs/123456"
+    }
+  ]
+}

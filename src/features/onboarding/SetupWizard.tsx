@@ -37,9 +37,10 @@ import { useSetupResumeSuggestions } from "./useSetupResumeSuggestions";
 
 interface SetupWizardProps {
   onComplete: () => void;
+  onSkip?: () => void;
 }
 
-export default function SetupWizard({ onComplete }: SetupWizardProps) {
+export default function SetupWizard({ onComplete, onSkip = () => undefined }: SetupWizardProps) {
   const [step, setStep] = useState(0); // Start at step 0 (profile selection)
   const [selectedProfile, setSelectedProfile] = useState<string | null>(null);
   const [freshnessPreference, setFreshnessPreference] = useState<FreshnessPreference>(
@@ -56,6 +57,8 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
   const toast = useToast();
   const [stepAnnouncement, setStepAnnouncement] = useState("");
   const [validationAnnouncement, setValidationAnnouncement] = useState("");
+  const [saveFailed, setSaveFailed] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [config, setConfig] = useState<SetupConfig>(() => createDefaultSetupConfig());
   const {
     cityInput,
@@ -286,6 +289,8 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
   };
 
   const handleComplete = async () => {
+    if (isSaving) return;
+
     if (!hasSelectedWorkType) {
       setStep(2);
       setValidationAnnouncement("Choose at least one work location option to continue");
@@ -293,6 +298,8 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
     }
 
     try {
+      setIsSaving(true);
+      setSaveFailed(false);
       // Create config object without the webhook_url; saved secrets stay behind CredentialService.
       const configToSave = {
         ...config,
@@ -310,10 +317,12 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
       });
       invalidateCacheByCommand("get_config");
       invalidateCacheByCommand("get_dashboard_preferences");
-      toast.success("Saved search ready", "JobSentinel will use these choices.");
+      toast.success("Search setup ready", "JobSentinel will use these settings.");
       onComplete();
     } catch {
-      // Error already logged and shown to user
+      setSaveFailed(true);
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -374,6 +383,14 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
               >
                 {selectedProfile ? "Use These Starting Ideas" : "Build My Search"}
               </Button>
+              <div className="mt-4 text-center">
+                <Button onClick={onSkip} variant="secondary" size="lg">
+                  Skip for now
+                </Button>
+                <p className="mt-2 text-sm text-surface-500">
+                  Skipping lasts only for this session and saves no search. Setup returns next time. You can still review or import local jobs.
+                </p>
+              </div>
             </div>
           )}
 
@@ -437,21 +454,34 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
 
           {/* Step 3: Notifications */}
           {step === 3 && (
-            <SetupWizardNotificationsStep
-              config={config}
-              freshnessPreference={freshnessPreference}
-              reviewVolumePreference={reviewVolumePreference}
-              resumeSkillSummary={resumeSkillSummary}
-              searchSummary={searchSummary}
-              suggestedJobSources={suggestedJobSources}
-              onBack={() => setStep(2)}
-              onComplete={handleComplete}
-              onDesktopAlertsChange={handleDesktopAlertsChange}
-              onFreshnessPreferenceChange={handleFreshnessPreferenceChange}
-              onQuietAlertModeChange={handleQuietAlertModeChange}
-              onReviewVolumePreferenceChange={handleReviewVolumePreferenceChange}
-              onToggleJobSource={handleToggleJobSource}
-            />
+            <>
+              {saveFailed && (
+                <div className="mb-6 rounded-lg border border-danger/30 bg-danger/5 p-4" role="alert">
+                  <p className="text-sm text-surface-700">
+                    Could not save your search setup. Your choices are still here.
+                  </p>
+                  <Button className="mt-3" disabled={isSaving} onClick={handleComplete} variant="secondary">
+                    Try again
+                  </Button>
+                </div>
+              )}
+              <SetupWizardNotificationsStep
+                config={config}
+                freshnessPreference={freshnessPreference}
+                reviewVolumePreference={reviewVolumePreference}
+                resumeSkillSummary={resumeSkillSummary}
+                searchSummary={searchSummary}
+                suggestedJobSources={suggestedJobSources}
+                onBack={() => setStep(2)}
+                onComplete={handleComplete}
+                isSaving={isSaving}
+                onDesktopAlertsChange={handleDesktopAlertsChange}
+                onFreshnessPreferenceChange={handleFreshnessPreferenceChange}
+                onQuietAlertModeChange={handleQuietAlertModeChange}
+                onReviewVolumePreferenceChange={handleReviewVolumePreferenceChange}
+                onToggleJobSource={handleToggleJobSource}
+              />
+            </>
           )}
         </Card>
 

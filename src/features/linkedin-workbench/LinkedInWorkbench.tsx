@@ -2,7 +2,13 @@ import { useEffect, useState, type ClipboardEvent } from "react";
 import { Button } from "../../ui/Button";
 import { useToast } from "../../shared/toast/useToast";
 import { openDeepLink } from "../../shared/search-links";
-import { recordLinkedInWorkbenchEvent } from "./internal/linkedinWorkbenchClient";
+import {
+  getLinkedInWorkbenchReviewStatus,
+  recordLinkedInWorkbenchEvent,
+  reviewLinkedInWorkbench,
+  revokeLinkedInWorkbenchReview,
+  type LinkedInWorkbenchReviewStatus,
+} from "./internal/linkedinWorkbenchClient";
 import { LinkedInWorkbenchLearning } from "./internal/LinkedInWorkbenchLearning";
 import {
   clearBrowserAssistLearningSignals,
@@ -15,7 +21,6 @@ import {
 } from "../../shared/browserAssistLearning";
 import {
   defaultLinkedInWorkbenchPrefill,
-  LINKEDIN_WORKBENCH_ACK_STORAGE_KEY,
   LINKEDIN_WORKBENCH_PRIVACY_REMINDER_MINUTES,
   parseUserProvidedLinkedInText,
   sanitizeLinkedInWorkbenchTextForStorage,
@@ -25,19 +30,13 @@ import {
   type LinkedInWorkbenchPrefill,
 } from "./linkedinWorkbenchPolicy";
 import { logError } from "../../shared/errorReporting/logger";
-import {
-  readLinkedInWorkbenchAcknowledgement,
-  writeLinkedInWorkbenchAcknowledgement,
-} from "./internal/linkedinWorkbenchAcknowledgement";
-
 const LINKEDIN_JOBS_URL = "https://www.linkedin.com/jobs/";
 const LINKEDIN_TRACKER_URL = "https://www.linkedin.com/jobs-tracker/?stage=applied";
-
 export function LinkedInWorkbench() {
   const toast = useToast();
-  const [acknowledged, setAcknowledged] = useState(
-    readLinkedInWorkbenchAcknowledgement,
-  );
+  const [reviewStatus, setReviewStatus] =
+    useState<LinkedInWorkbenchReviewStatus | null>(null);
+  const [reviewBusy, setReviewBusy] = useState(false);
   const [sessionStartedAt, setSessionStartedAt] = useState<number | null>(null);
   const [now, setNow] = useState<number | null>(null);
   const [draft, setDraft] = useState<LinkedInWorkbenchPrefill>(
@@ -54,31 +53,54 @@ export function LinkedInWorkbench() {
     useState<BrowserAssistLearningSummary>(() =>
       summarizeBrowserAssistLearningSignals(readBrowserAssistLearningSignals()),
     );
-
+  const acknowledged = reviewStatus === "reviewed";
+  const policyRefreshRequired = reviewStatus === "policy_refresh_required";
   useEffect(() => {
+    let active = true;
+    const refreshReviewStatus = () =>
+      getLinkedInWorkbenchReviewStatus()
+      .then((status) => {
+        if (active) setReviewStatus(status);
+      })
+      .catch((error) => {
+        logError("Failed to check LinkedIn Workbench review:", error);
+      });
+    void refreshReviewStatus();
     setNow(Date.now());
-    const timer = window.setInterval(() => setNow(Date.now()), 60_000);
-    return () => window.clearInterval(timer);
+    const timer = window.setInterval(() => {
+      setNow(Date.now());
+      void refreshReviewStatus();
+    }, 60_000);
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+    };
   }, []);
-
   const showPrivacyReminder =
     now !== null && shouldShowLinkedInWorkbenchPrivacyReminder(sessionStartedAt, now);
-
-  const updateAcknowledgement = (accepted: boolean) => {
-    setAcknowledged(accepted);
-    if (accepted) {
-      writeLinkedInWorkbenchAcknowledgement();
-    } else {
-      window.localStorage.removeItem(LINKEDIN_WORKBENCH_ACK_STORAGE_KEY);
+  const updateAcknowledgement = async (accepted: boolean) => {
+    setReviewBusy(true);
+    try {
+      if (accepted) {
+        setReviewStatus(
+          (await reviewLinkedInWorkbench()) ? "reviewed" : "review_required",
+        );
+      } else {
+        await revokeLinkedInWorkbenchReview();
+        setReviewStatus("review_required");
+      }
+    } catch (error) {
+      logError("Failed to update LinkedIn Workbench review:", error);
+      toast.error("LinkedIn Workbench review was not changed", "Try again.");
+    } finally {
+      setReviewBusy(false);
     }
   };
-
   const handleOpen = async (url: string) => {
     if (!acknowledged) {
       toast.warning("Review LinkedIn workbench first", "Check the box before opening LinkedIn.");
       return;
     }
-
     setBusyAction("open");
     try {
       await openDeepLink(url);
@@ -91,7 +113,6 @@ export function LinkedInWorkbench() {
       setBusyAction(null);
     }
   };
-
   const applyPastedTextValue = (value: string) => {
     const parsed = parseUserProvidedLinkedInText(value);
     setDraft((current) => ({
@@ -101,28 +122,23 @@ export function LinkedInWorkbench() {
       notes: parsed.notes || current.notes,
     }));
   };
-
   const applyPastedText = () => {
     applyPastedTextValue(pastedText);
   };
-
   const handlePasteSelectedText = (event: ClipboardEvent<HTMLTextAreaElement>) => {
     const text = event.clipboardData.getData("text");
     if (!text.trim()) {
       return;
     }
-
     event.preventDefault();
     setPastedText(text);
     applyPastedTextValue(text);
   };
-
   const recordAction = async (eventType: LinkedInWorkbenchEventType) => {
     if (!acknowledged) {
       toast.warning("Review LinkedIn workbench first", "Check the box before recording work.");
       return;
     }
-
     setBusyAction(eventType);
     try {
       const result = await recordLinkedInWorkbenchEvent({
@@ -151,7 +167,6 @@ export function LinkedInWorkbench() {
       setBusyAction(null);
     }
   };
-
   const updateLearningEnabled = (enabled: boolean) => {
     setLearningEnabled(enabled);
     writeBrowserAssistLearningEnabled(enabled);
@@ -159,12 +174,10 @@ export function LinkedInWorkbench() {
       summarizeBrowserAssistLearningSignals(readBrowserAssistLearningSignals()),
     );
   };
-
   const clearLearning = () => {
     setLearningSummary(clearBrowserAssistLearningSignals());
     toast.success("Learning cleared", "Local Workbench suggestions were cleared.");
   };
-
   return (
     <div className="space-y-4">
       <div className="rounded-lg border border-sentinel-200 bg-sentinel-50 p-4 dark:border-sentinel-800 dark:bg-sentinel-900/20">
@@ -205,29 +218,35 @@ export function LinkedInWorkbench() {
               type="checkbox"
               className="mt-0.5 h-5 w-5 rounded border-sentinel-300 text-sentinel-700 focus:ring-sentinel-500"
               checked={acknowledged}
-              onChange={(event) => updateAcknowledgement(event.target.checked)}
+              disabled={reviewBusy || reviewStatus === null || policyRefreshRequired}
+              onChange={(event) => void updateAcknowledgement(event.target.checked)}
             />
             <span>
               I understand. Remember this on this computer unless JobSentinel
               changes how this works.
             </span>
           </label>
+          {policyRefreshRequired && (
+            <p className="text-sm leading-6 text-amber-800 dark:text-amber-200" role="status">
+              LinkedIn Workbench is paused while JobSentinel refreshes its LinkedIn
+              policy review. Your local records remain available.
+            </p>
+          )}
         </div>
       </div>
-
       <div className="rounded-lg border border-surface-200 bg-surface-50 p-4 dark:border-surface-700 dark:bg-surface-800">
         <p className="text-sm font-semibold text-surface-900 dark:text-surface-100">
-          Fastest path: browse normally, then save the page.
+          Browse normally, then add only the details you choose.
         </p>
         <p className="mt-2 text-sm leading-6 text-surface-700 dark:text-surface-300">
-          Use the Browser Button on a LinkedIn Jobs page to save the visible job
-          cards, or on an individual job page to save that posting. Then use
-          these buttons for what you did: applied, saved, tracking, interview,
-          follow-up, reminder, note, rejected, or not interested.
+          LinkedIn does not permit third-party page capture. Type or paste
+          details you selected yourself, then use these buttons for what you
+          did: applied, saved, tracking, interview, follow-up, reminder, note,
+          rejected, or not interested.
         </p>
         <p className="mt-2 text-xs leading-5 text-surface-500 dark:text-surface-400">
-          If page import misses details, paste selected text below or edit the
-          fields before saving the local record.
+          JobSentinel does not read the page, browser storage, cookies, hidden
+          fields, screenshots, or network traffic.
         </p>
       </div>
 
@@ -473,7 +492,6 @@ function successMessage(eventType: LinkedInWorkbenchEventType, needsDetails: boo
   if (eventType === "applied" && needsDetails) {
     return "Draft created. Add title, company, or link when you have a moment.";
   }
-
   if (needsDetails) {
     return "Saved as a draft. Add details later.";
   }

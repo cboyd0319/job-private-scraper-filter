@@ -29,6 +29,24 @@ pub fn screening_question_matches(pattern: &str, question: &str) -> bool {
         })
 }
 
+/// Whether a screening question contains voluntary or sensitive personal information.
+///
+/// These questions require a user's direct answer and must not be matched, suggested,
+/// learned, or filled from saved screening answers.
+pub fn requires_user_answer(question: &str) -> bool {
+    let normalized_question = normalize_screening_match_text(question);
+    if normalized_question.is_empty() {
+        return false;
+    }
+
+    let padded_question = format!(" {normalized_question} ");
+    APPLICATION_SCREENING_ALIAS_TAXONOMY
+        .requires_user_answer_patterns
+        .iter()
+        .map(|pattern| normalize_screening_match_text(pattern))
+        .any(|pattern| !pattern.is_empty() && padded_question.contains(&format!(" {pattern} ")))
+}
+
 fn screening_match_candidates(pattern: &str) -> Vec<String> {
     let trimmed = pattern.trim();
     if trimmed.is_empty() {
@@ -134,4 +152,46 @@ fn legacy_screening_pattern_aliases(pattern: &str) -> Vec<String> {
         .find(|alias| alias.pattern == pattern)
         .map(|alias| alias.aliases.clone())
         .unwrap_or_default()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn protected_self_identification_questions_require_a_user_answer() {
+        for question in [
+            "Are you a protected veteran?",
+            "Do you have a disability status?",
+            "What is your race or ethnicity?",
+            "Are you Hispanic or Latino?",
+            "What is your gender identity?",
+            "What are your pronouns?",
+            "What is your sexual orientation?",
+            "What is your religion?",
+            "What is your marital status?",
+            "What is your date of birth?",
+            "What is your DOB?",
+            "What is your national origin?",
+            "What is your religious affiliation?",
+            "Do you wish to disclose genetic information?",
+            "Voluntary self-identification",
+        ] {
+            assert!(requires_user_answer(question), "{question}");
+        }
+    }
+
+    #[test]
+    fn ordinary_screening_questions_remain_reviewable() {
+        for question in [
+            "Are you at least 18 years old?",
+            "Do you have an active security clearance?",
+            "Are you authorized to work in the United States?",
+            "Do you have Care Coordinator experience?",
+            "Do you have military experience?",
+            "Do you have religious studies experience?",
+        ] {
+            assert!(!requires_user_answer(question), "{question}");
+        }
+    }
 }

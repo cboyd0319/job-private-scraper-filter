@@ -1,5 +1,6 @@
 import resumeKeywordTaxonomy from "../../../../resources/taxonomies/resume-keywords.json";
 import { getMockCredentialCatalogTerms } from "./resumeCredentialTaxonomy";
+import type { ResumeMatchingProfile } from "../../../features/resumes/shared/atsAnalysisContracts";
 
 export type MockKeywordImportance = "Required" | "Preferred" | "Industry";
 export type MockIssueSeverity = "Critical" | "Warning" | "Info";
@@ -42,6 +43,7 @@ export interface MockRequirementReview {
   match_state: MockRequirementMatchState;
   evidence_sections: string[];
   hard_constraint: boolean;
+  profile_preferred_section?: boolean;
   recommendation: string;
 }
 
@@ -71,6 +73,7 @@ export interface MockAtsAnalysisResult {
   hard_constraint_risks: MockHardConstraintRisk[];
   format_issues: MockFormatIssue[];
   suggestions: MockAtsSuggestion[];
+  matching_profile?: ResumeMatchingProfile;
 }
 
 export interface MockAtsKeyword {
@@ -151,6 +154,7 @@ export const ATS_KNOWN_KEYWORDS: readonly string[] = [
   "supplier management",
   "budgeting",
   "budget tracking",
+  "program evaluation",
   "data entry",
   "bilingual",
   "data analysis",

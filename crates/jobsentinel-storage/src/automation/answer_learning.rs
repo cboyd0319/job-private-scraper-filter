@@ -7,8 +7,8 @@ use crate::sqlite_time::parse_sqlite_datetime;
 use anyhow::{Context, Result};
 use chrono::{DateTime, Utc};
 use jobsentinel_domain::{
-    screening_question_matches, AnswerSource, AnswerStatistics, AnswerSuggestion,
-    ModificationExample,
+    requires_user_answer, screening_question_matches, AnswerSource, AnswerStatistics,
+    AnswerSuggestion, ModificationExample,
 };
 use sqlx::{sqlite::SqliteRow, Row, SqlitePool};
 use std::collections::HashMap;
@@ -144,6 +144,10 @@ impl AnswerLearningManager {
         question: &str,
         limit: usize,
     ) -> Result<Vec<AnswerSuggestion>> {
+        if requires_user_answer(question) {
+            return Ok(Vec::new());
+        }
+
         let normalized = Self::normalize_question(question);
         let mut suggestions = Vec::new();
 
@@ -197,6 +201,10 @@ impl AnswerLearningManager {
         let mut suggestions = Vec::new();
 
         for row in rows {
+            let pattern: String = row.try_get("question_pattern")?;
+            if requires_user_answer(&pattern) {
+                continue;
+            }
             let (pattern, suggestion) =
                 self.pattern_suggestion_from_row(&row, PatternAnswerSource::Manual)?;
 
@@ -225,6 +233,10 @@ impl AnswerLearningManager {
         let mut suggestions = Vec::new();
 
         for row in rows {
+            let pattern: String = row.try_get("question_pattern")?;
+            if requires_user_answer(&pattern) {
+                continue;
+            }
             let (pattern, suggestion) =
                 self.pattern_suggestion_from_row(&row, PatternAnswerSource::Learned)?;
 
@@ -262,6 +274,10 @@ impl AnswerLearningManager {
             let q_normalized: String = row.get("question_normalized");
             let q_original: String = row.get("question_text");
             let answer: String = row.get("answer_filled");
+
+            if requires_user_answer(&q_original) {
+                continue;
+            }
 
             let similarity = Self::calculate_similarity(normalized_question, &q_normalized);
 

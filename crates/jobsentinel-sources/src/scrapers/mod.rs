@@ -9,24 +9,6 @@ use jobsentinel_network::FULL_BROWSER_USER_AGENT as BROWSER_USER_AGENT;
 const JOBSENTINEL_USER_AGENT: &str = "JobSentinel/1.0";
 const COMPANY_SCRAPE_FAILED: &str =
     "Company board scrape failed; continuing with other company boards";
-const COMMON_BOT_PROTECTION_MARKERS: &[&str] = &[
-    "cf-browser-verification",
-    "checking your browser",
-    "verify you are human",
-    "access to this page has been denied",
-    "enable javascript and cookies to continue",
-    "unusual traffic",
-    "captcha",
-];
-
-fn has_bot_protection_marker(body: &str, source_markers: &[&str]) -> bool {
-    let body_lower = body.to_ascii_lowercase();
-    COMMON_BOT_PROTECTION_MARKERS
-        .iter()
-        .chain(source_markers)
-        .any(|marker| body_lower.contains(marker))
-}
-
 fn decode_common_html_entities(text: &str) -> String {
     text.replace("&amp;", "&")
         .replace("&lt;", "<")
@@ -85,10 +67,7 @@ fn require_company_scrape_success(
     Ok(())
 }
 
-mod builtin;
-mod dice;
 mod error;
-mod glassdoor;
 mod greenhouse;
 mod hn_hiring;
 mod jobswithgpt;
@@ -97,17 +76,12 @@ mod linkedin;
 mod rate_limiter;
 mod remoteok;
 mod rss;
-mod simplyhired;
 #[cfg(test)]
 mod source_adapters;
 mod usajobs;
 mod weworkremotely;
-mod yc_startup;
 
-pub use builtin::BuiltInScraper;
-pub use dice::DiceScraper;
 pub use error::ScraperError;
-pub use glassdoor::GlassdoorScraper;
 pub use greenhouse::{GreenhouseCompany, GreenhouseScraper};
 pub use hn_hiring::HnHiringScraper;
 pub use jobswithgpt::{JobQuery, JobsWithGptScraper};
@@ -115,17 +89,15 @@ pub use lever::{LeverCompany, LeverScraper};
 pub use linkedin::LINKEDIN_AUTOMATION_DISABLED_MESSAGE;
 pub use rate_limiter::{limits, RateLimiter};
 pub use remoteok::RemoteOkScraper;
-pub use simplyhired::SimplyHiredScraper;
 pub use usajobs::UsaJobsScraper;
 pub use weworkremotely::WeWorkRemotelyScraper;
-pub use yc_startup::YcStartupScraper;
-
-// NOTE: SimplyHired and Glassdoor have Cloudflare protection.
-// These scrapers attempt to use RSS/JSON-LD but may return empty if blocked.
 
 // NOTE: GovernmentJobs.com and ClearanceJobs.com explicitly prohibit scraping in their ToS.
 // Use Deep Link Generator and Bookmarklet features instead; see docs/user/DEEP_LINKS.md and
 // docs/BOOKMARKLET.md for supported alternatives.
+//
+// Y Combinator's Terms of Use also prohibit scraping and similar extraction.
+// Keep YC access user-opened or manual.
 
 /// Scraper result type using ScraperError for better error context
 ///

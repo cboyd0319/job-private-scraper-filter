@@ -90,6 +90,24 @@ async function setLocationPreference(
 
 test.describe("Setup Wizard first-run flow", () => {
   for (const viewport of VIEWPORTS) {
+    test(`skips setup without saving or starting source work at ${viewport.name} viewport`, async ({ page }) => {
+      await page.setViewportSize(viewport);
+      await forceFirstRunSetup(page);
+      const log = watchErrors(page);
+
+      await page.goto("/", { waitUntil: "domcontentloaded" });
+
+      await expect(page.getByText("Skipping lasts only for this session and saves no search. Setup returns next time. You can still review or import local jobs.")).toBeVisible();
+      await expectNoHorizontalOverflow(page);
+      await page.getByRole("button", { name: "Skip for now" }).click();
+      await expect(page.getByRole("heading", { name: "JobSentinel" })).toBeVisible();
+      await expect(page.getByRole("button", { name: "Import Job", exact: true })).toBeVisible();
+      await expectNoHorizontalOverflow(page);
+      await expectCleanErrors(log);
+    });
+  }
+
+  for (const viewport of VIEWPORTS) {
     test(`completes reviewed setup actions at ${viewport.name} viewport`, async ({ page }) => {
       await page.setViewportSize(viewport);
       await forceFirstRunSetup(page);
@@ -158,15 +176,12 @@ test.describe("Setup Wizard first-run flow", () => {
       await expect(page.getByRole("checkbox", { name: /Quiet job-search mode/ })).toBeEnabled();
       await page.getByRole("checkbox", { name: /Quiet job-search mode/ }).check();
 
-      const sourceOption = page.getByRole("checkbox", { name: /SimplyHired/ });
-      if (await sourceOption.isVisible().catch(() => false)) {
-        await sourceOption.check();
-      }
       await expectNoHorizontalOverflow(page);
 
       await page.getByRole("button", { name: "Start Finding Jobs" }).click();
       await expect(page.getByRole("heading", { name: "JobSentinel" })).toBeVisible();
       await expect(page.getByRole("navigation", { name: "Main navigation" })).toBeVisible();
+      await expect(page.getByRole("button", { name: "Import Job", exact: true })).toBeVisible();
       await expectNoHorizontalOverflow(page);
       await expectCleanErrors(log);
     });

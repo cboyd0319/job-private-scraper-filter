@@ -41,8 +41,63 @@ describe("ScraperHealthDashboard sources and history", () => {
         expect(screen.getByText("Indeed")).toBeInTheDocument();
       });
       expect(screen.getByText("USAJobs")).toBeInTheDocument();
-      expect(screen.getByText("Glassdoor")).toBeInTheDocument();
+      expect(screen.getByText("Lever")).toBeInTheDocument();
       expect(screen.getByText("Monster")).toBeInTheDocument();
+    });
+
+    it("hides hostile restored rows for policy-blocked scheduled sources", async () => {
+      mockInvoke.mockImplementation((cmd: string) => {
+        if (cmd === "get_health_summary") return Promise.resolve(mockSummary);
+        if (cmd === "get_scraper_health") {
+          return Promise.resolve([
+            ...mockScrapers,
+            ...["builtin", "dice", "simplyhired", "glassdoor"].map((source) => ({
+              ...mockScrapers[2],
+              scraper_name: source,
+              display_name: `Restored ${source}`,
+            })),
+          ]);
+        }
+        return Promise.resolve(null);
+      });
+
+      render(<ScraperHealthDashboard onClose={onClose} />);
+
+      await screen.findByText("Lever");
+      for (const source of ["builtin", "dice", "simplyhired", "glassdoor"]) {
+        expect(screen.queryByText(`Restored ${source}`)).not.toBeInTheDocument();
+        expect(
+          screen.queryByRole("button", { name: new RegExp(source, "i") }),
+        ).not.toBeInTheDocument();
+      }
+    });
+
+    it("does not offer to enable JobsWithGPT while provider review is pending", async () => {
+      mockInvoke.mockImplementation((cmd: string) => {
+        if (cmd === "get_health_summary") return Promise.resolve(mockSummary);
+        if (cmd === "get_scraper_health") {
+          return Promise.resolve([
+            ...mockScrapers,
+            {
+              ...mockScrapers[2],
+              scraper_name: "jobswithgpt",
+              display_name: "JobsWithGPT",
+            },
+          ]);
+        }
+        return Promise.resolve(null);
+      });
+
+      render(<ScraperHealthDashboard onClose={onClose} />);
+
+      expect(
+        await screen.findByRole("button", {
+          name: "JobsWithGPT provider review pending",
+        }),
+      ).toBeDisabled();
+      expect(
+        screen.getByText("Provider endpoint and usage policy review pending."),
+      ).toBeInTheDocument();
     });
 
     it("does not display internal source ids", async () => {
@@ -80,7 +135,7 @@ describe("ScraperHealthDashboard sources and history", () => {
       });
       expect(screen.getByText("Kind")).toBeInTheDocument();
       expect(screen.getAllByText("Website page").length).toBeGreaterThanOrEqual(1);
-      expect(screen.getByText("Official source")).toBeInTheDocument();
+      expect(screen.getAllByText("Official source").length).toBeGreaterThan(0);
       expect(screen.getByText("Public job list")).toBeInTheDocument();
       expect(screen.queryByText("Feed")).not.toBeInTheDocument();
     });
@@ -221,17 +276,9 @@ describe("ScraperHealthDashboard sources and history", () => {
 
       await user.click(screen.getByRole("button", { name: /check indeed now/i }));
 
-      const reviewDialog = await screen.findByRole("dialog", {
-        name: /review source check/i,
-      });
-      await user.click(
-        within(reviewDialog).getByRole("button", { name: /continue checking/i }),
-      );
-
       await waitFor(() => {
         expect(mockInvoke).toHaveBeenCalledWith("run_scraper_smoke_test", {
           scraperName: "indeed",
-          restrictedSourceAcknowledged: true,
         });
       });
     });

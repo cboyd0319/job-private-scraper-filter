@@ -3,6 +3,9 @@ use jobsentinel_network::send_test_http_text_with_retry;
 use wiremock::matchers::{method, path};
 use wiremock::{Mock, MockServer, ResponseTemplate};
 
+const LIST_FIXTURE: &str = include_str!("../../fixtures/usajobs_list_v1.json");
+const DETAIL_FIXTURE: &str = include_str!("../../fixtures/usajobs_detail_v1.json");
+
 #[test]
 fn test_new_scraper() {
     let scraper = UsaJobsScraper::new("test-api-key".to_string(), "test@example.com".to_string());
@@ -10,6 +13,7 @@ fn test_new_scraper() {
     assert_eq!(scraper.api_key, "test-api-key");
     assert_eq!(scraper.email, "test@example.com");
     assert_eq!(scraper.limit, 100);
+    assert_eq!(scraper.request_limit_per_hour, 60);
     assert_eq!(scraper.date_posted_days, Some(30));
     assert!(!scraper.remote_only);
 }
@@ -75,6 +79,31 @@ async fn test_client_does_not_follow_redirects_with_authorization_key() {
     );
 }
 
+#[tokio::test]
+async fn usajobs_request_does_not_retry_rate_limits_or_server_errors() {
+    for status in [429, 500] {
+        let source = MockServer::start().await;
+        Mock::given(method("GET"))
+            .and(path("/api/Search"))
+            .respond_with(ResponseTemplate::new(status).insert_header("Retry-After", "0"))
+            .expect(1)
+            .mount(&source)
+            .await;
+
+        let scraper = UsaJobsScraper::new("secret-api-key", "user@example.com");
+        let response = send_test_http_text_with_retry(
+            scraper
+                .build_request(&format!("{}/api/Search", source.uri()), Vec::new())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+
+        assert_eq!(response.status, status);
+        source.verify().await;
+    }
+}
+
 #[test]
 fn test_builder_methods() {
     let scraper = UsaJobsScraper::new("key".to_string(), "email".to_string())
@@ -83,7 +112,8 @@ fn test_builder_methods() {
         .remote_only()
         .with_pay_grade(Some(11), Some(14))
         .posted_within_days(7)
-        .with_limit(50);
+        .with_limit(50)
+        .with_request_limit_per_hour(NonZeroU16::new(24).unwrap());
 
     assert_eq!(scraper.keywords, Some("public health analyst".to_string()));
     assert_eq!(scraper.location, Some("Washington, DC".to_string()));
@@ -93,6 +123,30 @@ fn test_builder_methods() {
     assert_eq!(scraper.pay_grade_max, Some(14));
     assert_eq!(scraper.date_posted_days, Some(7));
     assert_eq!(scraper.limit, 50);
+    assert_eq!(scraper.request_limit_per_hour, 24);
+}
+
+#[test]
+fn reviewed_list_and_detail_fixtures_parse_to_the_same_canonical_job() {
+    let response: UsaJobsResponse = serde_json::from_str(LIST_FIXTURE).unwrap();
+    let detail: SearchResultItem = serde_json::from_str(DETAIL_FIXTURE).unwrap();
+    let scraper = UsaJobsScraper::new("key".to_string(), "email".to_string());
+
+    assert_eq!(response.search_result.search_result_count, 1);
+    assert_eq!(response.search_result.search_result_count_all, 1);
+    let list_job = scraper
+        .parse_job(&response.search_result.search_result_items[0])
+        .unwrap();
+    let detail_job = scraper.parse_job(&detail).unwrap();
+
+    assert_eq!(list_job.title, "Public Service Program Analyst");
+    assert_eq!(list_job.company, "Department of Example Services");
+    assert_eq!(list_job.url, "https://www.usajobs.gov/job/123456");
+    assert_eq!(list_job.salary_min, Some(80_000));
+    assert_eq!(list_job.salary_max, Some(105_000));
+    assert_eq!(list_job.title, detail_job.title);
+    assert_eq!(list_job.company, detail_job.company);
+    assert_eq!(list_job.url, detail_job.url);
 }
 
 #[test]

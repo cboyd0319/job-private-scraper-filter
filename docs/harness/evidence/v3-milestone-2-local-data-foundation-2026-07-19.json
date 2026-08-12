@@ -1,0 +1,89 @@
+{
+  "schema": "jobsentinel.feature_evidence.v1",
+  "feature_id": "v3-milestone-2-local-data-foundation",
+  "behavior": "Append-only migrations and typed operations add bounded local v3 records safely.",
+  "result": "passing",
+  "verified_at": "2026-07-19T02:44:53Z",
+  "revision": "69acdf3cbdf31534fce14463de936fa517e63dd9",
+  "revision_scope": "The clean committed Milestone 2 implementation before the evidence-only Gate 2 state transition.",
+  "platform": "local macOS 27.0 arm64 host",
+  "commands": [
+    {
+      "command": "env -u JOBSENTINEL_LIVE_KEYRING_TESTS node scripts/dev/run-cargo.mjs test -p jobsentinel-domain --all-features",
+      "exit_status": 0,
+      "relevant_result": "All 104 domain tests and 5 documentation tests passed, including typed case files, closed event metadata, concrete graph links, protected receipts, monotonic source policy, and compatibility metadata.",
+      "caveat": "Live credential-store integration was explicitly disabled; the domain crate does not need it."
+    },
+    {
+      "command": "env -u JOBSENTINEL_LIVE_KEYRING_TESTS node scripts/dev/run-cargo.mjs test -p jobsentinel-storage --lib",
+      "exit_status": 0,
+      "relevant_result": "All 642 storage unit tests passed, including fresh migration, real v2.9 fixture migration, failure and retry, concurrent snapshot publication, restore to the primary path, protected receipt constraints, source-policy monotonicity, and unsupported-newer refusal.",
+      "caveat": "Live keyring tests and storage integration binaries that can reach production credential paths were intentionally not executed unattended."
+    },
+    {
+      "command": "env -u JOBSENTINEL_LIVE_KEYRING_TESTS node scripts/dev/run-cargo.mjs test -p jobsentinel-application v3_foundation",
+      "exit_status": 0,
+      "relevant_result": "Both focused application tests passed for case-file create and reuse and mismatched event-metadata rejection.",
+      "caveat": "The operations remain Rust application functions with no Tauri or renderer command surface."
+    },
+    {
+      "command": "cargo clippy -p jobsentinel-domain -p jobsentinel-storage -p jobsentinel-application --lib -- -D warnings",
+      "exit_status": 0,
+      "relevant_result": "The changed production-library owners passed Clippy with warnings denied.",
+      "caveat": "The repository all-targets test lint lane contains pre-existing test-only unwrap and expect findings; this focused production lane is the smallest relevant Milestone 2 check."
+    },
+    {
+      "command": "npm run lint:sqlx",
+      "exit_status": 0,
+      "relevant_result": "All migrations 0 through 11 applied to an isolated database, every workspace owner compiled against SQLx offline metadata, and migration 11 passed.",
+      "caveat": "The v3 database schema generation remains 2; SQLx migration sequence 11 is a distinct compatibility dimension."
+    },
+    {
+      "command": "npm run harness:check && npm run lint:file-size && npm run lint:architecture && npm run lint:security && cargo fmt --all -- --check && git diff --check",
+      "exit_status": 0,
+      "relevant_result": "Harness, file-size hard limits, architecture ownership, security sensors, secret scanning, Rust formatting, and diff hygiene passed.",
+      "caveat": "Eight changed files reached the modularization review threshold without exceeding hard limits. Repository GitHub Actions remain temporarily disabled by user direction."
+    },
+    {
+      "command": "git diff --quiet 4d0f06788858d4f2af7e108d3ccb0dd1e16e4674 -- crates/jobsentinel-storage/migrations/00000000000000_initial_schema.sql crates/jobsentinel-storage/migrations/00000000000001_optimize_indexes.sql crates/jobsentinel-storage/migrations/00000000000002_screening_answer_learning.sql crates/jobsentinel-storage/migrations/00000000000003_add_missing_scraper_configs.sql crates/jobsentinel-storage/migrations/00000000000004_screening_answer_answer_types.sql crates/jobsentinel-storage/migrations/00000000000005_minimize_application_event_data.sql crates/jobsentinel-storage/migrations/00000000000006_source_request_log.sql crates/jobsentinel-storage/migrations/00000000000007_secret_vault.sql crates/jobsentinel-storage/migrations/00000000000008_credential_key_wrapping.sql crates/jobsentinel-storage/migrations/00000000000009_disable_linkedin_cookie_source_metadata.sql crates/jobsentinel-storage/migrations/00000000000010_repair_jobs_fts_triggers.sql",
+      "exit_status": 0,
+      "relevant_result": "The full pre-v3 migration chain remains byte-identical to the published v2.9.5 source revision.",
+      "caveat": "The v2.9.5 comparison revision is 4d0f06788858d4f2af7e108d3ccb0dd1e16e4674."
+    }
+  ],
+  "source": "docs/plans/v3/master-exec-plan.md",
+  "measurements": {
+    "sqlx_migration_sequence": 11,
+    "database_schema_generation": 2,
+    "new_v3_tables": 7,
+    "event_metadata_limit_bytes": 2048,
+    "domain_tests_passed": 104,
+    "domain_doc_tests_passed": 5,
+    "storage_unit_tests_passed": 642,
+    "application_tests_passed": 2,
+    "representative_v2_9_rows_restored": 5,
+    "published_snapshots_per_transition": 1
+  },
+  "decisions": {
+    "gate_2": "Approve the minimum case-file, event, graph, receipt, source-policy, and compatibility model for Milestones 3 through 8.",
+    "case_files": "Create at most one opportunity case file per job. Reuse it atomically and reject missing jobs without a read-then-write race.",
+    "events": "Write new v3 history only to a typed append-only ledger with closed metadata variants, an exact 2 KiB serialized bound, and mandatory local_only plus sensitive labels. Keep the legacy application event ledger historical and do not backfill it.",
+    "graphs": "Store concrete career and source links with owned provenance references. Do not add a generic graph engine.",
+    "receipts": "Store bounded typed privacy receipts locally. Military service, clearance claims, and protected veteran answers require local_only plus sensitive labels and cannot be declared public or external-AI eligible.",
+    "source_policy": "Persist closed source access and review states. Policy changes may become more restrictive but cannot silently weaken.",
+    "compatibility": "Keep compatibility line 3, database schema generation 2, and SQLx migration sequence 11 as distinct values.",
+    "migration_recovery": "Before pending migration DDL, publish one verified same-device encrypted recovery snapshot for the exact transition and reuse it on retry. This is internal recovery, not portable backup or export.",
+    "newer_data": "Refuse unsupported newer plaintext or encrypted databases before writable access. Plaintext refusal occurs before loading or creating a database key, and WAL-aware probing observes crash-retained schema state.",
+    "credential_tests": "Keep live keyring tests opt-in. Unattended Milestone 2 checks unset JOBSENTINEL_LIVE_KEYRING_TESTS and avoid storage integration paths that can reach production credentials."
+  },
+  "review": {
+    "adversarial_verdict": "PASS WITH FINDINGS after privacy-label, key-load ordering, WAL probing, atomic snapshot publication, configuration ordering, concurrency, and atomic case-file corrections",
+    "privacy_or_security_regression": false,
+    "open_gate_2_blockers": 0,
+    "remaining_findings": [
+      "Run live hard-link and restore behavior on Windows 11, macOS 26, and Linux in the release matrix.",
+      "Revisit cross-version concurrent snapshot pruning with Milestone 3 cleanup and rollback.",
+      "Portable backup and export, user-facing restore, rollback, broader newer-v3 handling, and support guidance remain Milestone 3 work."
+    ]
+  }
+}

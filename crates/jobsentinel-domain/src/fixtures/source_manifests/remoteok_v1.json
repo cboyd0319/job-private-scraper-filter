@@ -1,0 +1,88 @@
+{
+  "schema": "jobsentinel.v3.source-manifest.v1",
+  "source_id": "remoteok",
+  "display_name": "RemoteOK",
+  "source_class": "official_public_api",
+  "endpoint_patterns": ["https://remoteok.com/api"],
+  "documentation_url": "https://remoteok.com/api",
+  "auth_requirement": "none",
+  "policy_ref": "jobsentinel.source-policy.remoteok.api",
+  "policy_revision": 1,
+  "actions": [
+    {
+      "operation": "scheduled_check",
+      "permission": "none"
+    },
+    {
+      "operation": "connectivity_check",
+      "permission": "none"
+    }
+  ],
+  "terms_review": {
+    "status": "reviewed",
+    "reference": "source-review.remoteok.api-terms",
+    "reviewed_on": "2026-07-19"
+  },
+  "robots_review": {
+    "status": "reviewed",
+    "reference": "source-review.remoteok.robots",
+    "reviewed_on": "2026-07-19"
+  },
+  "parser_id": "remoteok-api-v1",
+  "fixtures": [
+    {
+      "fixture_id": "remoteok-list-v1",
+      "kind": "list",
+      "path": "crates/jobsentinel-sources/src/fixtures/remoteok_list_v1.json",
+      "payload_sha256": "9f23739b9f5059f5c44ff1bb17a2bdb96dbf7f9272645524010f90de98d1d00d"
+    },
+    {
+      "fixture_id": "remoteok-detail-v1",
+      "kind": "detail",
+      "path": "crates/jobsentinel-sources/src/fixtures/remoteok_detail_v1.json",
+      "payload_sha256": "2ccaa146536931cccbba578a11e28bf63ec438e8f24182d4d66ed75903c8c925"
+    },
+    {
+      "fixture_id": "remoteok-policy-review-v1",
+      "kind": "policy",
+      "path": "crates/jobsentinel-domain/src/fixtures/source_reviews/remoteok_v1.json",
+      "payload_sha256": "b9502f719caa83088ab7b2dddb9dca645213bc7f848092b195972e09e6677b94"
+    }
+  ],
+  "supported_fields": [
+    "title",
+    "company",
+    "location",
+    "description",
+    "salary",
+    "application_url"
+  ],
+  "salary_coverage": "partial",
+  "verified_on": "2026-07-19",
+  "max_age_days": 30,
+  "confidence_percent": 90,
+  "lineage": [
+    {
+      "link_id": "source-lineage-remoteok-api",
+      "source_id": "remoteok",
+      "relation": "lineage",
+      "related_id": "remoteok-api-terms",
+      "provenance": "public_source",
+      "provenance_ref": "source-review.remoteok.api-terms"
+    }
+  ],
+  "stop_conditions": [
+    "policy_disabled",
+    "policy_changed",
+    "review_expired",
+    "rate_limit_reached",
+    "access_blocked",
+    "parser_drift",
+    "repeated_failure"
+  ],
+  "risk_note_refs": [
+    "source-risk.remoteok.backlink-required",
+    "source-risk.remoteok.no-ai-training"
+  ],
+  "incomplete_coverage": true
+}

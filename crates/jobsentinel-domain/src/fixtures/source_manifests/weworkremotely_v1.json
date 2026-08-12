@@ -1,0 +1,101 @@
+{
+  "schema": "jobsentinel.v3.source-manifest.v1",
+  "source_id": "weworkremotely",
+  "display_name": "We Work Remotely",
+  "source_class": "official_public_api",
+  "endpoint_patterns": [
+    "https://weworkremotely.com/remote-jobs.rss",
+    "https://weworkremotely.com/categories/remote-customer-support-jobs.rss",
+    "https://weworkremotely.com/categories/remote-product-jobs.rss",
+    "https://weworkremotely.com/categories/remote-full-stack-programming-jobs.rss",
+    "https://weworkremotely.com/categories/remote-back-end-programming-jobs.rss",
+    "https://weworkremotely.com/categories/remote-front-end-programming-jobs.rss",
+    "https://weworkremotely.com/categories/remote-programming-jobs.rss",
+    "https://weworkremotely.com/categories/remote-sales-and-marketing-jobs.rss",
+    "https://weworkremotely.com/categories/remote-management-and-finance-jobs.rss",
+    "https://weworkremotely.com/categories/remote-design-jobs.rss",
+    "https://weworkremotely.com/categories/remote-devops-sysadmin-jobs.rss",
+    "https://weworkremotely.com/categories/all-other-remote-jobs.rss"
+  ],
+  "documentation_url": "https://weworkremotely.com/remote-job-rss-feed",
+  "auth_requirement": "none",
+  "policy_ref": "jobsentinel.source-policy.weworkremotely.rss",
+  "policy_revision": 1,
+  "actions": [
+    {
+      "operation": "scheduled_check",
+      "permission": "none"
+    },
+    {
+      "operation": "connectivity_check",
+      "permission": "none"
+    }
+  ],
+  "terms_review": {
+    "status": "reviewed",
+    "reference": "source-review.weworkremotely.public-rss",
+    "reviewed_on": "2026-07-19"
+  },
+  "robots_review": {
+    "status": "reviewed",
+    "reference": "source-review.weworkremotely.robots",
+    "reviewed_on": "2026-07-19"
+  },
+  "parser_id": "weworkremotely-rss-v1",
+  "fixtures": [
+    {
+      "fixture_id": "weworkremotely-list-v1",
+      "kind": "list",
+      "path": "crates/jobsentinel-sources/src/fixtures/weworkremotely_list_v1.xml",
+      "payload_sha256": "d9d30222b6e67ccae50043d5db7f715686a5478d21f8f0acd6a6cea0937ecfbe"
+    },
+    {
+      "fixture_id": "weworkremotely-detail-v1",
+      "kind": "detail",
+      "path": "crates/jobsentinel-sources/src/fixtures/weworkremotely_detail_v1.xml",
+      "payload_sha256": "d6b6e84bbb07b2990f96d10aca8385a226d81c0c02e5ed87773ac503b614a7e2"
+    },
+    {
+      "fixture_id": "weworkremotely-policy-review-v1",
+      "kind": "policy",
+      "path": "crates/jobsentinel-domain/src/fixtures/source_reviews/weworkremotely_v1.json",
+      "payload_sha256": "1dec6485e08de8abc05e3dd3d38d003df2e0a80c53a959990511675824429ce8"
+    }
+  ],
+  "supported_fields": [
+    "title",
+    "company",
+    "location",
+    "description",
+    "application_url"
+  ],
+  "salary_coverage": "none",
+  "verified_on": "2026-07-19",
+  "max_age_days": 30,
+  "confidence_percent": 90,
+  "lineage": [
+    {
+      "link_id": "source-lineage-weworkremotely-rss",
+      "source_id": "weworkremotely",
+      "relation": "lineage",
+      "related_id": "weworkremotely-public-rss",
+      "provenance": "public_source",
+      "provenance_ref": "source-review.weworkremotely.public-rss"
+    }
+  ],
+  "stop_conditions": [
+    "policy_disabled",
+    "policy_changed",
+    "review_expired",
+    "rate_limit_reached",
+    "access_blocked",
+    "parser_drift",
+    "repeated_failure"
+  ],
+  "risk_note_refs": [
+    "source-risk.weworkremotely.attribution-required",
+    "source-risk.weworkremotely.rss-only",
+    "source-risk.weworkremotely.no-external-training"
+  ],
+  "incomplete_coverage": true
+}

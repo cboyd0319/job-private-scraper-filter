@@ -1,6 +1,7 @@
 use super::*;
 use crate::application::automation::{
     AnswerSource, AnswerStatistics, AnswerSuggestion, ApplicationProfile, ModificationExample,
+    ScreeningAnswer,
 };
 
 fn profile_with_resume_path(path: Option<String>) -> ApplicationProfile {
@@ -68,6 +69,43 @@ fn application_profile_response_handles_windows_resume_paths() {
     let json = serde_json::to_string(&response).unwrap();
     assert_eq!(response.resume_file_name, Some("resume.docx".to_string()));
     assert!(!json.contains("Windows\\\\Desktop"));
+}
+
+fn screening_answer(pattern: &str, answer: &str) -> ScreeningAnswer {
+    ScreeningAnswer {
+        id: 1,
+        question_pattern: pattern.to_string(),
+        answer: answer.to_string(),
+        answer_type: Some("select".to_string()),
+        notes: Some("private note".to_string()),
+        times_used: 0,
+        times_modified: 0,
+        confidence_score: 1.0,
+        last_used_at: None,
+        created_at: chrono::Utc::now(),
+        updated_at: chrono::Utc::now(),
+    }
+}
+
+#[test]
+fn application_preview_excludes_raw_user_controlled_answers() {
+    let previews = application_screening_answer_previews(vec![
+        screening_answer("protected veteran status", "Decline to answer"),
+        screening_answer("Hispanic or Latino", "Decline to answer"),
+        screening_answer("pronouns", "they/them"),
+        screening_answer("work authorization", "Yes"),
+    ]);
+
+    let json = serde_json::to_string(&previews).unwrap();
+    assert_eq!(previews.len(), 1);
+    assert!(json.contains("work authorization"));
+    assert!(json.contains("Yes"));
+    assert!(!json.contains("protected veteran"));
+    assert!(!json.contains("Hispanic"));
+    assert!(!json.contains("pronouns"));
+    assert!(!json.contains("they/them"));
+    assert!(!json.contains("Decline to answer"));
+    assert!(!json.contains("private note"));
 }
 
 fn valid_profile_input() -> ApplicationProfileInput {

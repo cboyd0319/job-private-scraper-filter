@@ -1,0 +1,145 @@
+{
+  "compatibility": {
+    "schema": "jobsentinel.v3.compatibility.v1",
+    "app_version": "3.0.0",
+    "compatibility_line": 3,
+    "database_schema": 2,
+    "backup": {
+      "kind": "backup",
+      "format_version": 1,
+      "contains_secrets": false,
+      "protection": "encrypted",
+      "user_review_required": true
+    },
+    "export": {
+      "kind": "export",
+      "format_version": 1,
+      "contains_secrets": false,
+      "protection": "reviewed_plaintext",
+      "user_review_required": true
+    },
+    "vector_backend": "sqlite_blob_v1",
+    "extensions": {}
+  },
+  "artifact_manifest": {
+    "schema": "jobsentinel.v3.artifact-manifest.v1",
+    "artifact_id": "jobsentinel.app",
+    "artifact_version": "3.0.0",
+    "payload_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  "privacy_receipt": {
+    "schema": "jobsentinel.v3.privacy-receipt.v1",
+    "receipt_id": "receipt_fixture_local_v1",
+    "task_id": "task_fixture_evidence_v1",
+    "pack_id": "jobsentinel.builtin.evidence-review",
+    "labels": ["local_only", "sensitive"],
+    "data_categories": ["resume_evidence"],
+    "stored_locally": true,
+    "data_left_device": false,
+    "external_destination": null,
+    "gateway_policy_id": null,
+    "approval_reference": null,
+    "delete_or_revoke_action": "Delete this local receipt."
+  },
+  "agent_task": {
+    "schema": "jobsentinel.v3.agent-task.v1",
+    "task_id": "task_fixture_evidence_v1",
+    "pack_id": "jobsentinel.builtin.evidence-review",
+    "kind": "evidence_review",
+    "privacy_labels": ["local_only", "sensitive"],
+    "data_categories": ["resume_evidence"],
+    "max_duration_seconds": 300,
+    "max_output_bytes": 1048576,
+    "max_attempts": 1,
+    "user_review_required": true
+  },
+  "pack_manifest": {
+    "schema": "jobsentinel.v3.pack-manifest.v1",
+    "pack_id": "jobsentinel.builtin.evidence-review",
+    "pack_type": "agent",
+    "execution_class": "reviewed_typed_workflow",
+    "publisher_key_id": "jobsentinel-builtin-v1",
+    "payload_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "privacy_labels": ["local_only", "sensitive"],
+    "allowed_data_categories": ["resume_evidence"],
+    "allowed_task_kinds": ["evidence_review"],
+    "allowed_actions": [
+      "read_selected_resume_evidence",
+      "create_draft_local_note"
+    ],
+    "approval_gates": ["per_execution_review"],
+    "gateway_policy_id": null
+  },
+  "region_manifest": {
+    "schema": "jobsentinel.v3.region-manifest.v1",
+    "region_id": "us",
+    "reviewed_on": "2026-07-19",
+    "country_codes": ["US"],
+    "languages": ["en"],
+    "currencies": ["USD"],
+    "pay_periods": ["hourly", "weekly", "annual", "contract"],
+    "location_rules": {
+      "remote_labels": ["remote", "hybrid", "onsite"],
+      "subdivision_required": false,
+      "locality_required": false
+    },
+    "work_authorization_labels": ["authorized", "sponsorship_required", "not_disclosed"],
+    "source_classes": [
+      "official_public_api",
+      "public_ats",
+      "regional_board",
+      "user_import"
+    ],
+    "cv_profiles": ["us_general"],
+    "taxonomy_ids": ["onet_29_1"],
+    "policy_note_refs": ["docs/research/job-site-data-sources.md"],
+    "provenance_refs": [
+      "docs/plans/v3/regional-readiness-framework.md",
+      "https://www.onetcenter.org/overview.html"
+    ],
+    "evaluation_fixture_ids": ["source-truth-official-absence-v1"],
+    "incomplete_coverage": true
+  },
+  "edition_manifest": {
+    "schema": "jobsentinel.v3.edition-manifest.v1",
+    "edition": "essentials",
+    "profile": "lighter",
+    "artifact_version": "3.0.0",
+    "platform": "macos",
+    "architecture": "aarch64",
+    "compatibility_line": 3,
+    "rollback_supported": true,
+    "default_components": [
+      "deterministic_matching",
+      "public_sources",
+      "safe_support"
+    ],
+    "automatic_model_downloads": false
+  },
+  "model_provenance": {
+    "schema": "jobsentinel.v3.model-provenance.v1",
+    "model_id": "qwen3-embedding-0.6b",
+    "revision": "97b0c614be4d77ee51c0cef4e5f07c00f9eb65b3",
+    "backend": "qwen3-candle",
+    "dimension": 768,
+    "tokenizer_sha256": "def76fb086971c7867b829c23a26261e38d9d74e02139253b38aeb9df8b4b50a",
+    "manifest_sha256": "acf819a5e498bb3157e3cf9f942745cfe059d1af787e0717fca36745e499ce67",
+    "instruction_profile": "resume_requirement_v1",
+    "pooling": "last-token",
+    "normalization": "l2"
+  },
+  "vector_freshness": {
+    "schema": "jobsentinel.v3.vector-freshness.v1",
+    "model_id": "qwen3-embedding-0.6b",
+    "model_revision": "97b0c614be4d77ee51c0cef4e5f07c00f9eb65b3",
+    "backend": "qwen3-candle",
+    "dimension": 768,
+    "instruction_profile": "resume_requirement_v1",
+    "chunker_version": "resume_v1",
+    "normalizer_version": "text_v1",
+    "pooling": "last-token",
+    "normalization": "l2",
+    "model_manifest_sha256": "acf819a5e498bb3157e3cf9f942745cfe059d1af787e0717fca36745e499ce67",
+    "content_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+  }
+}

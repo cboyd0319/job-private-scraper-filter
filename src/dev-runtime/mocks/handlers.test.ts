@@ -1,6 +1,10 @@
+/** Verifies the browser-development command facade and deterministic state. */
+
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { registeredMockCommands } from "./commandRegistry";
+import { mockJobs } from "./data";
 import { mockInvoke, resetMockData } from "./handlers";
+import { loadMockState, mockRuntimeState } from "./runtimeState";
 
 type MockJobSummary = { hash: string };
 type SalaryBenchmark = {
@@ -36,6 +40,20 @@ type AnswerSuggestion = {
 };
 
 const MOCK_INVOKE_CONTROLS_KEY = "jobsentinel.mockInvokeControls.v1";
+const MOCK_STATE_KEY = "jobsentinel.mockState.v1";
+
+function outsideAiRequest() {
+  return {
+    feature: "job-description-summary",
+    sourceJobId: mockJobs[0].id,
+    provider: "anthropic",
+    labels: ["External AI optional", "Public-data only"],
+    dataCategories: ["job_posting"],
+    payload: { title: mockJobs[0].title, company: mockJobs[0].company },
+    previewShown: true,
+    userApproved: true,
+  };
+}
 
 describe("mock Tauri command facade", () => {
   let localStore: Record<string, string>;
@@ -56,24 +74,192 @@ describe("mock Tauri command facade", () => {
   });
 
   it("registers each development command once", () => {
-    expect(new Set(registeredMockCommands).size).toBe(registeredMockCommands.length);
+    expect(new Set(registeredMockCommands).size).toBe(
+      registeredMockCommands.length,
+    );
     expect(registeredMockCommands).toEqual(
       expect.arrayContaining([
         "get_jobs",
         "get_config",
         "get_active_resume",
         "fill_application_form",
+        "list_pack_management",
+        "choose_and_stage_pack",
+        "activate_pack",
+        "enable_pack",
+        "rollback_pack",
+        "disable_pack",
+        "uninstall_pack",
+        "retry_pack_cleanup",
+        "open_static_skill",
+        "prepare_evidence_reviewer",
+        "execute_evidence_reviewer",
+        "prepare_packet_builder",
+        "execute_packet_builder",
+        "cancel_reviewed_pack_task",
+        "discard_native_file_drop",
+        "import_dropped_resume",
+        "preview_dropped_job",
+        "stage_dropped_pack",
+        "stage_dropped_portable_restore",
         "record_linkedin_workbench_event",
       ]),
     );
   });
 
+  it("keeps native file access unavailable in browser development", async () => {
+    await expect(
+      mockInvoke("preview_dropped_job", { dropId: "opaque" }),
+    ).rejects.toThrow("Native file drop is unavailable in browser development.");
+  });
+
+  it("mirrors pack lifecycle response generations", async () => {
+    const identity = {
+      publisherKeyId: "jobsentinel-release-v1",
+      packId: "jobsentinel.sources.us",
+      expectedGeneration: 4,
+    };
+
+    await expect(mockInvoke("list_pack_management")).resolves.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          publisherKeyId: identity.publisherKeyId,
+          packId: identity.packId,
+          state: "ready",
+          generation: 4,
+        }),
+      ]),
+    );
+    await expect(mockInvoke("disable_pack", identity)).resolves.toEqual({
+      state: "disabled",
+      generation: 5,
+    });
+    await expect(mockInvoke("list_pack_management")).resolves.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ state: "disabled", generation: 5 }),
+      ]),
+    );
+    await expect(
+      mockInvoke("enable_pack", {
+        ...identity,
+        expectedGeneration: 5,
+      }),
+    ).resolves.toEqual({
+      state: "ready",
+      generation: 6,
+    });
+    await expect(mockInvoke("disable_pack", identity)).rejects.toThrow(
+      "pack changed",
+    );
+    await expect(
+      mockInvoke("retry_pack_cleanup", {
+        ...identity,
+        expectedGeneration: 6,
+      }),
+    ).resolves.toEqual({
+      generation: 6,
+      cleanupPending: false,
+    });
+    await expect(
+      mockInvoke("uninstall_pack", {
+        ...identity,
+        expectedGeneration: 6,
+      }),
+    ).resolves.toEqual({
+      generation: 7,
+      cleanupPending: false,
+    });
+    await expect(mockInvoke("list_pack_management")).resolves.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ state: "removed", generation: 7 }),
+      ]),
+    );
+
+    resetMockData();
+    await expect(mockInvoke("list_pack_management")).resolves.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ state: "ready", generation: 4 }),
+      ]),
+    );
+  });
+
+  it("requires a current prepared reviewed task before browser execution", async () => {
+    const identity = {
+      publisherKeyId: "jobsentinel-evidence-reviewer-publisher-v1",
+      packId: "jobsentinel.agent.evidence-reviewer",
+      expectedGeneration: 1,
+      jobHash: "saved-job-a",
+      resumeId: 7,
+    };
+    await expect(
+      mockInvoke("execute_evidence_reviewer", {
+        runId: "pack-task:550e8400-e29b-41d4-a716-000000000001",
+        approvalReference:
+          "pack-task-approval:550e8400-e29b-41d4-a716-000000000002",
+        jobHash: identity.jobHash,
+        resumeId: identity.resumeId,
+      }),
+    ).rejects.toThrow("prepare it again");
+
+    const task = await mockInvoke<{
+      runId: string;
+      approvalReference: string;
+    }>("prepare_evidence_reviewer", identity);
+    await expect(
+      mockInvoke("execute_evidence_reviewer", {
+        runId: task.runId,
+        approvalReference: `${task.approvalReference}-stale`,
+        jobHash: identity.jobHash,
+        resumeId: identity.resumeId,
+      }),
+    ).rejects.toThrow("prepare it again");
+    await expect(
+      mockInvoke("execute_evidence_reviewer", {
+        runId: task.runId,
+        approvalReference: task.approvalReference,
+        jobHash: identity.jobHash,
+        resumeId: identity.resumeId,
+      }),
+    ).resolves.toEqual(expect.objectContaining({ review: expect.any(Object) }));
+    await expect(
+      mockInvoke("execute_evidence_reviewer", {
+        runId: task.runId,
+        approvalReference: task.approvalReference,
+        jobHash: identity.jobHash,
+        resumeId: identity.resumeId,
+      }),
+    ).rejects.toThrow("prepare it again");
+  });
+
+  it("returns production-profile static skill content only for the ready skill pack", async () => {
+    const skill = await mockInvoke<{ skillMd: string; resources: unknown[] }>(
+      "open_static_skill",
+      {
+        publisherKeyId: "jobsentinel-skill-publisher-v1",
+        packId: "jobsentinel.skill.resume-review",
+        expectedGeneration: 1,
+      },
+    );
+
+    expect(skill.skillMd).toContain('jobsentinel_version_target: "2.9.0"');
+    for (const heading of ["Inputs", "Workflow", "Output", "Handoff", "Guardrails"])
+      expect(skill.skillMd).toContain(`## ${heading}`);
+    expect(skill.resources).toEqual([
+      expect.objectContaining({ path: "references/rubric.md" }),
+    ]);
+  });
+
   it("supports forced command failures", async () => {
     window.localStorage.setItem(
       MOCK_INVOKE_CONTROLS_KEY,
-      JSON.stringify({ delayMs: 0, failures: { get_jobs: "Forced test failure" } }),
+      JSON.stringify({
+        delayMs: 0,
+        failures: { get_jobs: "Forced test failure" },
+      }),
     );
-    await expect(mockInvoke<unknown>("get_jobs")).rejects.toThrow("Forced test failure");
+    await expect(mockInvoke<unknown>("get_jobs")).rejects.toThrow(
+      "Forced test failure",
+    );
   });
 
   it("supports command-specific delays", async () => {
@@ -91,7 +277,9 @@ describe("mock Tauri command facade", () => {
     expect(settled).toBe(false);
     await vi.advanceTimersByTimeAsync(1);
     await expect(result).resolves.toEqual(
-      expect.arrayContaining([expect.objectContaining({ hash: expect.any(String) })]),
+      expect.arrayContaining([
+        expect.objectContaining({ hash: expect.any(String) }),
+      ]),
     );
     expect(settled).toBe(true);
   });
@@ -117,12 +305,90 @@ describe("mock Tauri command facade", () => {
     expect(window.localStorage.getItem(MOCK_INVOKE_CONTROLS_KEY)).toBeNull();
   });
 
-  it("routes representative runtime commands through feature owners", async () => {
-    const benchmark = await mockInvoke<SalaryBenchmark>("get_salary_benchmark", {
-      jobTitle: "Training Coordinator",
-      location: "Chicago, IL",
-      seniority: "mid",
+  it("routes reviewed Outside AI and staged recovery commands through the registry", async () => {
+    const request = outsideAiRequest();
+    const prepared = await mockInvoke<{ approvalId: string }>(
+      "prepare_external_ai_request",
+      { request },
+    );
+
+    await expect(
+      mockInvoke("send_external_ai_request", {
+        approvalId: prepared.approvalId,
+        request,
+      }),
+    ).resolves.toMatchObject({
+      provider: "anthropic",
+      text: expect.any(String),
     });
+
+    await expect(
+      mockInvoke("stage_portable_restore", { passphrase: "sixteen-letters!" }),
+    ).resolves.toMatchObject({ outcome: "staged" });
+    await expect(mockInvoke("get_staged_restore_status")).resolves.toBe(
+      "ready",
+    );
+    await expect(mockInvoke("cancel_staged_restore")).resolves.toMatchObject({
+      outcome: "cancelled",
+    });
+    await expect(mockInvoke("get_staged_restore_status")).resolves.toBe("none");
+  });
+
+  it("reloads only the staged restore status marker and rejects invalid persisted values", async () => {
+    await mockInvoke("stage_portable_restore", {
+      passphrase: "sixteen-letters!",
+    });
+    const persisted = window.localStorage.getItem(MOCK_STATE_KEY) ?? "";
+    expect(persisted).toContain('"stagedRestoreStatus":"ready"');
+    expect(persisted).not.toContain("sixteen-letters!");
+    expect(JSON.parse(persisted)).not.toHaveProperty("portableRestorePath");
+
+    mockRuntimeState.stagedRestoreStatus = "none";
+    loadMockState();
+    await expect(mockInvoke("get_staged_restore_status")).resolves.toBe(
+      "ready",
+    );
+
+    window.localStorage.setItem(
+      MOCK_STATE_KEY,
+      JSON.stringify({ stagedRestoreStatus: "promoted" }),
+    );
+    mockRuntimeState.stagedRestoreStatus = "none";
+    loadMockState();
+    await expect(mockInvoke("get_staged_restore_status")).resolves.toBe("none");
+  });
+
+  it("clears transient Outside AI approval and staged recovery state on reset", async () => {
+    const prepared = await mockInvoke<{ approvalId: string }>(
+      "prepare_external_ai_request",
+      { request: outsideAiRequest() },
+    );
+    await mockInvoke("stage_portable_restore", {
+      passphrase: "sixteen-letters!",
+    });
+
+    resetMockData();
+
+    await expect(mockInvoke("get_staged_restore_status")).resolves.toBe("none");
+    expect(
+      JSON.parse(window.localStorage.getItem(MOCK_STATE_KEY) ?? "{}"),
+    ).toMatchObject({ stagedRestoreStatus: "none" });
+    await expect(
+      mockInvoke("cancel_external_ai_request", {
+        approvalId: prepared.approvalId,
+      }),
+    ).rejects.toThrow("could not be verified");
+  });
+
+  it("routes representative runtime commands through feature owners", async () => {
+    const benchmark = await mockInvoke<SalaryBenchmark>(
+      "get_salary_benchmark",
+      {
+        jobTitle: "Training Coordinator",
+        location: "Chicago, IL",
+        seniority: "mid",
+      },
+    );
     expect(benchmark).toMatchObject({
       job_title: "Training Coordinator",
       location: "Chicago, IL",
@@ -159,10 +425,13 @@ describe("mock Tauri command facade", () => {
       automationNotes: expect.any(String),
     });
 
-    const fillResult = await mockInvoke<FillResultWithAttempt>("fill_application_form", {
-      jobUrl: "https://boards.greenhouse.io/example/jobs/123",
-      jobHash: "job-hash-1",
-    });
+    const fillResult = await mockInvoke<FillResultWithAttempt>(
+      "fill_application_form",
+      {
+        jobUrl: "https://boards.greenhouse.io/example/jobs/123",
+        jobHash: "job-hash-1",
+      },
+    );
     expect(fillResult).toMatchObject({
       filledFields: expect.arrayContaining(["firstName", "lastName", "email"]),
       unfilledFields: expect.any(Array),
@@ -175,16 +444,25 @@ describe("mock Tauri command facade", () => {
     });
 
     await expect(mockInvoke<boolean>("is_browser_running")).resolves.toBe(true);
-    await expect(mockInvoke<void>("mark_attempt_submitted", {
-      attemptId: fillResult.attemptId,
-    })).resolves.toBeUndefined();
-    await expect(mockInvoke<void>("close_automation_browser")).resolves.toBeUndefined();
-    await expect(mockInvoke<boolean>("is_browser_running")).resolves.toBe(false);
+    await expect(
+      mockInvoke<void>("mark_attempt_submitted", {
+        attemptId: fillResult.attemptId,
+      }),
+    ).resolves.toBeUndefined();
+    await expect(
+      mockInvoke<void>("close_automation_browser"),
+    ).resolves.toBeUndefined();
+    await expect(mockInvoke<boolean>("is_browser_running")).resolves.toBe(
+      false,
+    );
 
-    const suggestions = await mockInvoke<AnswerSuggestion[]>("get_suggested_answers", {
-      question: "Are you authorized to work in the United States?",
-      limit: 3,
-    });
+    const suggestions = await mockInvoke<AnswerSuggestion[]>(
+      "get_suggested_answers",
+      {
+        question: "Are you authorized to work in the United States?",
+        limit: 3,
+      },
+    );
     expect(suggestions[0]).toMatchObject({
       answer: "Yes",
       source: { type: "manual", answerId: 1 },
@@ -192,8 +470,14 @@ describe("mock Tauri command facade", () => {
       lastUsedDaysAgo: expect.any(Number),
     });
 
-    await expect(mockInvoke<void>("complete_setup", { config: {} })).resolves.toBeUndefined();
-    await expect(mockInvoke<void>("mark_job_as_real", { jobId: 1 })).resolves.toBeUndefined();
-    await expect(mockInvoke<void>("mark_job_as_ghost", { jobId: 1 })).resolves.toBeUndefined();
+    await expect(
+      mockInvoke<void>("complete_setup", { config: {} }),
+    ).resolves.toBeUndefined();
+    await expect(
+      mockInvoke<void>("mark_job_as_real", { jobId: 1 }),
+    ).resolves.toBeUndefined();
+    await expect(
+      mockInvoke<void>("mark_job_as_ghost", { jobId: 1 }),
+    ).resolves.toBeUndefined();
   });
 });

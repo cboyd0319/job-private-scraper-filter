@@ -1,3 +1,5 @@
+/** Verifies interview detail, debrief, feedback, and research behavior. */
+
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import {
@@ -211,7 +213,7 @@ describe("InterviewScheduler", () => {
 
       expect(screen.getByText("Research for CareBridge Services")).toBeInTheDocument();
       expect(renderCompanyResearch).toHaveBeenCalledWith(
-        expect.objectContaining({ companyName: "CareBridge Services" }),
+        expect.objectContaining({ companyName: "CareBridge Services", jobHash: "job-carebridge" }),
       );
     });
 
@@ -283,9 +285,59 @@ describe("InterviewScheduler", () => {
       fireEvent.click(screen.getByText("Went well"));
 
       await waitFor(() => {
-        expect(screen.getByText("Interview outcome:")).toBeInTheDocument();
+        expect(screen.getByText("Signal strength:")).toBeInTheDocument();
         expect(screen.getByText("Went well")).toBeInTheDocument();
       });
+    });
+
+    it("records a structured debrief through the existing interview owner", async () => {
+      mockInvoke.mockResolvedValue([]);
+      render(<InterviewScheduler onClose={mockOnClose} />);
+
+      await waitFor(() => {
+        expect(screen.getByText("Customer Support Coordinator")).toBeInTheDocument();
+      });
+      fireEvent.click(screen.getByText("Customer Support Coordinator"));
+      fireEvent.click(await screen.findByRole("button", { name: "Went well" }));
+
+      expect(screen.getByRole("heading", { name: "Post-interview debrief" })).toBeVisible();
+      fireEvent.change(screen.getByLabelText("Questions asked"), {
+        target: { value: "How would I handle an urgent customer escalation?" },
+      });
+      fireEvent.change(screen.getByLabelText("Concerns"), {
+        target: { value: "The weekend rotation needs clarification." },
+      });
+      fireEvent.change(screen.getByLabelText("Promised next steps"), {
+        target: { value: "The recruiter will confirm the final-round schedule." },
+      });
+      fireEvent.change(screen.getByLabelText("Follow-up deadline"), {
+        target: { value: "2026-08-01" },
+      });
+      fireEvent.click(screen.getByRole("button", { name: "Save debrief" }));
+
+      await waitFor(() =>
+        expect(mockInvoke).toHaveBeenCalledWith(
+          "complete_interview",
+          {
+            interviewId: 1,
+            outcome: "passed",
+            notes: [
+              "Questions asked: How would I handle an urgent customer escalation?",
+              "Concerns: The weekend rotation needs clarification.",
+              "Promised next steps: The recruiter will confirm the final-round schedule.",
+              "Follow-up deadline: 2026-08-01",
+            ].join("\n"),
+          },
+          expect.anything(),
+          expect.anything(),
+        ),
+      );
+      expect(mockInvoke).not.toHaveBeenCalledWith(
+        "update_application_status",
+        expect.anything(),
+        expect.anything(),
+        expect.anything(),
+      );
     });
 
     it("shows Delete button in modal", async () => {

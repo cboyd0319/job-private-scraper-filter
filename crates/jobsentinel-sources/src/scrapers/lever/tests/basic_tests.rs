@@ -1,5 +1,50 @@
 use super::*;
 
+#[test]
+fn reviewed_fixture_exercises_the_production_parser() {
+    let company = LeverCompany {
+        id: "example".to_string(),
+        name: "Example".to_string(),
+        url: "https://jobs.lever.co/example".to_string(),
+    };
+    let payload = include_str!("../../../fixtures/lever_list_v1.json");
+    let json = serde_json::from_str(payload).unwrap();
+
+    let jobs = LeverScraper::parse_api_response(
+        &json,
+        &company,
+        "https://api.lever.co/v0/postings/example",
+    )
+    .unwrap();
+
+    assert_eq!(jobs.len(), 1);
+    assert_eq!(jobs[0].title, "Program Coordinator");
+    assert_eq!(jobs[0].url, "https://jobs.lever.co/example/example-posting");
+}
+
+#[test]
+fn provider_error_object_is_parser_drift_not_an_empty_success() {
+    let company = LeverCompany {
+        id: "example".to_string(),
+        name: "Example".to_string(),
+        url: "https://jobs.lever.co/example".to_string(),
+    };
+
+    assert!(LeverScraper::parse_api_response(
+        &serde_json::json!({"error": "schema changed"}),
+        &company,
+        "https://api.lever.co/v0/postings/example",
+    )
+    .is_err());
+    assert!(LeverScraper::parse_api_response(
+        &serde_json::json!([]),
+        &company,
+        "https://api.lever.co/v0/postings/example",
+    )
+    .unwrap()
+    .is_empty());
+}
+
 // Hash computation tests
 #[test]
 fn test_compute_hash_deterministic() {

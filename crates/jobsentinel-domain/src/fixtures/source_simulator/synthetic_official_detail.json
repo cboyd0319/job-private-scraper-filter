@@ -1,0 +1,13 @@
+{
+  "id": "synthetic-1",
+  "title": "Program Analyst",
+  "company": "Example Public Agency",
+  "location": "Denver, CO",
+  "description": "Analyze program outcomes using public records.",
+  "salary": {
+    "currency": "USD",
+    "minimum": 70000,
+    "maximum": 90000,
+    "period": "annual"
+  }
+}

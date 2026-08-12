@@ -115,22 +115,6 @@ fn test_parse_response_description_priority() {
 }
 
 #[test]
-fn test_parse_response_non_array_json() {
-    let json_data = r#"
-    {
-        "error": "Not an array"
-    }
-    "#;
-
-    let parsed: serde_json::Value = serde_json::from_str(json_data).unwrap();
-
-    // Should not panic, just return None
-    if let Some(_postings) = parsed.as_array() {
-        panic!("Should not be an array");
-    }
-}
-
-#[test]
 fn test_parse_response_nested_categories() {
     let json_data = r#"
     [

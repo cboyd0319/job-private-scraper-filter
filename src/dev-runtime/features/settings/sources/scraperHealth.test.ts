@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { mockInvoke, resetMockData } from "../../../mocks/handlers";
+import { updateMockScraperEnabled } from "./scraperHealth";
 
 describe("Settings source health mock commands", () => {
   beforeEach(() => {
@@ -23,8 +24,14 @@ describe("Settings source health mock commands", () => {
     expect(scrapers).toEqual(
       expect.arrayContaining([
         expect.objectContaining({ scraper_name: "greenhouse", is_enabled: true }),
+        expect.objectContaining({ scraper_name: "jobswithgpt", is_enabled: false }),
       ]),
     );
+    const scraperNames = scrapers.map((scraper) => scraper.scraper_name);
+    expect(scraperNames).not.toContain("builtin");
+    expect(scraperNames).not.toContain("dice");
+    expect(scraperNames).not.toContain("simplyhired");
+    expect(scraperNames).not.toContain("glassdoor");
 
     await expect(
       mockInvoke<void>("set_scraper_enabled", {
@@ -43,7 +50,6 @@ describe("Settings source health mock commands", () => {
       scraperName: "greenhouse",
       enabled: true,
     });
-
     const runs = await mockInvoke<Array<{ scraper_name: string; status: string }>>(
       "get_scraper_runs",
       { scraperName: "greenhouse", limit: 2 },
@@ -57,10 +63,50 @@ describe("Settings source health mock commands", () => {
     );
     expect(smoke).toMatchObject({ scraper_name: "greenhouse", passed: true });
 
+    const restricted = await mockInvoke<{
+      scraper_name: string;
+      details: { status: string; reason: string };
+    }>("run_scraper_smoke_test", {
+      scraperName: "dice",
+      restrictedSourceAcknowledged: true,
+    });
+    expect(restricted).toMatchObject({
+      scraper_name: "dice",
+      details: {
+        status: "skipped",
+        reason:
+          "Automated access is unavailable after provider policy review. Use a user-opened search link, Browser Import, or manual entry.",
+      },
+    });
+
+    const jobsWithGpt = await mockInvoke<{
+      scraper_name: string;
+      passed: boolean;
+      details: { status: string; reason: string };
+    }>("run_scraper_smoke_test", { scraperName: "jobswithgpt" });
+    expect(jobsWithGpt).toMatchObject({
+      scraper_name: "jobswithgpt",
+      passed: true,
+      details: {
+        status: "skipped",
+        reason: "JobsWithGPT provider endpoint and usage policy require review",
+      },
+    });
+
     const allSmoke = await mockInvoke<
       Array<{ scraper_name: string; passed: boolean }>
     >("run_all_smoke_tests");
     expect(allSmoke.length).toBeGreaterThanOrEqual(scrapers.length);
+  });
 
+  it("ignores retired scheduled-source toggles", () => {
+    const overrides = { greenhouse: true };
+
+    expect(
+      updateMockScraperEnabled(
+        { scraperName: "dice", enabled: true },
+        overrides,
+      ),
+    ).toBe(overrides);
   });
 });

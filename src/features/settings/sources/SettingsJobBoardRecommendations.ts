@@ -1,15 +1,10 @@
 import { useMemo, type Dispatch, type SetStateAction } from "react";
 import {
-  BUILTIN_TECH_CITY_TERMS,
   GOVERNMENT_SOURCE_TERMS,
   REMOTE_INTENT_TERMS,
-  STARTUP_SOURCE_TERMS,
 } from "../../../shared/jobSourceRecommendationTaxonomy";
 import { searchLooksTechFocused } from "../../../shared/jobSourceRecommendations";
-import {
-  buildSettingsSourceQuery,
-  type Config,
-} from "../config/SettingsConfig";
+import type { Config } from "../config/SettingsConfig";
 
 export interface JobBoardRecommendation {
   board: string;
@@ -38,7 +33,6 @@ export function useJobBoardRecommendations(
       ...(config.title_allowlist ?? []),
     ].map((k) => k.toLowerCase());
     const allowRemote = config.location_preferences?.allow_remote ?? false;
-    const cities = config.location_preferences?.cities ?? [];
     const isTechFocused = searchLooksTechFocused(keywords);
     const hasRemoteIntent =
       allowRemote || includesAnyTerm(keywords, REMOTE_INTENT_TERMS);
@@ -77,25 +71,6 @@ export function useJobBoardRecommendations(
       }
     }
 
-    if (includesAnyTerm(keywords, STARTUP_SOURCE_TERMS)) {
-      if (!config.yc_startup?.enabled) {
-        recommendations.push({
-          board: "YC Startups",
-          reason: "You're interested in startups",
-          enable: () =>
-            setConfig({
-              ...config,
-              yc_startup: {
-                ...config.yc_startup,
-                enabled: true,
-                remote_only: false,
-                limit: 50,
-              },
-            }),
-        });
-      }
-    }
-
     if (isTechFocused) {
       if (!config.hn_hiring?.enabled) {
         recommendations.push({
@@ -108,24 +83,6 @@ export function useJobBoardRecommendations(
                 ...config.hn_hiring,
                 enabled: true,
                 remote_only: false,
-                limit: 50,
-              },
-            }),
-        });
-      }
-      if (!config.dice?.enabled) {
-        recommendations.push({
-          board: "Dice",
-          reason: "Technology roles",
-          enable: () =>
-            setConfig({
-              ...config,
-              dice: {
-                ...config.dice,
-                enabled: true,
-                query:
-                  config.dice?.query?.trim() ||
-                  buildSettingsSourceQuery(config),
                 limit: 50,
               },
             }),
@@ -148,25 +105,6 @@ export function useJobBoardRecommendations(
                 remote_only: false,
                 date_posted_days: 30,
                 limit: 100,
-              },
-            }),
-        });
-      }
-    }
-
-    if (isTechFocused && includesAnyTerm(cities, BUILTIN_TECH_CITY_TERMS)) {
-      if (!config.builtin?.enabled) {
-        recommendations.push({
-          board: "BuiltIn",
-          reason: "Tech and startup jobs near " + cities[0],
-          enable: () =>
-            setConfig({
-              ...config,
-              builtin: {
-                ...config.builtin,
-                enabled: true,
-                cities: config.builtin?.cities ?? [],
-                limit: 50,
               },
             }),
         });

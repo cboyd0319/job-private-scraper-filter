@@ -189,6 +189,9 @@ fn retrieval_sources(features: &RankingFeatures, skill_hits: &[String]) -> Vec<S
     if features.required_coverage.is_some() {
         sources.push("required_coverage".to_string());
     }
+    if features.seniority_match.is_some() {
+        sources.push("seniority".to_string());
+    }
     if features.reranker_score.is_some() {
         sources.push("reranker".to_string());
     }
@@ -308,6 +311,7 @@ mod tests {
         result.bm25_score = Some(2.0);
         result.skill_coverage = Some(0.50);
         result.required_coverage = Some(0.40);
+        result.seniority_match = Some(0.60);
         result.reranker_score = Some(0.70);
         result.skill_hits = vec!["CloudTrail".to_string()];
 
@@ -323,6 +327,7 @@ mod tests {
             "bm25",
             "skill_exact",
             "required_coverage",
+            "seniority",
             "reranker",
         ] {
             assert!(provenance.sources.contains(&source.to_string()));

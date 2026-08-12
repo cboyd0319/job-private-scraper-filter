@@ -1,0 +1,26 @@
+{
+  "source_id": "synthetic-official-jobs",
+  "reviewed_on": "2026-07-19",
+  "reference_ids": [
+    "source-review.synthetic-official-jobs.terms"
+  ],
+  "evidence": [
+    {
+      "url": "https://docs.example.com/jobs",
+      "observed": "Synthetic policy evidence exists only to exercise the fail-closed source contract."
+    }
+  ],
+  "local_policy": {
+    "operation": "synthetic GET checks only",
+    "request_limit_per_hour": 60,
+    "basis": "Contract-test value with no production transport.",
+    "burst": 1,
+    "automatic_retries": false,
+    "external_model_training": false
+  },
+  "change_triggers": [
+    "contract fixture changes",
+    "policy revision changes",
+    "parser fixture changes"
+  ]
+}

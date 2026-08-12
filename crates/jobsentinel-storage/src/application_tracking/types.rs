@@ -199,6 +199,7 @@ impl FromStr for InterviewType {
 pub struct InterviewWithJob {
     pub id: i64,
     pub application_id: i64,
+    pub job_hash: String,
     pub interview_type: String,
     pub scheduled_at: String,
     pub duration_minutes: i32,

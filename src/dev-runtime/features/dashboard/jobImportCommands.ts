@@ -7,6 +7,15 @@ import {
   isLocalOrPrivateHost,
   isSafeExternalHttpsUrl,
 } from "../../mocks/externalUrlSafety";
+import {
+  canonicalizeMockJobImportUrl,
+  canonicalizeMockSmartPasteUrl,
+  checkMockSmartPasteField,
+  MAX_SMART_PASTE_CHARS,
+  parseMockSmartPasteText,
+  rejectMockSmartPasteCredentialMaterial,
+  truncateMockSmartPasteDescription,
+} from "./smartPaste";
 
 export interface MockJobImportPreview {
   import_id: string | null;
@@ -27,6 +36,9 @@ export interface MockJobImportPreview {
 export interface MockPendingUrlImport {
   id: string;
   preview: MockJobImportPreview;
+  kind: "jobImport" | "smartPaste";
+  description?: string | null;
+  usesSmartPasteDefaults?: boolean;
 }
 
 export interface MockJobImportResult {
@@ -45,28 +57,6 @@ export interface MockJobImportCommandResult {
   value: unknown;
 }
 
-const STRIPPED_JOB_IMPORT_QUERY_KEYS = new Set([
-  "fbclid",
-  "gclid",
-  "igshid",
-  "mc_cid",
-  "mc_eid",
-  "msclkid",
-  "ref",
-  "referrer",
-  "source",
-]);
-
-const STRIPPED_JOB_IMPORT_QUERY_MARKERS = [
-  "token",
-  "session",
-  "auth",
-  "credential",
-  "password",
-  "email",
-  "candidate",
-];
-
 export function handleMockJobImportCommand(
   command: string,
   args: Record<string, unknown> | undefined,
@@ -76,24 +66,38 @@ export function handleMockJobImportCommand(
     case "preview_job_import":
       return previewMockJobImport(args, state);
     case "confirm_job_import":
-      return confirmMockJobImport(args, state);
+      return confirmMockPendingImport(
+        args,
+        state,
+        "This job preview expired. Check the job link again before saving.",
+        "jobImport",
+      );
+    case "preview_smart_paste":
+      return previewMockSmartPaste(args, state);
+    case "confirm_smart_paste":
+      return confirmMockPendingImport(
+        args,
+        state,
+        "This Smart Paste draft expired. Create it again before saving.",
+        "smartPaste",
+      );
     default:
       return { handled: false, shouldSave: false, state, value: undefined };
   }
 }
 
-function confirmMockJobImport(
+function confirmMockPendingImport(
   args: Record<string, unknown> | undefined,
   state: MockJobImportCommandState,
+  expiredMessage: string,
+  kind: MockPendingUrlImport["kind"],
 ): MockJobImportCommandResult {
   const importId = getStringArg(args, "importId")?.trim();
   const pending = state.pendingUrlImports.find(
-    (entry) => entry.id === importId,
+    (entry) => entry.id === importId && entry.kind === kind,
   );
   if (!pending) {
-    throw new Error(
-      "This job preview expired. Check the job link again before saving.",
-    );
+    throw new Error(expiredMessage);
   }
 
   if (state.jobs.some((job) => job.url === pending.preview.url)) {
@@ -104,6 +108,8 @@ function confirmMockJobImport(
     pending.preview,
     getNextId(state.jobs),
     new Date().toISOString(),
+    pending.description,
+    pending.usesSmartPasteDefaults,
   );
   return {
     handled: true,
@@ -148,10 +154,95 @@ function previewMockJobImport(
   const pendingUrlImports = importId
     ? [
         ...state.pendingUrlImports.filter((entry) => entry.id !== importId),
-        { id: importId, preview },
+        { id: importId, preview, kind: "jobImport" as const },
       ]
     : state.pendingUrlImports;
 
+  return withoutSave({ ...state, pendingUrlImports }, preview);
+}
+
+function previewMockSmartPaste(
+  args: Record<string, unknown> | undefined,
+  state: MockJobImportCommandState,
+): MockJobImportCommandResult {
+  const text = getStringArg(args, "text") ?? "";
+  if ([...text].length > MAX_SMART_PASTE_CHARS) {
+    throw new Error(
+      "Paste no more than 50,000 characters of job details at a time.",
+    );
+  }
+  rejectMockSmartPasteCredentialMaterial(text);
+
+  const parsed = parseMockSmartPasteText(text);
+  const editedUrl = getStringArg(args, "jobUrl");
+  if (editedUrl !== undefined) {
+    rejectMockSmartPasteCredentialMaterial(editedUrl);
+  }
+  const url =
+    editedUrl === undefined
+      ? parsed.url
+      : editedUrl.trim()
+        ? canonicalizeMockSmartPasteUrl(editedUrl.trim())
+        : "";
+  const editedTitle = getStringArg(args, "title") ?? parsed.title;
+  const editedCompany = getStringArg(args, "company") ?? parsed.company;
+  const editedLocation =
+    (getStringArg(args, "location") ?? parsed.location).trim() || null;
+  for (const value of [editedTitle, editedCompany, url, editedLocation ?? ""]) {
+    rejectMockSmartPasteCredentialMaterial(value);
+  }
+  checkMockSmartPasteField("job title", editedTitle, 500);
+  checkMockSmartPasteField("company name", editedCompany, 200);
+  if (editedLocation) {
+    checkMockSmartPasteField("location", editedLocation, 200);
+  }
+  const title = editedTitle.trim();
+  const company = editedCompany.trim();
+  const location = editedLocation;
+
+  const missingFields: string[] = [];
+  if (!title) missingFields.push("title");
+  if (!company) missingFields.push("company");
+  if (!url) missingFields.push("url");
+
+  const preview: MockJobImportPreview = {
+    import_id: null,
+    title,
+    company,
+    url,
+    location,
+    description_preview: parsed.description
+      ? truncateMockSmartPasteDescription(parsed.description)
+      : null,
+    salary: null,
+    date_posted: null,
+    valid_through: null,
+    employment_types: [],
+    remote: false,
+    missing_fields: missingFields,
+    already_exists: false,
+  };
+  if (missingFields.length > 0) {
+    return withoutSave(state, preview);
+  }
+
+  preview.already_exists = state.jobs.some((job) => job.url === url);
+  if (preview.already_exists) {
+    return withoutSave(state, preview);
+  }
+
+  const importId = `mock-paste-${hashString(`${url}:${title}`)}`;
+  preview.import_id = importId;
+  const pendingUrlImports = [
+    ...state.pendingUrlImports.filter((entry) => entry.id !== importId),
+    {
+      id: importId,
+      preview,
+      kind: "smartPaste" as const,
+      description: parsed.description || null,
+      usesSmartPasteDefaults: true,
+    },
+  ];
   return withoutSave({ ...state, pendingUrlImports }, preview);
 }
 
@@ -159,25 +250,27 @@ function buildMockImportedJob(
   preview: MockJobImportPreview,
   id: number,
   createdAt: string,
+  description = preview.description_preview,
+  usesSmartPasteDefaults = false,
 ): MockJob {
   return {
     id,
     hash: `mock-import-${hashString(preview.url)}`,
     title: preview.title,
     company: preview.company,
-    location: preview.location ?? "Remote",
-    description: preview.description_preview ?? "",
+    location: usesSmartPasteDefaults ? preview.location : preview.location ?? "Remote",
+    description: description ?? "",
     url: preview.url,
-    source: "import",
-    salary_min: 55000,
-    salary_max: 72000,
+    source: usesSmartPasteDefaults ? "user-source-actions" : "import",
+    salary_min: usesSmartPasteDefaults ? null : 55000,
+    salary_max: usesSmartPasteDefaults ? null : 72000,
     remote: preview.remote,
-    score: 1,
+    score: usesSmartPasteDefaults ? null : 1,
     hidden: false,
     bookmarked: false,
     notes: null,
     created_at: createdAt,
-  };
+  } as MockJob;
 }
 
 function getJobImportUrl(args: Record<string, unknown> | undefined): string {
@@ -207,53 +300,6 @@ function getJobImportUrl(args: Record<string, unknown> | undefined): string {
   }
 
   return canonicalizeMockJobImportUrl(url);
-}
-
-function canonicalizeMockJobImportUrl(url: string): string {
-  const parsed = new URL(url);
-  parsed.username = "";
-  parsed.password = "";
-  parsed.hash = "";
-
-  const keptParams = new URLSearchParams();
-  parsed.searchParams.forEach((value, key) => {
-    const normalizedKey = key.toLowerCase();
-    if (!isStrippedJobImportQueryParam(normalizedKey, value)) {
-      keptParams.append(key, value);
-    }
-  });
-
-  const query = keptParams.toString();
-  parsed.search = query ? `?${query}` : "";
-  return parsed.toString();
-}
-
-function isStrippedJobImportQueryParam(
-  normalizedKey: string,
-  value: string,
-): boolean {
-  return (
-    normalizedKey.startsWith("utm_") ||
-    STRIPPED_JOB_IMPORT_QUERY_KEYS.has(normalizedKey) ||
-    STRIPPED_JOB_IMPORT_QUERY_MARKERS.some((marker) =>
-      normalizedKey.includes(marker),
-    ) ||
-    isSensitiveJobImportQueryValue(value)
-  );
-}
-
-function isSensitiveJobImportQueryValue(value: string): boolean {
-  try {
-    new URL(value);
-    return true;
-  } catch {
-    const normalizedValue = value.toLowerCase();
-    return STRIPPED_JOB_IMPORT_QUERY_MARKERS.some(
-      (marker) =>
-        normalizedValue.includes(`${marker}=`) ||
-        normalizedValue.includes(`${marker}%3d`),
-    );
-  }
 }
 
 function getMockImportTitle(url: string): string {

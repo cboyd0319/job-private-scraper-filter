@@ -391,7 +391,7 @@ impl JobMatcher {
         let education_match_score =
             self.calculate_education_match(user_education, education_req.as_ref());
 
-        let overall_match_score = jobsentinel_documents::calculate_resume_match_score(
+        let match_score = jobsentinel_documents::calculate_resume_match_score(
             &matching_skills,
             &missing_skills,
             skills_match_score,
@@ -400,6 +400,7 @@ impl JobMatcher {
             education_match_score,
             education_req.as_ref(),
         );
+        let overall_match_score = match_score.score;
 
         // Generate enhanced gap analysis
         let gap_analysis = gap_analysis::generate_enhanced_gap_analysis(
@@ -411,6 +412,8 @@ impl JobMatcher {
             education_match_score,
             education_req.as_ref(),
             overall_match_score,
+            match_score.blocker.as_deref(),
+            &match_score.sources,
         );
 
         Ok(MatchResult {

@@ -13,6 +13,8 @@ mod credential_summary_tests;
 mod current_experience_evidence;
 #[path = "ats_analyzer_tests/degree_requirement_equivalences.rs"]
 mod degree_requirement_equivalences;
+#[path = "ats_analyzer_tests/evidence_citations.rs"]
+mod evidence_citations;
 #[path = "ats_analyzer_tests/experience_requirement_constraints.rs"]
 mod experience_requirement_constraints;
 #[path = "ats_analyzer_tests/format_safety_tests.rs"]
@@ -86,6 +88,7 @@ fn sample_resume() -> ResumeAnalysisInput {
             military_info: None,
         },
         custom_sections: HashMap::new(),
+        evidence_snapshot: None,
     }
 }
 
@@ -470,3 +473,6 @@ fn test_requirement_reviews_explain_direct_partial_and_missing_evidence() {
     assert_eq!(salesforce.match_state, RequirementMatchState::Missing);
     assert!(salesforce.recommendation.contains("Only add it if true"));
 }
+
+#[path = "ats_analyzer_tests/matching_profile_tests.rs"]
+mod matching_profile_tests;

@@ -17,6 +17,7 @@ import {
   upsertMockScreeningAnswer,
 } from "../../../features/application-assist/mockProfile";
 import { getMockAtsPlatform, getMockAtsPlatformDetection } from "./atsPlatform";
+import { requiresUserAnswer } from "../../../shared/applicationScreeningTaxonomy";
 
 export interface MockApplicationAssistState {
   applicationProfile: MockApplicationProfile | null;
@@ -44,7 +45,12 @@ function fillMockApplicationForm(
   const platform = getMockAtsPlatform(jobUrl);
   const hasJobHash = Boolean(getStringArg(args, "jobHash") ?? getStringArg(args, "job_hash"));
   const attemptId = hasJobHash ? state.nextAutomationAttemptId : null;
+  const detectedQuestions = getArg(args, "detectedQuestions");
+  const requiresManualReview = Array.isArray(detectedQuestions) && detectedQuestions.some(
+    (question) => typeof question === "string" && requiresUserAnswer(question),
+  );
   const screeningFields = state.screeningAnswers
+    .filter((answer) => !requiresUserAnswer(answer.questionPattern))
     .slice(0, 2)
     .map((_, index) => `screening:savedAnswer${index + 1}`);
 
@@ -55,6 +61,9 @@ function fillMockApplicationForm(
       captchaDetected: false,
       readyForReview: true,
       errorMessage: null,
+      manualReviewTopics: requiresManualReview
+        ? ["voluntary or sensitive personal questions"]
+        : [],
       attemptId,
       durationMs: 1250,
       atsPlatform: platform,
@@ -99,6 +108,13 @@ export function handleMockApplicationAssistCommand(
     }
     case "get_screening_answers":
       return result(state.screeningAnswers, state);
+    case "get_application_screening_answer_previews":
+      return result(
+        state.screeningAnswers
+          .filter((answer) => !requiresUserAnswer(answer.questionPattern))
+          .map(({ questionPattern, answer }) => ({ questionPattern, answer })),
+        state,
+      );
     case "upsert_screening_answer":
       return result(
         undefined,

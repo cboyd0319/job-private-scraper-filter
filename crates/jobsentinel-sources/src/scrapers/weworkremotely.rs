@@ -12,11 +12,13 @@ use super::{
     decode_common_html_entities, strip_html_markup, JobScraper, ScraperResult,
     JOBSENTINEL_USER_AGENT,
 };
-use jobsentinel_domain::Job;
+use jobsentinel_domain::{v3_source_manifest::WEWORKREMOTELY_REQUEST_LIMIT_PER_HOUR, Job};
 use jobsentinel_network::{send_external_http_text_with_retry, ExternalHttpRequest};
+use std::num::NonZeroU16;
 
 use async_trait::async_trait;
 use chrono::Utc;
+use url::Url;
 
 /// WeWorkRemotely job scraper
 #[derive(Debug, Clone)]
@@ -27,6 +29,8 @@ pub struct WeWorkRemotelyScraper {
     pub limit: usize,
     /// Rate limiter for respecting WeWorkRemotely's request limits
     pub rate_limiter: RateLimiter,
+    /// JobSentinel policy rate for this source
+    pub request_limit_per_hour: u32,
 }
 
 impl WeWorkRemotelyScraper {
@@ -35,14 +39,77 @@ impl WeWorkRemotelyScraper {
             category,
             limit,
             rate_limiter: RateLimiter::shared(),
+            request_limit_per_hour: u32::from(WEWORKREMOTELY_REQUEST_LIMIT_PER_HOUR),
         }
     }
 
+    #[must_use]
+    pub fn with_request_limit_per_hour(mut self, request_limit_per_hour: NonZeroU16) -> Self {
+        self.request_limit_per_hour = u32::from(request_limit_per_hour.get());
+        self
+    }
+
+    fn request(url: &str) -> ExternalHttpRequest {
+        ExternalHttpRequest::get(url)
+            .without_retries()
+            .user_agent(JOBSENTINEL_USER_AGENT)
+    }
+
+    fn is_canonical_listing_url(value: &str) -> bool {
+        let Ok(url) = Url::parse(value) else {
+            return false;
+        };
+        url.scheme() == "https"
+            && url.host_str() == Some("weworkremotely.com")
+            && url.port().is_none()
+            && url.username().is_empty()
+            && url.password().is_none()
+            && url.query().is_none()
+            && url.fragment().is_none()
+            && (url.path().starts_with("/remote-jobs/") || url.path().starts_with("/jobs/"))
+    }
+
     /// Build the RSS feed URL
-    fn build_url(&self) -> String {
-        match &self.category {
-            Some(cat) => format!("https://weworkremotely.com/categories/{}.rss", cat),
-            None => "https://weworkremotely.com/remote-jobs.rss".to_string(),
+    fn build_url(&self) -> Result<&'static str, ScraperError> {
+        match self.category.as_deref() {
+            None => Ok("https://weworkremotely.com/remote-jobs.rss"),
+            Some("remote-customer-support-jobs") => {
+                Ok("https://weworkremotely.com/categories/remote-customer-support-jobs.rss")
+            }
+            Some("remote-product-jobs") => {
+                Ok("https://weworkremotely.com/categories/remote-product-jobs.rss")
+            }
+            Some("remote-full-stack-programming-jobs") => {
+                Ok("https://weworkremotely.com/categories/remote-full-stack-programming-jobs.rss")
+            }
+            Some("remote-back-end-programming-jobs") => {
+                Ok("https://weworkremotely.com/categories/remote-back-end-programming-jobs.rss")
+            }
+            Some("remote-front-end-programming-jobs") => {
+                Ok("https://weworkremotely.com/categories/remote-front-end-programming-jobs.rss")
+            }
+            Some("programming" | "remote-programming-jobs") => {
+                Ok("https://weworkremotely.com/categories/remote-programming-jobs.rss")
+            }
+            Some("remote-sales-and-marketing-jobs") => {
+                Ok("https://weworkremotely.com/categories/remote-sales-and-marketing-jobs.rss")
+            }
+            Some("remote-management-and-finance-jobs") => {
+                Ok("https://weworkremotely.com/categories/remote-management-and-finance-jobs.rss")
+            }
+            Some("design" | "remote-design-jobs") => {
+                Ok("https://weworkremotely.com/categories/remote-design-jobs.rss")
+            }
+            Some("devops" | "remote-devops-sysadmin-jobs") => {
+                Ok("https://weworkremotely.com/categories/remote-devops-sysadmin-jobs.rss")
+            }
+            Some("all-other-remote-jobs") => {
+                Ok("https://weworkremotely.com/categories/all-other-remote-jobs.rss")
+            }
+            Some(_) => Err(ScraperError::InvalidConfiguration {
+                scraper: "weworkremotely".to_string(),
+                message: "category is not a reviewed public RSS feed".to_string(),
+            }),
         }
     }
 
@@ -50,21 +117,20 @@ impl WeWorkRemotelyScraper {
     async fn fetch_jobs(&self) -> ScraperResult {
         tracing::info!("Fetching jobs from WeWorkRemotely");
 
-        // Use rate limiter (RSS feed, be conservative)
-        self.rate_limiter.wait("weworkremotely", 300).await;
+        self.rate_limiter
+            .wait_paced("weworkremotely", self.request_limit_per_hour)
+            .await;
 
-        let url = self.build_url();
+        let url = self.build_url()?;
 
-        let response = send_external_http_text_with_retry(
-            ExternalHttpRequest::get(&url).user_agent(JOBSENTINEL_USER_AGENT),
-        )
-        .await
-        .map_err(|error| ScraperError::from_external("weworkremotely", error))?;
+        let response = send_external_http_text_with_retry(Self::request(url))
+            .await
+            .map_err(|error| ScraperError::from_external("weworkremotely", error))?;
 
         if !(200..300).contains(&response.status) {
             return Err(ScraperError::http_status(
                 response.status,
-                &url,
+                url,
                 format!("WeWorkRemotely request failed: {}", response.status),
             ));
         }
@@ -79,11 +145,12 @@ impl WeWorkRemotelyScraper {
     /// Parse RSS XML to extract job listings
     fn parse_rss(&self, xml: &str) -> Result<Vec<Job>, ScraperError> {
         let mut jobs = Vec::with_capacity(self.limit);
+        let url = self.build_url()?.to_string();
 
         let items =
             parse_rss_items(xml, self.limit).map_err(|source| ScraperError::ParseError {
                 format: "RSS".to_string(),
-                url: self.build_url(),
+                url,
                 source,
             })?;
 
@@ -93,7 +160,12 @@ impl WeWorkRemotelyScraper {
                 .map(Self::decode_html_entities)
                 .unwrap_or_default();
 
-            let url = item.get("link").unwrap_or_default().to_string();
+            let url = item
+                .get("link")
+                .map(str::trim)
+                .filter(|value| Self::is_canonical_listing_url(value))
+                .unwrap_or_default()
+                .to_string();
 
             // WeWorkRemotely titles often include company: "Company: Job Title"
             let (company, job_title) = if let Some(pos) = title.find(':') {
