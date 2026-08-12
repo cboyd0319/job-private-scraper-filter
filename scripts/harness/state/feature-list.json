@@ -148,6 +148,9 @@
     }, { "id": "v3-milestone-6-opportunity-case-file-daily-workflow", "priority": 20, "area": "v3 workflow", "title": "Build opportunity case files", "status": "passing",
       "behavior": "Case files keep daily job-search evidence and actions local, reviewable, and useful offline.", "user_visible_behavior": "Users can manage each opportunity and next action offline.",
       "verification": ["npm run harness:check"], "evidence": ["docs/harness/evidence/v3-milestone-6-opportunity-case-workflow-2026-07-22.json"]
-    }, { "id": "v3-milestone-7-agent-pack-runtime", "priority": 21, "area": "v3 agent runtime", "title": "Build reviewed agents and packs", "status": "active",
-      "behavior": "Local agents and signed packs remain capability-bounded, reviewable, and reversible.", "user_visible_behavior": "Users can run reviewed local help and manage packs without granting hidden authority.",
-      "verification": ["npm run harness:check"], "evidence": [] } ] }
+    }, {"id":"v3-milestone-7-agent-pack-runtime","priority":21,"area":"v3 packs","title":"Pack runtime","status":"passing",
+      "behavior":"Packs stay bounded.","user_visible_behavior":"Users manage packs.",
+      "verification":["npm run harness:check"],"evidence":["docs/harness/evidence/v3-milestone-7-agent-pack-runtime-2026-08-12.json"]
+    }, {"id":"v3-milestone-8-employer-intelligence","priority":22,"area":"v3 intelligence","title":"Employer intelligence","status":"active",
+      "behavior":"Guidance stays sourced.","user_visible_behavior":"Users see sourced context.",
+      "verification":["npm run harness:check"],"evidence":[] } ] }

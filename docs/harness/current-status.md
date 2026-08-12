@@ -26,29 +26,22 @@ Last updated: 2026-08-12
 - Milestone 5 passed local evidence, matching, model lifecycle, and Gate 4 decisions with later release proof explicit.
 - Milestone 6 passed the offline case, daily workflow, reviewed native drops, protected answers,
   first-run choices, and desktop and narrow state matrix without hidden automation.
+- Milestone 7 passed the signed pack runtime, production publisher trust, fail-closed startup reconciliation,
+  local release signing, reviewed static Skill and agent execution, lifecycle recovery, and deterministic G19 bar.
 
 ## In Progress
 
-- Active feature: `v3-milestone-7-agent-pack-runtime`
+- Active feature: `v3-milestone-8-employer-intelligence`
 - Status: `active`
-- Current slice: Signed packs have bounded lifecycle, cleanup, management, reviewed execution, verified static-skill
-  reading, private scoring, and fixed ATS and Evidence Reviewer evaluations behind caller-owned trust. Each re-verifies
-  the active artifact, runs one synthetic case without user data, and returns aggregate counts. The Evidence Reviewer
-  uses isolated storage, leaving caller user state unchanged. Settings shows signed facts and state-specific recovery
-  guidance, generation-bound Disable, confirmed Remove, and cleanup retry while retaining history. Stale refresh results
-  are rejected, and only exact self-tested contracts are accepted. Startup owns the app-data `pack-artifacts` path
-  without creating it or loading trust. Database startup reconciles reviewed tasks. Windows pack artifacts use protected
-  closed DACLs and handle-relative descendant operations at source level. Artifact reconciliation and skill UI remain
-  unwired.
-- Next action: Approve production key IDs, fingerprints, and ceilings, then compile trust and reconcile artifacts.
-  Decide whether a verified static-skill handoff plus deterministic Evidence Reviewer outcome is the v3.0 G19 quality
-  bar. Finish source-pack install and activation, reviewed user-visible execution, and Windows proof.
-  Unix private storage and pack artifacts have macOS and Linux runtime evidence. Windows source enforcement is reviewed,
-  but native Windows 11 ACL, reparse, persistence, and rollback execution remains open.
+- Current slice: Gate 4 employer, pay, and outcome decisions are frozen. The next implementation slice is the minimum
+  provenance- and freshness-bound employer dossier over official public sources and user-owned local observations.
+- Next action: define the fail-first dossier projection and source freshness checks without adding verdicts, central
+  private reviews, or an unreviewed network path.
 
 ## Deferred
 
 - Hosted general CI remains absent under `pre-alpha-private-no-ci`.
 
-Evidence: Unix and Windows private-storage, Evidence Reviewer evaluation, and Pack failure-guidance records are in
-`docs/harness/evidence/`. Keep command history there.
+Evidence: Milestone 7 completion is revision-bound in
+`docs/harness/evidence/v3-milestone-7-agent-pack-runtime-2026-08-12.json`. Native Windows 11 ACL, reparse,
+persistence, and rollback execution remains an accepted Milestone 11 release-proof gap.
