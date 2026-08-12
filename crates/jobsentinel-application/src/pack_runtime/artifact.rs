@@ -1,3 +1,5 @@
+//! Loads, verifies, persists, and removes signed pack artifacts in private storage.
+
 use std::path::Path;
 
 use chrono::NaiveDate;
@@ -16,6 +18,7 @@ mod secure;
 pub(super) enum ArtifactLoadError {
     Missing,
     Invalid,
+    TrustRevoked,
 }
 
 pub(super) fn load_tested_artifact<'a>(
@@ -31,6 +34,11 @@ pub(super) fn load_tested_artifact<'a>(
     ),
     ArtifactLoadError,
 > {
+    let publisher = trusted_publishers
+        .iter()
+        .find(|publisher| publisher.publisher_key_id == stored.publisher_key_id)
+        .filter(|publisher| !publisher.revoked)
+        .ok_or(ArtifactLoadError::TrustRevoked)?;
     let (publisher_dir, pack_dir, file_name) = artifact_parts(
         &stored.publisher_key_id,
         &stored.pack_id,
@@ -55,10 +63,6 @@ pub(super) fn load_tested_artifact<'a>(
     }
     let tested = parse_and_self_test_pack_payload(&release, today)
         .map_err(|_| ArtifactLoadError::Invalid)?;
-    let publisher = trusted_publishers
-        .iter()
-        .find(|publisher| publisher.publisher_key_id == release.publisher_key_id())
-        .ok_or(ArtifactLoadError::Invalid)?;
     Ok((release, tested, publisher))
 }
 

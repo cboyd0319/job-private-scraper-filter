@@ -1,3 +1,5 @@
+//! Reconciles runnable pack streams against their verified on-disk artifacts.
+
 use std::path::Path;
 
 use anyhow::{anyhow, Result};
@@ -67,6 +69,19 @@ pub async fn reconcile_active_pack_artifacts(
                                 )
                                 .await?
                         }
+                        ArtifactLoadError::TrustRevoked => {
+                            database
+                                .quarantine_active_and_rollback_pack_artifacts(
+                                    &active,
+                                    PackQuarantineReason::TrustRevoked,
+                                    &rollback,
+                                    PackQuarantineReason::TrustRevoked,
+                                    stream.generation,
+                                )
+                                .await?;
+                            outcome.quarantined += 1;
+                            continue;
+                        }
                     };
                     outcome.rolled_back += 1;
                 }
@@ -96,6 +111,11 @@ pub async fn reconcile_active_pack_artifacts(
                     .quarantine_invalid_active_pack_artifact(&active, stream.generation)
                     .await?
             }
+            ArtifactLoadError::TrustRevoked => {
+                database
+                    .quarantine_trust_revoked_active_pack_artifact(&active, stream.generation)
+                    .await?
+            }
         };
         outcome.quarantined += 1;
     }
@@ -106,5 +126,6 @@ const fn quarantine_reason(error: ArtifactLoadError) -> PackQuarantineReason {
     match error {
         ArtifactLoadError::Missing => PackQuarantineReason::ArtifactMissing,
         ArtifactLoadError::Invalid => PackQuarantineReason::IntegrityFailed,
+        ArtifactLoadError::TrustRevoked => PackQuarantineReason::TrustRevoked,
     }
 }

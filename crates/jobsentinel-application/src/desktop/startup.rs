@@ -5,7 +5,8 @@ use std::{
     sync::Arc,
 };
 
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, NaiveDate, Utc};
+use jobsentinel_domain::v3_signed_packs::TrustedPublisherKey;
 use thiserror::Error;
 use tokio::sync::RwLock;
 
@@ -15,7 +16,9 @@ use crate::{
         clear_config_credentials, extract_plaintext_credentials, is_migrated, set_migrated,
         CredentialService,
     },
-    pack_runtime::PackRuntimeEnvironment,
+    pack_runtime::{
+        production_trusted_publishers, reconcile_active_pack_artifacts, PackRuntimeEnvironment,
+    },
     scheduler::Scheduler,
     Config, PendingUrlImports,
 };
@@ -95,6 +98,7 @@ impl DesktopServices {
             false,
             database,
             credentials,
+            PackRuntimeEnvironment::for_data_dir(&jobsentinel_platform::get_data_dir()),
         ))
     }
 
@@ -135,14 +139,48 @@ impl DesktopServices {
             .await
             .map_err(|error| DesktopStartupError::Database(error.to_string()))?;
         tracing::info!("Database initialized successfully");
-        Self::initialize_ready(config_path, config, is_first_run, database).await
+        let pack_runtime = PackRuntimeEnvironment::for_data_dir(
+            config_path.parent().unwrap_or_else(|| Path::new(".")),
+        );
+        Self::initialize_ready_with_pack_runtime(
+            config_path,
+            config,
+            is_first_run,
+            database,
+            pack_runtime,
+            production_trusted_publishers(),
+            Utc::now().date_naive(),
+        )
+        .await
     }
 
     async fn initialize_ready(
         config_path: PathBuf,
+        config: Config,
+        is_first_run: bool,
+        database: Database,
+    ) -> Result<Self, DesktopStartupError> {
+        Self::initialize_ready_with_pack_runtime(
+            config_path,
+            config,
+            is_first_run,
+            database,
+            PackRuntimeEnvironment::for_data_dir(&jobsentinel_platform::get_data_dir()),
+            production_trusted_publishers(),
+            Utc::now().date_naive(),
+        )
+        .await
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    async fn initialize_ready_with_pack_runtime(
+        config_path: PathBuf,
         mut config: Config,
         is_first_run: bool,
         database: Database,
+        pack_runtime: PackRuntimeEnvironment,
+        trusted_publishers: &[TrustedPublisherKey],
+        today: NaiveDate,
     ) -> Result<Self, DesktopStartupError> {
         let reconciled = database
             .reconcile_outside_ai_operations()
@@ -156,6 +194,24 @@ impl DesktopServices {
             );
         }
         crate::v3_source_governance::install_startup_source_governance(&database).await;
+        jobsentinel_platform::ensure_private_dir_tree(pack_runtime.artifact_root())
+            .map_err(|error| DesktopStartupError::Database(error.to_string()))?;
+        let reconciled_packs = reconcile_active_pack_artifacts(
+            &database,
+            pack_runtime.artifact_root(),
+            trusted_publishers,
+            today,
+        )
+        .await
+        .map_err(|error| DesktopStartupError::Database(error.to_string()))?;
+        if reconciled_packs.rolled_back > 0 || reconciled_packs.quarantined > 0 {
+            tracing::warn!(
+                checked = reconciled_packs.checked,
+                rolled_back = reconciled_packs.rolled_back,
+                quarantined = reconciled_packs.quarantined,
+                "Reconciled active signed pack artifacts"
+            );
+        }
         let credentials = CredentialService::new(database.credentials());
         if migrate_plaintext_credentials_to_secure_storage(&config_path, &credentials).await {
             config = Config::load(&config_path)
@@ -168,7 +224,13 @@ impl DesktopServices {
         .await
         .map_err(|error| DesktopStartupError::Database(error.to_string()))?;
 
-        Ok(Self::assemble(config, is_first_run, database, credentials))
+        Ok(Self::assemble(
+            config,
+            is_first_run,
+            database,
+            credentials,
+            pack_runtime,
+        ))
     }
 
     fn assemble(
@@ -176,6 +238,7 @@ impl DesktopServices {
         is_first_run: bool,
         database: Database,
         credentials: CredentialService,
+        pack_runtime: PackRuntimeEnvironment,
     ) -> Self {
         let bookmarklet_port = config.bookmarklet_port;
         let database = Arc::new(database);
@@ -199,9 +262,7 @@ impl DesktopServices {
             scheduler_status,
             bookmarklet_server,
             pending_url_imports: PendingUrlImports::default(),
-            pack_runtime: PackRuntimeEnvironment::for_data_dir(
-                &jobsentinel_platform::get_data_dir(),
-            ),
+            pack_runtime,
             is_first_run,
         }
     }
@@ -300,59 +361,5 @@ async fn migrate_plaintext_credentials_to_secure_storage(
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[tokio::test]
-    async fn initializes_first_run_desktop_services() {
-        let temp_dir = tempfile::tempdir().unwrap();
-        let database = Database::connect_memory().await.unwrap();
-        let services = DesktopServices::initialize_with_database(
-            temp_dir.path().join("config.json"),
-            database,
-        )
-        .await
-        .unwrap();
-
-        assert!(services.is_first_run);
-        assert!(!services.config.read().await.auto_refresh.enabled);
-        assert_eq!(services.bookmarklet_server.read().await.config().port, 4321);
-        assert_eq!(
-            services.database.get_statistics().await.unwrap().total_jobs,
-            0
-        );
-    }
-
-    #[tokio::test]
-    async fn rejects_invalid_saved_config_before_constructing_services() {
-        let temp_dir = tempfile::tempdir().unwrap();
-        let config_path = temp_dir.path().join("config.json");
-        std::fs::write(&config_path, "{").unwrap();
-
-        let result =
-            DesktopServices::initialize_at(config_path, temp_dir.path().join("jobs.db")).await;
-
-        let error = match result {
-            Err(error) => error,
-            Ok(_) => panic!("invalid configuration unexpectedly initialized"),
-        };
-        assert!(matches!(error, DesktopStartupError::Configuration(_)));
-        assert_eq!(error.kind(), DesktopStartupFailureKind::Configuration);
-    }
-
-    #[tokio::test]
-    async fn recovery_services_are_ephemeral_offline_and_keychain_free() {
-        let services = DesktopServices::initialize_recovery().await.unwrap();
-
-        assert!(!services.is_first_run);
-        assert!(!services.config.read().await.auto_refresh.enabled);
-        assert_eq!(
-            services.credentials.unlock_status().await.unwrap().unlocked,
-            true
-        );
-        assert_eq!(
-            services.database.get_statistics().await.unwrap().total_jobs,
-            0
-        );
-    }
-}
+#[path = "startup_tests.rs"]
+mod tests;

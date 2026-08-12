@@ -375,6 +375,12 @@ pub(super) async fn load_active_pack_payload(
                     .await?;
                 return Err(anyhow!("pack artifact verification failed"));
             }
+            Err(ArtifactLoadError::TrustRevoked) => {
+                database
+                    .quarantine_trust_revoked_active_pack_artifact(&stored, expected_generation)
+                    .await?;
+                return Err(anyhow!("pack publisher trust is revoked"));
+            }
         };
     Ok(ActivePackPayload {
         payload: tested.into_payload(),

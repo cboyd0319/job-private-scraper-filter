@@ -72,6 +72,15 @@ impl Database {
             .await
     }
 
+    pub async fn quarantine_trust_revoked_stored_pack_artifact(
+        &self,
+        release: &StoredPackRelease,
+        expected_generation: u64,
+    ) -> Result<PackStream> {
+        self.quarantine_stored_pack_artifact(release, expected_generation, "trust_revoked")
+            .await
+    }
+
     async fn quarantine_stored_pack_artifact(
         &self,
         release: &StoredPackRelease,

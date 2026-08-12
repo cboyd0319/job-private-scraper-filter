@@ -1,3 +1,5 @@
+//! Proves startup artifact reconciliation, rollback, and fail-closed quarantine behavior.
+
 use super::*;
 
 #[tokio::test]
@@ -27,6 +29,41 @@ async fn startup_leaves_a_verified_active_artifact_unchanged() {
         .unwrap();
     assert_eq!(stream.availability, PackAvailability::Ready);
     assert_eq!(stream.generation, active.generation);
+}
+
+#[tokio::test]
+async fn startup_treats_an_omitted_publisher_as_revoked_trust() {
+    let database = Database::connect_memory().await.unwrap();
+    database.migrate().await.unwrap();
+    let artifact_root = tempfile::tempdir().unwrap();
+    let (publisher, _) = signed_source_pack(1);
+    stage_and_activate(&database, artifact_root.path(), &publisher, 1).await;
+
+    let reconciled = reconcile_active_pack_artifacts(
+        &database,
+        artifact_root.path(),
+        &[],
+        NaiveDate::from_ymd_opt(2026, 7, 20).unwrap(),
+    )
+    .await
+    .unwrap();
+
+    assert_eq!(reconciled.checked, 1);
+    assert_eq!(reconciled.rolled_back, 0);
+    assert_eq!(reconciled.quarantined, 1);
+    let stream = database
+        .get_pack_stream(PUBLISHER_ID, PACK_ID)
+        .await
+        .unwrap();
+    assert_eq!(stream.availability, PackAvailability::Quarantined);
+    let release = database
+        .get_stored_pack_release(PUBLISHER_ID, PACK_ID, 1)
+        .await
+        .unwrap();
+    assert_eq!(
+        release.quarantine_reason,
+        Some(PackQuarantineReason::TrustRevoked)
+    );
 }
 
 #[tokio::test]

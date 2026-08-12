@@ -1,3 +1,5 @@
+// Persists atomic active and rollback artifact lifecycle transitions.
+
 use super::*;
 
 impl Database {
@@ -239,6 +241,15 @@ impl Database {
             .await
     }
 
+    pub async fn quarantine_trust_revoked_active_pack_artifact(
+        &self,
+        release: &StoredPackRelease,
+        expected_generation: u64,
+    ) -> Result<PackStream> {
+        self.quarantine_active_pack_artifact(release, expected_generation, "trust_revoked")
+            .await
+    }
+
     async fn quarantine_active_pack_artifact(
         &self,
         release: &StoredPackRelease,
@@ -324,6 +335,15 @@ impl Database {
             .await
     }
 
+    pub async fn quarantine_trust_revoked_rollback_pack_artifact(
+        &self,
+        release: &StoredPackRelease,
+        expected_generation: u64,
+    ) -> Result<PackStream> {
+        self.quarantine_rollback_pack_artifact(release, expected_generation, "trust_revoked")
+            .await
+    }
+
     async fn quarantine_rollback_pack_artifact(
         &self,
         release: &StoredPackRelease,
@@ -395,6 +415,7 @@ fn artifact_reason(reason: PackQuarantineReason) -> Result<&'static str> {
     match reason {
         PackQuarantineReason::ArtifactMissing => Ok("artifact_missing"),
         PackQuarantineReason::IntegrityFailed => Ok("integrity_failed"),
+        PackQuarantineReason::TrustRevoked => Ok("trust_revoked"),
         _ => Err(invalid()),
     }
 }

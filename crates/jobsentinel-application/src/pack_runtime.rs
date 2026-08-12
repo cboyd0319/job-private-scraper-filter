@@ -25,6 +25,7 @@ mod evaluation;
 mod execution;
 mod management;
 mod recovery;
+mod trust;
 
 use artifact::{load_tested_artifact, persist_artifact, remove_owned_artifact, ArtifactLoadError};
 pub use evaluation::{
@@ -43,6 +44,7 @@ pub use management::{
     PackReleaseReviewState, PackReviewQuarantineReason,
 };
 pub use recovery::{reconcile_active_pack_artifacts, PackArtifactReconciliation};
+pub(crate) use trust::production_trusted_publishers;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PackRuntimeEnvironment {
@@ -183,6 +185,12 @@ pub async fn activate_pack_artifact(
                     .await?;
                 return Err(anyhow!("pack artifact verification failed"));
             }
+            Err(ArtifactLoadError::TrustRevoked) => {
+                database
+                    .quarantine_trust_revoked_stored_pack_artifact(&stored, expected_generation)
+                    .await?;
+                return Err(anyhow!("pack publisher trust is revoked"));
+            }
         };
     let active = database
         .activate_self_tested_pack(&tested, publisher, expected_generation)
@@ -221,6 +229,12 @@ pub async fn rollback_pack_artifact(
                     .quarantine_invalid_rollback_pack_artifact(&stored, expected_generation)
                     .await?;
                 return Err(anyhow!("pack rollback artifact is invalid"));
+            }
+            Err(ArtifactLoadError::TrustRevoked) => {
+                database
+                    .quarantine_trust_revoked_rollback_pack_artifact(&stored, expected_generation)
+                    .await?;
+                return Err(anyhow!("pack publisher trust is revoked"));
             }
         };
     let rolled_back = database
@@ -273,6 +287,12 @@ pub async fn enable_pack_artifact(
                     .quarantine_invalid_active_pack_artifact(&stored, expected_generation)
                     .await?;
                 return Err(anyhow!("pack artifact verification failed"));
+            }
+            Err(ArtifactLoadError::TrustRevoked) => {
+                database
+                    .quarantine_trust_revoked_active_pack_artifact(&stored, expected_generation)
+                    .await?;
+                return Err(anyhow!("pack publisher trust is revoked"));
             }
         };
     let enabled = database

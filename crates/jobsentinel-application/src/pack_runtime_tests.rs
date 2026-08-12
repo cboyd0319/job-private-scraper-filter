@@ -22,8 +22,8 @@ use crate::pack_runtime::{
 };
 use crate::test_support::test_job;
 
-const PUBLISHER_ID: &str = "jobsentinel-test-source-v1";
-const PACK_ID: &str = "jobsentinel.test.synthetic-source";
+pub(crate) const PUBLISHER_ID: &str = "jobsentinel-test-source-v1";
+pub(crate) const PACK_ID: &str = "jobsentinel.test.synthetic-source";
 const EVIDENCE_PUBLISHER_ID: &str = "jobsentinel-test-agent-v1";
 const EVIDENCE_PACK_ID: &str = "jobsentinel.test.evidence-review";
 const SKILL_PUBLISHER_ID: &str = "jobsentinel-test-skill-v1";
@@ -41,7 +41,7 @@ fn runtime_environment_binds_the_app_data_artifact_root_without_creating_it() {
     assert!(!environment.artifact_root().exists());
 }
 
-fn signed_source_pack(sequence: u64) -> (TrustedPublisherKey, Vec<u8>) {
+pub(crate) fn signed_source_pack(sequence: u64) -> (TrustedPublisherKey, Vec<u8>) {
     let (public_key, _) = sign_ed25519_for_test(&[7; 32], &[]).unwrap();
     let publisher = TrustedPublisherKey {
         publisher_key_id: PUBLISHER_ID.to_string(),
@@ -278,7 +278,7 @@ async fn saved_match() -> (Database, String, i64) {
     (database, job.hash, resume_id)
 }
 
-async fn stage_and_activate(
+pub(crate) async fn stage_and_activate(
     database: &Database,
     artifact_root: &std::path::Path,
     publisher: &TrustedPublisherKey,
@@ -372,3 +372,4 @@ mod lifecycle;
 mod management;
 mod packet_execution;
 mod recovery;
+mod trust;
