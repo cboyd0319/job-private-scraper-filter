@@ -19,6 +19,9 @@ const KEY_ID: &str = "jobsentinel-test-agent-v1";
 const PACK_ID: &str = "jobsentinel.test.evidence-review";
 const PUBLIC_KEY: &str = "7b7a10c233f71f9ddc725d837ead48592b1fee5b5aec33758d9c885c3f2736ff";
 const SIGNATURE: &str = "3508eabc1aff2e475721238410b9c3e1fdede592f685d373c361d26d7e92e1071b1604b91b040fe4b0322b7592c8944cd93db0034f331877eec32f2663155207";
+const NODE_SIGNER_PUBLIC_KEY: &str =
+    "ea4a6c63e29c520abef5507b132ec5f9954776aebebe7b92421eea691446d22c";
+const NODE_SIGNER_SIGNATURE: &str = "a52171ad052e4ecfafe343947cb54354a73147678df5dbef1fe43b00be2dfead037a3eeddf8cc3fe02d5c9321ee8c758ac4c65171893565fd41c56ca48d18609";
 const SIGNED_RELEASE: &str = r#"{"external_destinations":[],"fixture_summary":"One deterministic local note fixture.","license":"MIT","manifest_json":"{\"allowed_actions\":[\"read_selected_resume_evidence\",\"create_draft_local_note\"],\"allowed_data_categories\":[\"resume_evidence\"],\"allowed_task_kinds\":[\"evidence_review\"],\"approval_gates\":[\"per_execution_review\"],\"execution_class\":\"reviewed_typed_workflow\",\"gateway_policy_id\":null,\"pack_id\":\"jobsentinel.test.evidence-review\",\"pack_type\":\"agent\",\"payload_sha256\":\"5cc2c1542c744e40e81dcbf6cbbeae0c53779d9cddcf6d993de4ec5133f3eaaa\",\"privacy_labels\":[\"local_only\",\"sensitive\"],\"publisher_key_id\":\"jobsentinel-test-agent-v1\",\"schema\":\"jobsentinel.v3.pack-manifest.v1\"}","max_v3_app_version":"3.0.0","min_v3_app_version":"3.0.0","pack_version":"1.0.0","payload":"Create a local draft note for selected evidence.","payload_bytes":48,"publisher_name":"JobSentinel","release_id":"jobsentinel-test-agent-v1:jobsentinel.test.evidence-review:1","release_sequence":1}"#;
 
 fn base_manifest(payload: &str) -> Value {
@@ -147,6 +150,27 @@ fn v3_binary_accepts_an_exact_compatible_pack_release() {
         .expect("the compiled v3 runtime must accept an exact compatible release");
     assert_eq!(CURRENT_V3_RUNTIME_VERSION, "3.0.0");
     assert_eq!(verified.runtime_version, CURRENT_V3_RUNTIME_VERSION);
+}
+
+#[test]
+fn rust_verifier_accepts_the_node_release_signer_vector() {
+    let envelope = serde_json::to_vec(&json!({
+        "schema": "jobsentinel.v3.signed-pack-envelope.v1",
+        "publisher_key_id": KEY_ID,
+        "signed_release": SIGNED_RELEASE,
+        "signature": NODE_SIGNER_SIGNATURE
+    }))
+    .unwrap();
+    let mut key = agent_key();
+    key.public_key = hex::decode(NODE_SIGNER_PUBLIC_KEY)
+        .unwrap()
+        .try_into()
+        .unwrap();
+
+    let verified = parse_signed_pack_release(&envelope, &[key]).unwrap();
+
+    assert_eq!(verified.release_sequence(), 1);
+    assert_eq!(verified.publisher_key_id(), KEY_ID);
 }
 
 #[test]

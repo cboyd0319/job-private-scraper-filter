@@ -1,3 +1,5 @@
+<!-- Defines the maintained release, signing, publication, and rollback contract. -->
+
 # Release Contract
 
 Release execution is separate from normal development and requires explicit user
@@ -17,6 +19,49 @@ Before tagging, building release assets, uploading, or publishing:
    creation, asset deletion, upload, publication, signing, or notarization.
 4. Use only local or explicitly authorized hosted or native runners. Workflow
    configuration is not evidence; retain the actual run and artifact evidence.
+
+## Signed Pack Releases
+
+Pack signing is local-only. Production private keys stay concealed in the
+dedicated 1Password Developer Environment and must never be copied into the
+repository, a command argument, a key file, or a dotenv file. The compiled
+public identities and exact authority ceilings in
+`crates/jobsentinel-application/src/pack_runtime/trust.rs` are authoritative.
+
+| Pack identity | Publisher key ID | Concealed 1Password variable |
+| --- | --- | --- |
+| Source | `jobsentinel-source-publisher-v1` | `JOBSENTINEL_SOURCE_PRIVATE_KEY_PKCS8_B64` |
+| Skill | `jobsentinel-skill-publisher-v1` | `JOBSENTINEL_SKILL_PRIVATE_KEY_PKCS8_B64` |
+| Evaluation | `jobsentinel-evaluation-publisher-v1` | `JOBSENTINEL_EVALUATION_PRIVATE_KEY_PKCS8_B64` |
+| Evidence Reviewer | `jobsentinel-evidence-reviewer-publisher-v1` | `JOBSENTINEL_EVIDENCE_REVIEWER_PRIVATE_KEY_PKCS8_B64` |
+| Packet Builder | `jobsentinel-packet-builder-publisher-v1` | `JOBSENTINEL_PACKET_BUILDER_PRIVATE_KEY_PKCS8_B64` |
+
+Set `JOBSENTINEL_1PASSWORD_ENVIRONMENT_ID` only in the operator's local shell.
+Then sign an exact release JSON file with the matching ID, concealed-variable
+name, and raw public-key hex from the compiled registry:
+
+```bash
+op run --environment "$JOBSENTINEL_1PASSWORD_ENVIRONMENT_ID" -- \
+  npm run release:sign-pack -- \
+  --release release.json \
+  --publisher-key-id jobsentinel-source-publisher-v1 \
+  --expected-public-key-hex <approved-raw-public-key-hex> \
+  --key-env JOBSENTINEL_SOURCE_PRIVATE_KEY_PKCS8_B64 \
+  --out source-release.jspack
+```
+
+PowerShell uses the same child-process route with
+`--environment $env:JOBSENTINEL_1PASSWORD_ENVIRONMENT_ID`. The signer preserves
+the exact UTF-8 release bytes, checks that the concealed private key derives the
+approved public key, self-verifies the Ed25519 signature, and exclusively
+creates a private-mode output file. It never overwrites an existing envelope.
+
+Rotation always creates a new publisher key ID and receives a separate ceiling
+review before registry inclusion. Omitting a publisher from the compiled
+registry means revoked: startup reconciliation quarantines its active and
+rollback artifacts as `trust_revoked`. Do not delete an old public identity
+until the intended revocation or rotation boundary is approved. A signer run
+does not install, activate, publish, upload, or otherwise trust the result.
 
 ## Local Release Gate
 

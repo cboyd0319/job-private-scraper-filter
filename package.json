@@ -45,6 +45,7 @@
     "release:check-deps": "node scripts/checks/dependency-pins.mjs --latest && node scripts/checks/action-pins.mjs --latest",
     "release:check-env": "node scripts/release/check-release-environment.mjs",
     "release:readiness": "node scripts/release/check-release-readiness.mjs",
+    "release:sign-pack": "node scripts/release/sign-pack-envelope.mjs",
     "release:sbom": "node scripts/release/generate-release-sbom.mjs",
     "release:skills": "node scripts/release/package-agent-skills.mjs",
     "release:verify:public": "node scripts/release/verify-public-release-assets.mjs",
