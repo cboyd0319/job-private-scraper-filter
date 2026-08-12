@@ -27,27 +27,7 @@
       "user_visible_behavior": "JobSentinel retains its privacy, security, accessibility, and platform behavior while internal ownership becomes explicit.",
       "status": "passing",
       "verification": ["npm run verify:full", "npm run test:e2e:all", "node scripts/dev/run-cargo.mjs test --workspace --all-features"],
-      "evidence": [
-        "docs/harness/evidence/full-repository-refactor-final-audit-2026-07-16.json",
-        "docs/harness/evidence/repository-foundational-rust-owners-2026-07-15.json",
-        "docs/harness/evidence/full-repository-refactor-2026-07-15.json",
-        "docs/harness/evidence/repository-layout-cutovers-2026-07-16.json",
-        "docs/harness/evidence/script-test-owner-cutover-2026-07-16.json",
-        "docs/harness/evidence/structural-exception-reduction-2026-07-16.json",
-        "docs/harness/evidence/structural-exception-batch-2026-07-16.json",
-        "docs/harness/evidence/structural-exception-followup-2026-07-16.json",
-        "docs/harness/evidence/structural-exception-second-followup-2026-07-16.json",
-        "docs/harness/evidence/structural-exception-third-followup-2026-07-16.json",
-        "docs/harness/evidence/structural-exception-fourth-followup-2026-07-16.json",
-        "docs/harness/evidence/structural-exception-fifth-followup-2026-07-16.json",
-        "docs/harness/evidence/structural-exception-sixth-followup-2026-07-16.json",
-        "docs/harness/evidence/structural-exception-seventh-followup-2026-07-16.json",
-        "docs/harness/evidence/structural-exception-eighth-followup-2026-07-16.json",
-        "docs/harness/evidence/structural-exception-ninth-followup-2026-07-16.json",
-        "docs/harness/evidence/structural-exception-tenth-followup-2026-07-16.json",
-        "docs/harness/evidence/structural-exception-eleventh-followup-2026-07-16.json",
-        "docs/harness/evidence/structural-exception-twelfth-followup-2026-07-16.json"
-      ]
+      "evidence": ["docs/harness/evidence/full-repository-refactor-final-audit-2026-07-16.json"]
     },
     {
       "id": "crates-dry-remediation",
@@ -151,6 +131,10 @@
     }, {"id":"v3-milestone-7-agent-pack-runtime","priority":21,"area":"v3 packs","title":"Pack runtime","status":"passing",
       "behavior":"Packs stay bounded.","user_visible_behavior":"Users manage packs.",
       "verification":["npm run harness:check"],"evidence":["docs/harness/evidence/v3-milestone-7-agent-pack-runtime-2026-08-12.json"]
-    }, {"id":"v3-milestone-8-employer-intelligence","priority":22,"area":"v3 intelligence","title":"Employer intelligence","status":"active",
+    }, {"id":"v3-milestone-8-employer-intelligence","priority":22,"area":"v3 intelligence","title":"Employer intelligence","status":"passing",
       "behavior":"Guidance stays sourced.","user_visible_behavior":"Users see sourced context.",
+      "verification":["npm run verify:full","npm run test:e2e:all:budget","node scripts/dev/run-cargo.mjs test --workspace --all-features"],"evidence":["docs/harness/evidence/v3-milestone-8-employer-intelligence-2026-08-12.json"]
+    }, {"id":"v3-milestone-9-regions-access-editions-first-run","priority":23,"area":"v3 delivery","title":"Regions, access, editions, and first-run doctor","status":"active",
+      "behavior":"Regional and edition delivery is bounded, accessible, and model-optional.",
+      "user_visible_behavior":"Users complete the core journey on modest hardware and can add stronger local capabilities.",
       "verification":["npm run harness:check"],"evidence":[] } ] }

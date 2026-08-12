@@ -257,7 +257,7 @@ pack privileges, and opaque hiring-probability claims.
 | 5. Local evidence, resume, and matching engine | [x] Build a provenance-aware evidence graph shared by resume, requirement, packet, and case-file workflows.<br>[x] Add requirement states, hard constraints, seniority, recency, profession and regional profiles, transparent blockers, and "why not" diagnostics.<br>[x] Preserve the Military Transition template and military-service evidence, then add reviewed mappings from user-confirmed military occupations, responsibilities, credentials, and current clearances to civilian wording without inventing equivalence or claims.<br>[x] Calibrate Qwen3 retrieval and reranking against frozen evals while preserving deterministic fallback and stale-vector repair.<br>[x] Guard jobs, resumes, models, and packs against prompt injection and poisoned input.<br>[x] Implement Model Doctor, match debugger, feedback capture, and evidence-bound packets.<br>[x] Complete Gate 4 model and data decisions. | Documents, intelligence, local AI, assistance, storage, resume UI, and matching docs.<br>Exit: every match claim is evidence-linked, bounded, reproducible, and useful without external AI. |
 | 6. Opportunity case file and daily workflow | [x] Ship plain-language first run, one useful initial search path, and clear skip and recovery choices.<br>[x] Make the case file the shared view for job, source, risk, evidence, packet, application, interview, contact, offer, and outcome state.<br>[x] Deliver the core campaign operating model through the mission board, timeline, evidence wall, decision summary, "why not this job," "prepare this job," debrief, and Rust-owned drag-and-drop import for resumes, job postings, and encrypted backups; leave source-pack drop completion with its Milestone 7 quarantine and installer, and leave inbox, simulation, and adaptive campaign extensions to train 12A.<br>[x] Keep the local campaign, saved evidence, drafts, and review actions useful offline, with explicit stale and connectivity-required states for source actions.<br>[x] Preserve user control over voluntary or protected veteran-status answers, clearance claims, and eligibility questions throughout application review.<br>[x] Preserve focused feature ownership and typed application commands.<br>[x] Test empty, partial, duplicate, offline, failed-source, and restored-data states at desktop and narrow layouts. | Application, storage, assistance, `src/features/`, shared UI, and closest docs.<br>Exit: the primary v3 campaign works end to end without hidden automation or required connectivity. |
 | 7. Agent and pack runtime | [x] Implement local skill execution, reviewed task plans, bounded resume and packet agents, failure views, and eval packs.<br>[x] Define signed manifests, capability grants, quarantine, self-test, install, update, disable, uninstall, cleanup, and source-pack drag-and-drop import.<br>[x] Limit v3.0 executable packs to reviewed typed actions; keep generic script or dynamic adapter execution deferred until sandbox denial tests and an explicit future promotion pass.<br>[x] Deny broad shell, filesystem, network, credential, and external-send access by default.<br>[x] Test injection, malformed packs, signatures, downgrade, revocation, replay, partial install, and rollback.<br>[x] Keep static Agent Skills compatible and external AI gateway-bound. | Application, security, AI, assistance, platform, `skills/`, pack UI, and security docs.<br>Exit: agents and packs cannot exceed visible user-approved capabilities. |
-| 8. Employer, pay, and outcome intelligence | [x] Resolve all employer-intelligence open decisions at Gate 4.<br>[ ] Build the minimum employer dossier from official public sources, provenance, freshness, user-owned observations, and local outcomes.<br>[ ] Integrate source verification, posting history, pay clarity, scam response, application channel, interview context, and offer evidence without verdicts or central private reviews.<br>[ ] Revalidate volatile legal, policy, pay, and public-data claims before use. | Intelligence, sources, storage, salary, application, company research, and research docs.<br>Exit: guidance shows source, date, uncertainty, and safe next actions. |
+| 8. Employer, pay, and outcome intelligence | [x] Resolve all employer-intelligence open decisions at Gate 4.<br>[x] Build the minimum employer dossier from official public sources, provenance, freshness, user-owned observations, and local outcomes.<br>[x] Integrate source verification, posting history, pay clarity, scam response, application channel, interview context, and offer evidence without verdicts or central private reviews.<br>[x] Revalidate volatile legal, policy, pay, and public-data claims before use. | Intelligence, sources, storage, salary, application, company research, and research docs.<br>Exit: guidance shows source, date, uncertainty, and safe next actions. |
 | 9. Regions, access, editions, and first-run doctor | [ ] Define region manifests, taxonomy bridges, location and pay normalization, CV profiles, public-source fixtures, and starter packs.<br>[ ] Validate starter coverage without claiming regional completeness.<br>[ ] Implement Essentials and stronger-local profiles, download chooser, first-run doctor, model-free startup, and in-place model upgrade.<br>[ ] Ship the veteran and military-transition path across onboarding, resumes, matching, source guidance, application review, and case files; include disability-aware and early-career variants without treating veterans as one profile.<br>[ ] Cover role families, work modes, credentials, pay types, and accessibility needs in examples and tests.<br>[x] Complete Gate 4 regional and footprint decisions.<br>[ ] Complete Gate 5 edition decisions. | Domain, sources, documents, intelligence, local AI, platform, onboarding, Settings, packaging, and region docs.<br>Exit: modest hardware and model-free installs complete the core journey. |
 | 10. Update, rollback, repair, and distribution design | [ ] Implement explicit update availability, package verification, compatible rollback, repair, and component cleanup without silent updates.<br>[ ] Keep the installed application and compatible local data usable when update checks, downloads, or online repair are unavailable.<br>[ ] Bind app, edition, pack, model, browser, region, export, and database compatibility metadata.<br>[ ] Test interrupted update, checksum failure, unsupported package, missing component, rollback restore, and offline recovery.<br>[ ] Freeze the v3.0 feature and component cut at Gate 5. | Application, platform, security, storage, release scripts, Settings, updater docs, and release docs.<br>Exit: update and repair are reversible, inspectable, offline-safe, and need no developer instructions. |
 | 11. V3.0 integration, QA, and release | [ ] Run all end-to-end scenarios and commercial benchmarks in the evaluation bar.<br>[ ] Perform full GUI QA for every shipped action, recovery path, keyboard flow, accessibility state, responsive layout, and installed-app boundary.<br>[ ] Prove the veteran journey from military-service evidence and civilian-role review through source guidance, protected application answers, case-file tracking, and export.<br>[ ] Prove fresh v3.0.0 install, failure recovery, compatible v3 rollback, export/import, pack and model removal, and newer-data refusal.<br>[ ] Resolve release-pipeline and shared-history enforcement decisions; record any retained exception as a gap.<br>[ ] Update all front-door, product, security, migration, release, and support docs.<br>[ ] Verify assets, checksums, SBOMs, attestations, archives, labels, and public downloads.<br>[ ] Perform final live platform and distribution proof last, then complete Gate 6. | All affected owners.<br>Exit: every v3.0 success criterion and the [Evaluation And Release Bar](evaluation-and-release-bar.md) done definition has revision-bound evidence. |
@@ -384,6 +384,7 @@ relevant result, and caveat.
 | 2026-08-12 | Milestone 7 Evidence Reviewer evaluation checkpoint | Added the fixed `evidence_reviewer_resume_requirement_v1` agent-quality target at `0696f019`. A Ready active artifact is reloaded, signature-verified against caller trust, and self-tested before exactly one bounded synthetic resume-evidence case runs through the compiled Evidence Reviewer. Its temporary resume and in-memory database are isolated from caller user state. Output contains only the fixed target and aggregate pass or fail counts; no fixture, case, revision, user data, task, receipt, credential, network, AI, or model authority crosses the boundary. Fail-first compilation proved the API was absent before implementation. Focused domain and application tests, all 38 pack-runtime tests, full workspace formatting, clippy with warnings denied, unit tests, integrations, doctests, harness, architecture, security, responsibility-header, hard file-size, secret, and patch checks passed. Independent G19 and execution-boundary reviews returned `APPROVE` and `SAFE`. This proves one deterministic agent-quality slice only, not static-skill quality or full G19 closure. Production trust, startup artifact reconciliation, user-visible execution, native source-pack install and activation, Windows live proof, and final closure remain open. |
 | 2026-08-12 | Milestone 7 Pack failure-guidance checkpoint | Added closed lifecycle and quarantine recovery guidance to Settings at `67441348`. Needs-review, disabled, removed, cleanup-pending, and all five quarantine reasons now explain durable state using pack-type-neutral language and only the existing Remove or Retry cleanup actions. Removed state does not claim app-owned files are gone while cleanup remains pending, and no install, activation, enable, rollback, trust, or execution authority was added or implied. Two fail-first cycles proved the missing guidance and cleanup contradiction before correction. All 29 focused Pack management tests, all 268 frontend files and 3,122 tests, TypeScript, lint, harness, architecture, security, responsibility-header, hard file-size, secret, and patch checks passed. Fresh independent review returned `PASS`. Production trust, startup artifact reconciliation, native source-pack install and activation, user-visible reviewed execution, static-skill G19 closure, Windows live proof, and final closure remain open. |
 | 2026-08-12 | Milestone 7 complete | Created five Ed25519 release-signing identities in a dedicated 1Password Developer Environment, compiled only their public identities and exact least-privilege ceilings, and added a local secret-safe release signer. Startup now reconciles reviewed tasks and active artifacts against immutable production trust before normal services start. Settings can verify and stage bounded `.jspack` files, inspect exact signed facts, approve activation or rollback against the target release, manage lifecycle recovery, and review Ready static Skills. The Evidence Reviewer and Packet Builder run only fixed local reviewed plans over exact current inputs and produce durable bounded receipts. G19 is closed by the user-approved composed bar: official Agent Skills specification conformance, deterministic static-package readiness with complete safe resources, a validated advisory Evidence Reviewer handoff, and the separately evaluated deterministic Evidence Reviewer target. All eight shipped skills pass the official upstream validator. Full frontend, script, production build, Rust workspace, architecture, security, harness, dependency, file, secret, and patch gates passed for `a11e6097`; final independent UI and security review returned `APPROVE`. Native Windows 11 ACL, reparse, persistence, rollback, chooser, and focus behavior were not live-tested and remain accepted Milestone 11 release-proof gaps. Activated Milestone 8. |
+| 2026-08-12 | Milestone 8 complete | Shipped the minimum local employer dossier at `bff5632d`. Opportunity Case and company research now show dated reviewed source status, posting and pay context, application channel, exact-name local outcome counts, freshness, uncertainty, and safe next actions without background network access, employer verdicts, or central private reviews. Missing, stale, conflicting, malformed, and unsupported facts stay explicit or fail closed. The mixed-evidence evaluator requires separate attribution and forbids legal, scam, employer-quality, and composite conclusions. The 320-journey browser budget, all-features Rust workspace, exact-revision full repository gate, dated official Greenhouse and Lever source review, and final adversarial review passed. Windows 11 and exact installed macOS 26 proof remain accepted Milestone 11 gaps. Activated Milestone 9. |
 | 2026-07-22 | V3 closure and compatibility boundary locked | User decision makes v3.0.0 the first supported compatibility baseline. Pre-v3 upgrade support is out of scope, and Milestone 13 must delete its readers, shims, fixtures, and claims. Closure must also remove transition-only `v3` prefixes from ordinary code and live schema names, retaining version labels only where they are immutable compatibility identifiers. Earlier v2.9 migration proof remains historical evidence, not a release requirement. |
 | 2026-07-22 | Rust organization requirement locked | User made proper Rust workspace and module organization a release requirement. Cargo workspace ownership, shared dependency and lint inheritance, cohesive module boundaries, focused crate checks, and the repository file-size policy are blocking closure checks; extra crates and abstractions remain evidence-driven rather than size-driven. |
 | 2026-07-22 | File responsibility descriptions locked | Every maintained hand-authored comment-capable file must start with a one- or two-line native description of its exact responsibility, after any required format directive. Changed files are enforced immediately; strict commentless formats and canonical non-hand-authored exclusions remain untouched, and Milestone 13 requires the all-files audit to report zero gaps. |
@@ -622,92 +623,19 @@ relevant result, and caveat.
 
 ## Handoff
 
-- Current state: Milestones 0 through 6 and Gates 0 through 4 are passing.
-  Milestone 7 agent and pack runtime is the sole active feature. Signed release
-  trust is committed at `6b86b970`; strict typed payload self-tests and the
-  current lifecycle checkpoint adds publisher-qualified quarantine, inert exact
-  replay, same-sequence equivocation detection, proof-bound activation and
-  rollback, revocation, uninstall tombstones, private artifact persistence,
-  cleanup retry, and a tested but unwired startup artifact reconciliation path.
-  Reviewed evidence and draft-packet execution is committed through `28387b2c`; exact source state, active release,
-  approval, expiry, bounds, receipt atomicity, and replay are enforced without browser, network, filesystem,
-  credential, send, or submission authority. Durable pack-management projection and release-scoped cleanup truth are
-  committed at `1990a87b`; every lifecycle and release-history state remains visible from immutable verified facts,
-  and concurrent cleanup or later restaging cannot lose truth or delete a new artifact. The Settings pack review is
-  committed at `8c663ac1`; current and pending release permissions, failures, and cleanup truth remain inspectable.
-  Generation-bound Disable, confirmed local-file Remove, and cleanup retry are committed at `5c3dcba0`; signed history
-  remains visible, stale refreshes cannot overwrite newer truth, and no install, activation, enable, rollback, trust, or
-  execution authority was added. Self-tested synthetic evaluation packs now retain their
-  complete fixture set behind the private scorer committed at `f9f0a849`; exact observation coverage returns only
-  per-case pass or fail results. Development source metadata and the compiled signed-pack runtime now identify the
-  unreleased 3.0.0 line, and pack-runtime tests use the production parser. Ready static skills can now be reopened
-  through the same verified artifact boundary for bounded plain-text review and an advisory-only handoff. Read-only pack
-  review now exposes the immutable publisher public-key fingerprint beside the key ID, purpose derived from signed facts,
-  current no-model-download requirement, and historical last successful self-test. It rejects malformed or mismatched
-  facts and pack contracts the current self-test cannot produce. Settings now explains every durable lifecycle and
-  quarantine recovery state without adding authority. Desktop startup now owns the fixed platform app-data
-  artifact path, and database startup reconciles interrupted reviewed tasks before returning services. Broader
-  production publisher trust, active-artifact startup reconciliation, native source-pack drop,
-  install and activation UI, user-visible skill review, reviewed agent execution, and platform live proof remain open.
-- Evidence: `docs/harness/evidence/v3-milestone-3-reviewed-export-2026-07-19.json`
-  binds the reviewed-export slice at `3b4f635b`, and
-  `docs/harness/evidence/v3-milestone-3-storage-cleanup-2026-07-19.json` binds
-  offline storage cleanup at `4304fbb5`.
-  `docs/harness/evidence/v3-milestone-3-privacy-doctor-support-2026-07-19.json`
-  binds Privacy Doctor and safe support behavior at `154408e5`, and
-  `docs/harness/evidence/v3-milestone-3-policy-consent-2026-07-19.json` binds
-  restricted scheduled-source policy and consent at `80218596`, and
-  `docs/harness/evidence/v3-milestone-3-outside-ai-governance-2026-07-19.json`
-  binds the governed Outside AI lifecycle at `02465456`.
-  `docs/harness/evidence/v3-milestone-3-offline-recovery-platform-repair-2026-07-19.json`
-  binds final offline recovery and platform repair at `aaa9f28c`; prior
-  milestone evidence remains authoritative for its completed scope. Milestone 4
-  connected-source governance is bound at `8ef539ad`, and restricted scheduled
-  source retirement is bound by
-  `docs/harness/evidence/v3-milestone-4-restricted-source-retirement-2026-07-19.json`
-  at `8a7d3439`. LinkedIn Workbench governance is bound by
-  `docs/harness/evidence/v3-milestone-4-linkedin-workbench-governance-2026-07-19.json`
-  at `8baa2fea`. Reviewed employer discovery is bound by
-  `docs/harness/evidence/v3-milestone-4-employer-discovery-governance-2026-07-19.json`
-  at `43675a11`. Starter regional manifests are bound by
-  `docs/harness/evidence/v3-milestone-4-starter-region-manifests-2026-07-19.json`
-  at `c5422e63`. Gate 3 completion is bound by
-  `docs/harness/evidence/v3-milestone-4-gate-3-2026-07-19.json` at
-  `88beaadc`. The strict synthetic matching-profile baseline is versioned at
-  `crates/jobsentinel-documents/src/eval_fixtures/matching_profiles_v1.json`
-  and bound by `75e4a347`. The initial Gate 4 operating decisions are bound by
-  `docs/harness/evidence/v3-milestone-5-gate-4-operating-decisions-2026-07-20.json`
-  at `d7f0c2a4`. The six-pair Qwen3 requirement calibration and its retained
-  limitations are bound by
-  `docs/harness/evidence/v3-milestone-5-qwen-requirement-calibration-2026-07-20.json`
-  at `da5ce3df`. The first model-free macOS arm64 package, launch, and observed
-  memory baseline is bound by
-  `docs/harness/evidence/v3-milestone-5-essentials-macos-footprint-2026-07-20.json`
-  at `8a321b55`; its application artifact was built from `62405463`, with only
-  verifier and verifier-test files changed between those revisions. The
-  controlled 8 GiB Linux package, complete installed journey, setup correction,
-  and persistence relaunch are bound by
-  `docs/harness/evidence/v3-milestone-5-essentials-linux-8g-journey-2026-07-20.json`
-  at `d442138f`. The live governed model setup and removal proof is bound by
-  `docs/harness/evidence/v3-milestone-5-governed-model-lifecycle-2026-07-20.json`
-  at `a2ec0549`. The ten-pair broadened Qwen3 calibration is bound by
-  `docs/harness/evidence/v3-milestone-5-qwen-broadened-calibration-2026-07-20.json`
-  at `c93ac516`. Milestone 5 and the superseding Gate 4 decision closure are
-  bound by
-  `docs/harness/evidence/v3-milestone-5-local-evidence-completion-2026-07-21.json`
-  at `a450f883`. Milestone 6 completion is bound by
-  `docs/harness/evidence/v3-milestone-6-opportunity-case-workflow-2026-07-22.json`
-  at `48a47eaf`.
-- Next step: approve the exact production publisher key IDs, public-key fingerprints, and capability ceilings. Then
-  compile the approved immutable trust, reconcile active artifacts at startup against the bound root, and add reviewed
-  native source-pack drop without making staged content executable. Also decide whether a verified static-skill handoff
-  plus the deterministic Evidence Reviewer outcome is the v3.0 G19 skill-quality bar.
+- Current state: Milestones 0 through 8 and Gates 0 through 4 are passing. Milestone 9 is the sole active feature.
+- Evidence: Milestone 7 is bound by
+  `docs/harness/evidence/v3-milestone-7-agent-pack-runtime-2026-08-12.json`; Milestone 8 is bound by
+  `docs/harness/evidence/v3-milestone-8-employer-intelligence-2026-08-12.json` at `bff5632d`.
+- Next step: reconcile the existing regional manifests, matching profiles, source fixtures, model lifecycle, onboarding,
+  packaging profiles, veteran path, and Gate 4 decisions into one fail-first Milestone 9 acceptance matrix. Add only
+  behavior that the matrix proves missing, then complete Gate 5 edition decisions.
 - Publication checkpoint: after each pushed checkpoint, keep draft PR 329's
   description aligned with the exact remote-head commit, implemented scope,
   focused verification, known gaps, and next planned work before pausing or
   advancing to the next slice.
 - Open risks: scope remains large, contract freeze is irreversible within the
-  v3 compatibility line, recovery and permission behavior still needs Windows
-  11, macOS 26, and Linux release-matrix proof, installed recovery UI still
-  needs keyboard and screen-reader evidence, and some final distribution
-  evidence depends on external credentials.
+  v3 compatibility line, Windows 11 is unavailable for live proof by accepted
+  user decision, exact macOS 26 and Linux release-matrix proof remains open,
+  installed recovery UI still needs keyboard and screen-reader evidence, and
+  some final distribution evidence depends on external credentials.
