@@ -1,3 +1,5 @@
+// Verifies settings navigation, persistence, reviewed source controls, and recovery journeys in supported browsers.
+
 import { test, expect } from "@playwright/test";
 import { SettingsPage } from "./page-objects/SettingsPage";
 
@@ -115,9 +117,11 @@ test.describe("Settings Save and Load", () => {
       await expect(settingsPage.dialog).toContainText("LinkedIn Workbench");
       await expect(logAppliedButton).toBeDisabled();
 
-      await settingsPage.dialog
-        .getByLabel(/I understand\. Remember this on this computer/i)
-        .check();
+      const reviewCheckbox = settingsPage.dialog.getByLabel(
+        /I understand\. Remember this on this computer/i,
+      );
+      await expect(reviewCheckbox).toBeEnabled();
+      await reviewCheckbox.click();
 
       await expect(logAppliedButton).toBeEnabled();
 

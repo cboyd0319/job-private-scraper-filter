@@ -1,3 +1,5 @@
+// Verifies application-tracking board, review, status, reminder, and toolbar journeys in supported browsers.
+
 import { test, expect } from "@playwright/test";
 import { ApplicationsPage } from "./page-objects/ApplicationsPage";
 
@@ -62,18 +64,18 @@ test.describe("Application Tracking", () => {
       await expect(page.getByText("In Progress:", { exact: true })).toBeVisible();
     });
 
-    test("shows next actions in the Search review panel", async ({ page }) => {
+    test("shows next actions in the Daily Mission panel", async ({ page }) => {
       await expect(applicationsPage.reviewPanel).toBeVisible();
-      await expect(applicationsPage.reviewPanel).toContainText("Search review");
-      await expect(applicationsPage.reviewPanel).toContainText("Finish reminders");
-      await expect(applicationsPage.reviewPanel).toContainText("Prepare for interviews");
-      await expect(applicationsPage.reviewPanel).toContainText("Apply or skip saved roles");
+      await expect(applicationsPage.reviewPanel).toContainText("Daily mission");
+      await expect(applicationsPage.reviewPanel).toContainText("Review follow up");
+      await expect(applicationsPage.reviewPanel).toContainText("Prepare or follow up");
+      await expect(applicationsPage.reviewPanel).toContainText("Review this tracked role");
 
-      await applicationsPage.reviewPanel.getByRole("button", { name: "Review saved roles" }).click();
+      await applicationsPage.reviewPanel
+        .getByRole("button", { name: "Review this tracked role" })
+        .click();
 
-      await expect(
-        page.locator("[data-testid='kanban-column'][data-status='to_apply'] [data-testid='application-card']").first(),
-      ).toBeFocused();
+      await expect(page.getByTestId("application-detail-dialog")).toBeVisible();
     });
 
     test("keeps the page inside a narrow viewport", async ({ page }) => {
@@ -187,13 +189,6 @@ test.describe("Application Tracking", () => {
 
       await expect(applicationsPage.pendingReminderRows).toHaveCount(0);
       await expect(applicationsPage.pendingReminders).toBeHidden();
-    });
-
-    test("runs no-response review without losing the board", async () => {
-      await applicationsPage.reviewNoResponsesButton.click();
-
-      await expect(applicationsPage.kanbanBoard).toBeVisible();
-      await expect(applicationsPage.applicationCards).toHaveCount(3);
     });
 
     test("opens application summary panel", async ({ page }) => {

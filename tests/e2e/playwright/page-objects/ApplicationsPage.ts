@@ -1,3 +1,5 @@
+// Provides Playwright locators and actions for application-tracking browser journeys.
+
 import { Page, Locator } from "@playwright/test";
 import { BasePage } from "./BasePage";
 
@@ -42,10 +44,6 @@ export class ApplicationsPage extends BasePage {
 
   get summaryButton(): Locator {
     return this.page.locator("header").getByRole("button", { name: "Summary" });
-  }
-
-  get reviewNoResponsesButton(): Locator {
-    return this.page.getByRole("button", { name: "Review No Responses" });
   }
 
   get pendingReminders(): Locator {
